@@ -1,0 +1,21 @@
+{
+  "anonymousStartSupported": true,
+  "loginRequired": false,
+  "optionalLoginSupported": false,
+  "localProfileStorage": "OPTIONAL",
+  "deleteStoredProfileSupported": true,
+  "oneTimeUseSupported": true,
+  "recommendationReasonsShown": true,
+  "alternativesShown": true,
+  "recommendationCanBeRejected": true,
+  "userConfirmationRequired": true,
+  "externalApiUsed": false,
+  "externalApiFallbackDocumented": false,
+  "accessibilityChannels": [
+    "LARGE_TEXT",
+    "HIGH_CONTRAST"
+  ],
+  "manualReviewNotes": [],
+  "_loginRequired": "loginRequired=false 는 '로그인 기능이 전혀 없다'는 뜻이 아니라 '핵심 이용 흐름이 로그인에 의해 차단되지 않는다'는 뜻입니다. 로그인하지 않아도 추천·확인·제출 생성이 가능하면, 선택적 로그인 기능이 있어도 false 입니다.",
+  "_optionalLoginSupported": "서비스에 선택적 로그인 화면이 있으면 true 로 적으세요. true 여도 loginRequired 가 false 라면 정상입니다. 심사에서 익명 경로를 확인합니다."
+}

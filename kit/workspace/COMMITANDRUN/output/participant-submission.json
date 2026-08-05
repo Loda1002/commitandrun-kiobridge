@@ -1,0 +1,220 @@
+{
+  "inputContractVersion": "1.0.0",
+  "submissionVersion": "1.0.0",
+  "teamId": "COMMITANDRUN",
+  "environmentId": "chicken-store",
+  "profile": {
+    "profileId": "COMMITANDRUN-PROFILE-001",
+    "dataClassification": "SYNTHETIC_PROFILE",
+    "source": {
+      "collectionChannel": "WEB_FORM",
+      "providerId": "COMMITANDRUN",
+      "collectedAt": "2026-08-05T07:00:00.000Z"
+    },
+    "accessibility": {
+      "largeText": true,
+      "simpleSteps": true,
+      "visualGuidance": true,
+      "hearingSupport": false,
+      "mobilitySupport": false,
+      "highContrast": true,
+      "staffAssistancePreferred": false
+    },
+    "interaction": {
+      "preferredInput": "TOUCH",
+      "language": "ko-KR",
+      "confirmationRequired": true
+    },
+    "consent": {
+      "personalization": true,
+      "retentionPolicy": "SESSION_ONLY"
+    }
+  },
+  "sessionContext": {
+    "intent": {
+      "task": "ORDER_FOOD"
+    },
+    "facts": {},
+    "preferences": {
+      "serviceType": "TAKE_OUT",
+      "spicyLevel": "HOT",
+      "boneType": "BONELESS",
+      "cupOption": "PAPER",
+      "quantity": 1
+    },
+    "hardConstraints": {
+      "allergenIds": ["PEANUT"],
+      "maxPriceKrw": 7000
+    },
+    "capabilities": {},
+    "fieldMetadata": {
+      "/hardConstraints/allergenIds": {
+        "source": "WEB_FORM",
+        "confidence": 1,
+        "confirmedByUser": true,
+        "capturedAt": "2026-08-05T07:00:00.000Z"
+      },
+      "/preferences/serviceType": {
+        "source": "WEB_FORM",
+        "confidence": 1,
+        "confirmedByUser": true,
+        "capturedAt": "2026-08-05T07:00:00.000Z"
+      },
+      "/preferences/spicyLevel": {
+        "source": "WEB_FORM",
+        "confidence": 0.9,
+        "confirmedByUser": true,
+        "capturedAt": "2026-08-05T07:00:00.000Z"
+      }
+    },
+    "extensions": {
+      "COMMITANDRUN.contextSignals": [
+        {
+          "type": "TIME_OF_DAY",
+          "key": "mealWindow",
+          "value": "LUNCH",
+          "source": "device-clock",
+          "observedAt": "2026-08-05T07:00:00.000Z"
+        }
+      ]
+    }
+  },
+  "recommendation": {
+    "recommendedCandidateId": "CHICKEN-001",
+    "alternativeCandidateIds": ["CHICKEN-003", "CHICKEN-006"],
+    "excludedCandidates": [
+      {
+        "candidateId": "CHICKEN-005",
+        "reasonCode": "ALLERGEN_CONFLICT",
+        "explanation": "등록하신 견과류 알레르기와 겹쳐 제외했습니다."
+      },
+      {
+        "candidateId": "CHICKEN-008",
+        "reasonCode": "UNAVAILABLE",
+        "explanation": "지금 품절이라 고를 수 없습니다."
+      },
+      {
+        "candidateId": "CHICKEN-007",
+        "reasonCode": "SERVICE_TYPE_MISMATCH",
+        "explanation": "매장 이용 전용이라 포장으로는 받을 수 없습니다."
+      }
+    ],
+    "scoreBreakdown": {
+      "CHICKEN-001": {
+        "total": 0.94,
+        "serviceTypeMatch": 0.4,
+        "spicyLevelMatch": 0.25,
+        "boneTypeMatch": 0.2,
+        "priceWithinLimit": 0.09
+      },
+      "CHICKEN-003": {
+        "total": 0.74,
+        "serviceTypeMatch": 0.4,
+        "spicyLevelMatch": 0.25,
+        "boneTypeMatch": 0,
+        "priceWithinLimit": 0.09
+      },
+      "CHICKEN-006": {
+        "total": 0.69,
+        "serviceTypeMatch": 0.4,
+        "spicyLevelMatch": 0,
+        "boneTypeMatch": 0.2,
+        "priceWithinLimit": 0.09
+      }
+    },
+    "recommendationReasons": [
+      "포장으로 받으신다고 하셔서 포장이 되는 메뉴만 남겼습니다.",
+      "매운맛을 고르셔서 매운맛으로 나오는 메뉴를 먼저 보여드렸습니다.",
+      "순살을 고르셔서 뼈 없는 메뉴를 위에 두었습니다.",
+      "등록하신 견과류 알레르기와 겹치는 메뉴는 아예 빼고 골랐습니다.",
+      "예산 7,000원 안에서 6,000원인 메뉴를 골랐습니다."
+    ],
+    "unmetConditions": [],
+    "confidence": 0.94,
+    "requiresReconfirmation": false
+  },
+  "userDecision": {
+    "approved": true,
+    "decision": "APPROVE",
+    "confirmedAt": "2026-08-05T07:01:00.000Z",
+    "note": "화면에서 메뉴명·옵션·가격을 확인한 뒤 승인했습니다."
+  },
+  "executionPlan": {
+    "planId": "PLAN-COMMITANDRUN-CHICKEN-001",
+    "validationMode": "SIMULATION_ONLY",
+    "executionEnvironment": "DIGITAL_TWIN",
+    "actualDeviceCommandSent": false,
+    "actions": [
+      {
+        "actionIndex": 0,
+        "action": "select_service",
+        "target": { "kind": "service_type", "id": "TAKE_OUT" },
+        "expectedBeforeState": "SERVICE_TYPE",
+        "expectedAfterState": "MENU_SELECTION"
+      },
+      {
+        "actionIndex": 1,
+        "action": "select_menu",
+        "target": { "kind": "candidate", "id": "CHICKEN-001" },
+        "expectedBeforeState": "MENU_SELECTION",
+        "expectedAfterState": "OPTION_SELECTION"
+      },
+      {
+        "actionIndex": 2,
+        "action": "select_option",
+        "target": { "kind": "option", "groupId": "SPICY_LEVEL", "id": "HOT" },
+        "expectedBeforeState": "OPTION_SELECTION",
+        "expectedAfterState": "OPTION_SELECTION"
+      },
+      {
+        "actionIndex": 3,
+        "action": "select_option",
+        "target": { "kind": "option", "groupId": "BONE_TYPE", "id": "BONELESS" },
+        "expectedBeforeState": "OPTION_SELECTION",
+        "expectedAfterState": "OPTION_SELECTION"
+      },
+      {
+        "actionIndex": 4,
+        "action": "select_option",
+        "target": { "kind": "option", "groupId": "CUP", "id": "PAPER" },
+        "expectedBeforeState": "OPTION_SELECTION",
+        "expectedAfterState": "OPTION_SELECTION"
+      },
+      {
+        "actionIndex": 5,
+        "action": "select_option",
+        "target": { "kind": "option", "groupId": "QUANTITY", "id": "Q1" },
+        "expectedBeforeState": "OPTION_SELECTION",
+        "expectedAfterState": "OPTION_SELECTION"
+      },
+      {
+        "actionIndex": 6,
+        "action": "confirm_option",
+        "target": { "kind": "review", "id": "OPTION_CONFIRM" },
+        "expectedBeforeState": "OPTION_SELECTION",
+        "expectedAfterState": "OPTION_CONFIRM"
+      },
+      {
+        "actionIndex": 7,
+        "action": "confirm_option",
+        "target": { "kind": "review", "id": "MENU_SELECTION_WITH_CART" },
+        "expectedBeforeState": "OPTION_CONFIRM",
+        "expectedAfterState": "MENU_SELECTION_WITH_CART"
+      },
+      {
+        "actionIndex": 8,
+        "action": "open_cart_review",
+        "target": { "kind": "review", "id": "CART_REVIEW" },
+        "expectedBeforeState": "MENU_SELECTION_WITH_CART",
+        "expectedAfterState": "CART_REVIEW"
+      },
+      {
+        "actionIndex": 9,
+        "action": "verify_cart",
+        "target": { "kind": "review", "id": "CART_REVIEW" },
+        "expectedBeforeState": "CART_REVIEW",
+        "expectedAfterState": "CART_REVIEW"
+      }
+    ]
+  }
+}

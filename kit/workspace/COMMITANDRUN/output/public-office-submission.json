@@ -1,0 +1,164 @@
+{
+  "inputContractVersion": "1.0.0",
+  "submissionVersion": "1.0.0",
+  "teamId": "COMMITANDRUN",
+  "environmentId": "public-office",
+  "profile": {
+    "profileId": "COMMITANDRUN-PROFILE-PUB-A",
+    "dataClassification": "SYNTHETIC_PROFILE",
+    "source": {
+      "collectionChannel": "WEB_FORM",
+      "providerId": "COMMITANDRUN",
+      "collectedAt": "2026-08-05T07:00:00.000Z"
+    },
+    "accessibility": {
+      "largeText": true,
+      "simpleSteps": true,
+      "visualGuidance": false,
+      "hearingSupport": false,
+      "mobilitySupport": false,
+      "highContrast": false,
+      "staffAssistancePreferred": false
+    },
+    "interaction": {
+      "preferredInput": "TOUCH",
+      "language": "ko-KR",
+      "confirmationRequired": true
+    },
+    "consent": {
+      "personalization": true,
+      "retentionPolicy": "SESSION_ONLY"
+    }
+  },
+  "sessionContext": {
+    "intent": { "task": "PUBLIC_SERVICE_GUIDANCE" },
+    "facts": {
+      "serviceCategory": "RESIDENT"
+    },
+    "preferences": {
+      "stepByStep": true,
+      "simpleLanguage": true
+    },
+    "hardConstraints": {
+      "legalEligibilityInferenceAllowed": false
+    },
+    "capabilities": {
+      "availableAuthMethods": ["MOBILE_AUTH", "ID_CARD"]
+    },
+    "fieldMetadata": {
+      "/capabilities/availableAuthMethods": {
+        "source": "WEB_FORM",
+        "confidence": 1,
+        "confirmedByUser": true,
+        "capturedAt": "2026-08-05T07:00:00.000Z"
+      }
+    }
+  },
+  "recommendation": {
+    "recommendedCandidateId": "PUBLIC-001",
+    "alternativeCandidateIds": ["PUBLIC-002", "PUBLIC-006"],
+    "excludedCandidates": [
+      {
+        "candidateId": "PUBLIC-003",
+        "reasonCode": "REQUESTED_SERVICE_MISMATCH",
+        "explanation": "가족관계 분야 업무라 이번에 고르신 주민 분야와 다릅니다."
+      },
+      {
+        "candidateId": "PUBLIC-004",
+        "reasonCode": "REQUESTED_SERVICE_MISMATCH",
+        "explanation": "건강보험 분야 업무입니다."
+      },
+      {
+        "candidateId": "PUBLIC-005",
+        "reasonCode": "REQUESTED_SERVICE_MISMATCH",
+        "explanation": "지방세 분야 업무입니다."
+      }
+    ],
+    "scoreBreakdown": {
+      "PUBLIC-001": {
+        "total": 0.93,
+        "categoryMatch": 0.4,
+        "authMethodMatch": 0.35,
+        "guidanceModeMatch": 0.18
+      },
+      "PUBLIC-002": {
+        "total": 0.83,
+        "categoryMatch": 0.4,
+        "authMethodMatch": 0.35,
+        "guidanceModeMatch": 0.08
+      },
+      "PUBLIC-006": {
+        "total": 0.2,
+        "categoryMatch": 0,
+        "authMethodMatch": 0,
+        "guidanceModeMatch": 0.2
+      }
+    },
+    "recommendationReasons": [
+      "주민 분야 업무를 고르셔서 주민 분야만 남겼습니다.",
+      "모바일 인증과 신분증을 쓰실 수 있다고 하셔서 그 두 가지로 처리되는 업무를 보여드립니다.",
+      "단계별 안내와 쉬운 문장을 켜셔서 절차를 한 단계씩 나눠 안내합니다.",
+      "자격이 되는지는 판단하지 않았습니다. 필요한 서류와 인증수단만 안내드립니다.",
+      "원하시면 직원 상담 요청으로 바로 넘어가실 수 있습니다."
+    ],
+    "unmetConditions": [],
+    "confidence": 0.93,
+    "requiresReconfirmation": false
+  },
+  "userDecision": {
+    "approved": true,
+    "decision": "APPROVE",
+    "confirmedAt": "2026-08-05T07:01:00.000Z",
+    "note": "업무명과 필요한 인증수단을 화면에서 확인한 뒤 승인했습니다."
+  },
+  "executionPlan": {
+    "planId": "PLAN-COMMITANDRUN-PUBLIC-001",
+    "validationMode": "SIMULATION_ONLY",
+    "executionEnvironment": "DIGITAL_TWIN",
+    "actualDeviceCommandSent": false,
+    "actions": [
+      {
+        "actionIndex": 0,
+        "action": "start",
+        "target": { "kind": "review", "id": "SERVICE_CATEGORY" },
+        "expectedBeforeState": "WELCOME",
+        "expectedAfterState": "SERVICE_CATEGORY"
+      },
+      {
+        "actionIndex": 1,
+        "action": "select_category",
+        "target": { "kind": "category", "id": "RESIDENT" },
+        "expectedBeforeState": "SERVICE_CATEGORY",
+        "expectedAfterState": "SERVICE_SELECTION"
+      },
+      {
+        "actionIndex": 2,
+        "action": "select_service",
+        "target": { "kind": "candidate", "id": "PUBLIC-001" },
+        "expectedBeforeState": "SERVICE_SELECTION",
+        "expectedAfterState": "REQUIREMENTS_GUIDE"
+      },
+      {
+        "actionIndex": 3,
+        "action": "view_requirements",
+        "target": { "kind": "review", "id": "AUTH_METHOD" },
+        "expectedBeforeState": "REQUIREMENTS_GUIDE",
+        "expectedAfterState": "AUTH_METHOD"
+      },
+      {
+        "actionIndex": 4,
+        "action": "select_auth_method",
+        "target": { "kind": "auth_method", "id": "MOBILE_AUTH" },
+        "expectedBeforeState": "AUTH_METHOD",
+        "expectedAfterState": "APPLICATION_REVIEW"
+      },
+      {
+        "actionIndex": 5,
+        "action": "verify_application",
+        "target": { "kind": "review", "id": "APPLICATION_REVIEW" },
+        "expectedBeforeState": "APPLICATION_REVIEW",
+        "expectedAfterState": "APPLICATION_REVIEW"
+      }
+    ]
+  }
+}

@@ -54,7 +54,7 @@ ITEM 01 **키오브릿지** — 기존 키오스크에 얹어 쓰는 배리어�
 | 배포 | ⬜ **최대 리스크** |
 
 검증된 제출물 3종:
-`kiobridge-simulation-kit-v5.1.4-participant/kiobridge-simulation-kit-v5.1.4/workspace/COMMITANDRUN/output/`
+`kit/workspace/COMMITANDRUN/output/`
 
 ---
 
@@ -63,7 +63,7 @@ ITEM 01 **키오브릿지** — 기존 키오스크에 얹어 쓰는 배리어�
 KioBridge 시뮬레이션 키트는 배포된 ZIP을 각자 압축 해제해서 쓴다 (리포에 포함하지 않음).
 
 ```bash
-cd kiobridge-simulation-kit-v5.1.4-participant/kiobridge-simulation-kit-v5.1.4
+cd kit
 npm ci
 npm run dev          # web :3000 · api :4000
 ```

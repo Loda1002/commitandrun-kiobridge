@@ -1,0 +1,180 @@
+{
+  "inputContractVersion": "1.0.0",
+  "submissionVersion": "1.0.0",
+  "teamId": "COMMITANDRUN",
+  "environmentId": "hospital",
+  "profile": {
+    "profileId": "COMMITANDRUN-PROFILE-HOSP-A",
+    "dataClassification": "SYNTHETIC_PROFILE",
+    "source": {
+      "collectionChannel": "MOBILE_APP",
+      "providerId": "COMMITANDRUN",
+      "collectedAt": "2026-08-05T07:00:00.000Z"
+    },
+    "accessibility": {
+      "largeText": false,
+      "simpleSteps": false,
+      "visualGuidance": false,
+      "hearingSupport": true,
+      "mobilitySupport": false,
+      "highContrast": false,
+      "staffAssistancePreferred": false
+    },
+    "interaction": {
+      "preferredInput": "TOUCH",
+      "language": "ko-KR",
+      "confirmationRequired": true
+    },
+    "consent": {
+      "personalization": true,
+      "retentionPolicy": "SESSION_ONLY"
+    }
+  },
+  "sessionContext": {
+    "intent": { "task": "CHECK_IN" },
+    "facts": {
+      "visitType": "REVISIT",
+      "appointmentStatus": "HAS_APPOINTMENT",
+      "departmentId": "INTERNAL_MEDICINE",
+      "guardianPresent": false
+    },
+    "preferences": {
+      "supportModes": ["HEARING_SUPPORT"]
+    },
+    "hardConstraints": {
+      "medicalInferenceAllowed": false
+    },
+    "capabilities": {
+      "canUseSelfCheckIn": true
+    },
+    "fieldMetadata": {
+      "/facts/appointmentStatus": {
+        "source": "MOBILE_APP",
+        "confidence": 1,
+        "confirmedByUser": true,
+        "capturedAt": "2026-08-05T07:00:00.000Z"
+      },
+      "/facts/departmentId": {
+        "source": "MOBILE_APP",
+        "confidence": 1,
+        "confirmedByUser": true,
+        "capturedAt": "2026-08-05T07:00:00.000Z"
+      }
+    }
+  },
+  "recommendation": {
+    "recommendedCandidateId": "HOS-001",
+    "alternativeCandidateIds": ["HOS-006"],
+    "excludedCandidates": [
+      {
+        "candidateId": "HOS-002",
+        "reasonCode": "VISIT_TYPE_MISMATCH",
+        "explanation": "초진 접수 경로라 재진이라고 알려주신 것과 맞지 않습니다."
+      },
+      {
+        "candidateId": "HOS-003",
+        "reasonCode": "APPOINTMENT_MISMATCH",
+        "explanation": "예약이 없는 분을 위한 안내라 예약이 있는 경우와 맞지 않습니다."
+      },
+      {
+        "candidateId": "HOS-004",
+        "reasonCode": "VISIT_TYPE_MISMATCH",
+        "explanation": "건강검진 방문에 해당하는 안내입니다."
+      },
+      {
+        "candidateId": "HOS-005",
+        "reasonCode": "VISIT_TYPE_MISMATCH",
+        "explanation": "검사 예약 확인에 해당하는 안내입니다."
+      }
+    ],
+    "scoreBreakdown": {
+      "HOS-001": {
+        "total": 0.96,
+        "visitTypeMatch": 0.4,
+        "appointmentMatch": 0.3,
+        "departmentMatch": 0.2,
+        "supportModeMatch": 0.06
+      },
+      "HOS-006": {
+        "total": 0.3,
+        "visitTypeMatch": 0.4,
+        "appointmentMatch": 0,
+        "departmentMatch": 0,
+        "supportModeMatch": 0.06
+      }
+    },
+    "recommendationReasons": [
+      "재진이라고 알려주셔서 재진 접수를 안내드립니다.",
+      "예약이 있다고 하셔서 예약 접수 경로를 먼저 보여드립니다.",
+      "내과라고 알려주신 대로 내과 접수로 맞췄습니다. 증상으로 진료과를 판단하지 않았습니다.",
+      "청각 지원이 필요하다고 하셔서 자막·청각 보조가 되는 경로를 골랐습니다.",
+      "잘 맞지 않으면 직원 도움 요청으로 바로 넘어가실 수 있습니다."
+    ],
+    "unmetConditions": [],
+    "confidence": 0.96,
+    "requiresReconfirmation": false
+  },
+  "userDecision": {
+    "approved": true,
+    "decision": "APPROVE",
+    "confirmedAt": "2026-08-05T07:01:00.000Z",
+    "note": "접수 경로와 진료과를 화면에서 확인한 뒤 승인했습니다."
+  },
+  "executionPlan": {
+    "planId": "PLAN-COMMITANDRUN-HOS-001",
+    "validationMode": "SIMULATION_ONLY",
+    "executionEnvironment": "DIGITAL_TWIN",
+    "actualDeviceCommandSent": false,
+    "actions": [
+      {
+        "actionIndex": 0,
+        "action": "start",
+        "target": { "kind": "review", "id": "VISIT_TYPE" },
+        "expectedBeforeState": "WELCOME",
+        "expectedAfterState": "VISIT_TYPE"
+      },
+      {
+        "actionIndex": 1,
+        "action": "select_visit_type",
+        "target": { "kind": "visit_type", "id": "REVISIT" },
+        "expectedBeforeState": "VISIT_TYPE",
+        "expectedAfterState": "APPOINTMENT_CHECK"
+      },
+      {
+        "actionIndex": 2,
+        "action": "check_appointment",
+        "target": { "kind": "appointment", "id": "HAS_APPOINTMENT" },
+        "expectedBeforeState": "APPOINTMENT_CHECK",
+        "expectedAfterState": "DEPARTMENT_SELECTION"
+      },
+      {
+        "actionIndex": 3,
+        "action": "select_department",
+        "target": { "kind": "department", "id": "INTERNAL_MEDICINE" },
+        "expectedBeforeState": "DEPARTMENT_SELECTION",
+        "expectedAfterState": "DEPARTMENT_SELECTION"
+      },
+      {
+        "actionIndex": 4,
+        "action": "select_flow",
+        "target": { "kind": "candidate", "id": "HOS-001" },
+        "expectedBeforeState": "DEPARTMENT_SELECTION",
+        "expectedAfterState": "ACCESSIBILITY_SUPPORT"
+      },
+      {
+        "actionIndex": 5,
+        "action": "select_support",
+        "target": { "kind": "support", "id": "HEARING" },
+        "expectedBeforeState": "ACCESSIBILITY_SUPPORT",
+        "expectedAfterState": "CHECKIN_REVIEW"
+      },
+      {
+        "actionIndex": 6,
+        "action": "verify_checkin",
+        "target": { "kind": "review", "id": "CHECKIN_REVIEW" },
+        "expectedBeforeState": "CHECKIN_REVIEW",
+        "expectedAfterState": "CHECKIN_REVIEW"
+      }
+    ]
+  }
+}
