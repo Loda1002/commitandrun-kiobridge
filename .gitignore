@@ -40,6 +40,14 @@ kit/submission-output/
 # Rollback copy of the previous kit release, kept locally only
 kit-v514/
 
+# Mission videos and demo recordings — these go to the Blaybus workspace,
+# not into git. Binaries stay in history forever even after deletion.
+*.mp4
+*.mov
+*.avi
+*.mkv
+*.webm
+
 # Scratch
 *.tmp
 scratch/
