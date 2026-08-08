@@ -74,11 +74,32 @@ ITEM 01 **키오브릿지** — 기존 키오스크에 얹어 쓰는 배리어�
 
 ## 로컬 실행
 
-KioBridge 시뮬레이션 키트는 배포된 ZIP을 각자 압축 해제해서 쓴다 (리포에 포함하지 않음).
+**Node 22 필요.** `node -v` 가 `v22.` 로 시작해야 한다.
+
+### 처음 받았을 때 — 키트 압축 해제부터
+
+**시뮬레이션 키트는 리포에 없다.** `.gitignore` 의 `kit/*` 로 제외되어 있고,
+클론하면 `kit/workspace/COMMITANDRUN/` 만 들어온다.
+**이 단계를 건너뛰고 `npm ci` 를 하면 `package.json` 이 없어서 실패한다.**
+
+배포 ZIP은 리포에 들어 있으므로 각자 자기 컴퓨터에서 풀면 된다 (PowerShell):
+
+```powershell
+Expand-Archive -Path .\KioBridge_RC4\kiobridge-simulation-kit-v5.1.6-participant-RC4.zip -DestinationPath .\_kit_tmp -Force
+Copy-Item -Path .\_kit_tmp\kiobridge-simulation-kit-v5.1.6\* -Destination .\kit\ -Recurse -Force
+Remove-Item .\_kit_tmp -Recurse -Force
+```
+
+ZIP 안의 `workspace/` 에는 `.gitkeep` 과 `README.md` 뿐이라
+우리 `kit/workspace/COMMITANDRUN/` 을 덮어쓰지 않는다.
+
+확인: `kit/package.json` 과 `kit/workspace/COMMITANDRUN/src/participant.ts` 가 둘 다 있어야 한다.
+
+### 그다음
 
 ```bash
 cd kit
-npm ci
+npm ci               # 235 packages, 약 10초
 npm run dev          # web :3000 · api :4000
 ```
 
@@ -88,9 +109,15 @@ npm run dev          # web :3000 · api :4000
 npm run participant:validate -- --file ./workspace/COMMITANDRUN/output/participant-submission.json --execute
 ```
 
-> Windows에서는 `participant:doctor` 의 npm 감지와 `participant:progress` 가 키트 자체 버그로
-> 실패한다. 진행 판정은 `participant:validate --execute` 로 한다. 자세한 내용은
-> [`pm/02_PLAN.md`](pm/02_PLAN.md) 0절.
+구현 진척 확인 (x/9):
+
+```bash
+npm run participant:progress -- --team COMMITANDRUN
+```
+
+> 5.1.4 에서 Windows 버그로 실패하던 `participant:doctor` 와 `participant:progress` 는
+> **v5.1.6 RC4 에서 고쳐졌다** (08-08 실측 — `doctor` 오탐 0건, 무결성 222개 PASS).
+> 근거는 [`pm/99_HANDOFF.md`](pm/99_HANDOFF.md) 6절.
 
 ---
 
