@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "types": ["node"],
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "baseUrl": ".",
+    "paths": {
+      // Temporary. `packages/engine` is not an npm package yet (owner: @lde451).
+      // When it gains a package.json + index.ts, delete this entry — every
+      // import in this app already reads `@commitandrun/engine`.
+      "@commitandrun/engine": ["../../packages/engine/src/types.ts"]
+    }
+  },
+  "include": ["src/**/*.ts", "../../packages/engine/src/**/*.ts"]
+}
