@@ -156,3 +156,340 @@ export const ENVIRONMENT_BOUNDARY: Record<
 
 /** Server rejects a value below this when the user has not confirmed it. */
 export const LOW_CONFIDENCE_THRESHOLD = 0.6;
+
+/* ===========================================================================
+ * Engine input — what the engine is fed.
+ *
+ * Everything below this line is COPIED BY HAND from the competition kit. It is
+ * deliberately not imported: this package also runs in the deployed web app,
+ * where the kit is not installed, so an import would break at build time.
+ *
+ * Sources mirrored (kit v5.1.6 RC4):
+ *   kit/packages/profile-contract/src/enums.ts  — the official vocabularies
+ *   kit/packages/profile-contract/src/types.ts  — CanonicalProfile, session contexts
+ *   kit/packages/contracts/src/index.ts         — Candidate, PublicFixture
+ *
+ * If the kit is upgraded, re-check this block against those three files.
+ * =========================================================================== */
+
+// --- Official vocabularies (profile-contract/src/enums.ts) ------------------
+
+export type CollectionChannel =
+  | "WEB_FORM" | "MOBILE_APP" | "VOICE" | "CHATBOT" | "ASSISTED_INPUT" | "IMPORTED" | "OTHER";
+
+export type PreferredInput = "TOUCH" | "VOICE" | "KEYBOARD" | "SWITCH" | "ASSISTED" | "MULTIMODAL";
+
+export type RetentionPolicy = "SESSION_ONLY" | "UNTIL_USER_DELETES" | "NOT_STORED";
+
+export type FieldSource =
+  | "WEB_FORM" | "MOBILE_APP" | "VOICE" | "CHATBOT" | "ASSISTED_INPUT" | "IMPORTED"
+  | "INFERRED" | "DEFAULTED" | "OTHER";
+
+export type ServiceType = "DINE_IN" | "TAKE_OUT" | "NO_PREFERENCE" | "UNKNOWN";
+export type SpicyLevel = "MILD" | "MEDIUM" | "HOT" | "NO_PREFERENCE" | "UNKNOWN";
+export type BoneType = "BONE" | "BONELESS" | "NO_PREFERENCE" | "UNKNOWN";
+export type CupOption = "PAPER" | "REGULAR" | "NONE" | "NO_PREFERENCE" | "UNKNOWN";
+export type Allergen = "PEANUT" | "SOY" | "MILK" | "EGG" | "WHEAT" | "SHRIMP" | "UNKNOWN";
+
+export type VisitType = "FIRST_VISIT" | "REVISIT" | "HEALTH_SCREENING" | "EXAM" | "UNKNOWN";
+export type AppointmentStatus = "HAS_APPOINTMENT" | "NO_APPOINTMENT" | "UNKNOWN";
+export type Department =
+  | "INTERNAL_MEDICINE" | "ORTHOPEDICS" | "ENT" | "RADIOLOGY" | "HEALTH_SCREENING" | "UNSPECIFIED";
+export type SupportMode =
+  | "LARGE_TEXT" | "HEARING_SUPPORT" | "VISUAL_GUIDANCE" | "SIMPLE_STEPS" | "STAFF_HELP" | "GUARDIAN_MODE";
+
+export type ServiceCategory = "RESIDENT" | "FAMILY" | "INSURANCE" | "TAX" | "STAFF" | "UNKNOWN";
+export type AuthMethod =
+  | "MOBILE_AUTH" | "ID_CARD" | "BIOMETRIC" | "STAFF_ASSIST" | "NONE" | "UNKNOWN";
+
+export type IntentTask = "ORDER_FOOD" | "CHECK_IN" | "PUBLIC_SERVICE_GUIDANCE" | "PRACTICE";
+
+/** Classification of the fixture data the platform hands us. */
+export type DataClassification = "ACTUAL_EXTRACTED" | "SYNTHETIC_MOCK" | "PENDING_REAL_DEVICE";
+
+// --- Profile (profile-contract/src/types.ts) --------------------------------
+
+/** Long-lived, relatively stable information about the user. */
+export interface CanonicalProfile {
+  /** Pseudonymous id. NEVER a real identifier. */
+  profileId: string;
+  displayName?: string;
+  dataClassification: "SYNTHETIC_PROFILE";
+  source: {
+    collectionChannel: CollectionChannel;
+    providerId: string;
+    /** ISO 8601 UTC, e.g. "2026-08-05T07:00:00.000Z". Local time is rejected. */
+    collectedAt: string;
+  };
+  accessibility: {
+    largeText: boolean;
+    simpleSteps: boolean;
+    visualGuidance: boolean;
+    hearingSupport: boolean;
+    mobilitySupport: boolean;
+    highContrast: boolean;
+    staffAssistancePreferred: boolean;
+  };
+  interaction: {
+    preferredInput: PreferredInput;
+    /** BCP 47 WITH region — "ko-KR" passes, bare "ko" is rejected. */
+    language: string;
+    confirmationRequired: boolean;
+  };
+  consent: {
+    personalization: boolean;
+    retentionPolicy: RetentionPolicy;
+  };
+}
+
+/** The kit still exports this v4 alias; the task card uses this name. */
+export type UserProfile = CanonicalProfile;
+
+/** Provenance & trust for one normalized value. */
+export interface FieldMetadata {
+  source: FieldSource;
+  /** 0..1 — how confident our own normalizer is. */
+  confidence: number;
+  confirmedByUser: boolean;
+  capturedAt?: string;
+  normalizerId?: string;
+  /** Hash only — never the raw utterance or personal value. */
+  originalValueHash?: string;
+}
+
+/**
+ * Information that applies to THIS kiosk session only.
+ *
+ *  intent          — what the user is trying to do now
+ *  facts           — objective, established truths
+ *  preferences     — soft wishes; a mismatch lowers score, it does not exclude
+ *  hardConstraints — violating these MUST exclude a candidate
+ *  capabilities    — what the user can actually use right now
+ *  fieldMetadata   — provenance keyed by JSON Pointer into this object
+ */
+export interface SessionContextBase {
+  intent: { task: IntentTask; [k: string]: unknown };
+  facts: Record<string, unknown>;
+  preferences: Record<string, unknown>;
+  hardConstraints: Record<string, unknown>;
+  capabilities: Record<string, unknown>;
+  fieldMetadata: Record<string, FieldMetadata>;
+  /**
+   * Team-namespaced extensions, e.g. "COMMITANDRUN.contextSignals".
+   * The kit's TS type omits this, but session-context-base.schema.json declares
+   * it and our submission uses it — so it belongs here.
+   */
+  extensions?: Record<string, unknown>;
+}
+
+export interface ChickenStoreSessionContext extends SessionContextBase {
+  intent: { task: "ORDER_FOOD" };
+  facts: Record<string, never>;
+  preferences: {
+    serviceType?: ServiceType;
+    spicyLevel?: SpicyLevel;
+    boneType?: BoneType;
+    cupOption?: CupOption;
+    quantity?: number;
+  };
+  hardConstraints: {
+    allergenIds?: Allergen[];
+    maxPriceKrw?: number;
+  };
+  capabilities: Record<string, never>;
+}
+
+export interface HospitalSessionContext extends SessionContextBase {
+  intent: { task: "CHECK_IN" };
+  facts: {
+    visitType?: VisitType;
+    appointmentStatus?: AppointmentStatus;
+    departmentId?: Department;
+    guardianPresent?: boolean;
+  };
+  preferences: { supportModes?: SupportMode[] };
+  /** Medical inference is never allowed — the field exists to make that explicit. */
+  hardConstraints: { medicalInferenceAllowed?: false };
+  capabilities: { canUseSelfCheckIn?: boolean };
+}
+
+export interface PublicOfficeSessionContext extends SessionContextBase {
+  intent: { task: "PUBLIC_SERVICE_GUIDANCE"; requestedServiceId?: string };
+  facts: { serviceCategory?: ServiceCategory };
+  preferences: { stepByStep?: boolean; simpleLanguage?: boolean };
+  hardConstraints: { legalEligibilityInferenceAllowed?: false };
+  capabilities: { availableAuthMethods?: AuthMethod[] };
+}
+
+/**
+ * One context type covering the three official environments.
+ * Sandbox is practice-only and is intentionally left out, matching
+ * `EnvironmentId` and `ENVIRONMENT_BOUNDARY` above.
+ */
+export type SessionContext =
+  | ChickenStoreSessionContext
+  | HospitalSessionContext
+  | PublicOfficeSessionContext;
+
+// --- Environment fixture (contracts/src/index.ts) ---------------------------
+
+/** One thing the user can pick: a menu item, a department, a civil service. */
+export interface Candidate {
+  candidateId: string;
+  name: string;
+  domain: EnvironmentId;
+  /** false means sold out / closed. Filtering must drop these, not just score them down. */
+  available: boolean;
+  dataClassification: DataClassification;
+  price?: number;
+  description?: string;
+  /** groupId -> allowed option ids. Used by semantic validation. */
+  supportedOptions?: Record<string, string[]>;
+  attributes?: Record<string, unknown>;
+  requirements?: Record<string, unknown>;
+  supports?: Record<string, unknown>;
+}
+
+export interface OptionValue {
+  id: string;
+  label: string;
+  /** Optional numeric payload (e.g. QUANTITY). */
+  value?: number;
+}
+
+export interface OptionGroup {
+  groupId: string;
+  label: string;
+  required: boolean;
+  /** Semantic target kind this group backs (e.g. "service_type"). */
+  kind?: string;
+  /** When true the plan may select several values (e.g. support modes). */
+  multiSelect?: boolean;
+  options: OptionValue[];
+}
+
+export interface ScreenDef {
+  state: string;
+  title: string;
+  /** Semantic target kinds selectable on this screen. */
+  targetKinds: string[];
+  progress: number;
+  isFinalReview?: boolean;
+  hint?: string;
+}
+
+/** Legal state move. The plan's expectedBefore/AfterState must follow these. */
+export interface Transition {
+  from: string;
+  action: string;
+  to: string;
+  /** e.g. "readOnly" for verifier actions. */
+  guards?: string[];
+}
+
+export type SafetyRuleId =
+  | "REQUIRE_USER_CONFIRMATION"
+  | "BLOCK_PAYMENT_ACTION"
+  | "BLOCK_ACTUAL_DEVICE_COMMAND"
+  | "UNKNOWN_STATE_STOP"
+  | "STATE_MISMATCH_STOP"
+  | "UNAVAILABLE_CANDIDATE_BLOCK"
+  | "ALLERGEN_CONFLICT_BLOCK"
+  | "FINAL_BOUNDARY_STOP"
+  | "VERIFY_CART_READ_ONLY";
+
+export interface SafetyRuleDef {
+  ruleId: SafetyRuleId;
+  description: string;
+  severity: "BLOCK" | "STOP";
+}
+
+export interface EnvironmentManifest {
+  environmentId: EnvironmentId;
+  name: string;
+  displayName?: string;
+  description: string;
+  summary: string;
+  testFocus: string;
+  fixtureVersion: string;
+  dataClassification: DataClassification;
+  states: string[];
+  initialState: string;
+  /** The plan must stop here. See ENVIRONMENT_BOUNDARY above. */
+  reviewBoundaryState: string;
+  requiredVerifierAction: string;
+  terminalState: string;
+  allowedActions: string[];
+  /** Emitting any of these fails the run. See FORBIDDEN_ACTIONS above. */
+  forbiddenActions: string[];
+  sandbox?: boolean;
+  inputContract: {
+    version: string;
+    schemaRef: string;
+    vocabularyRef: string;
+  };
+  supportedProfileContractVersions: string[];
+}
+
+export type SimulationTemplate =
+  | "LANDING"
+  | "TWO_COLUMN_SELECTION"
+  | "FOUR_CARD_GRID"
+  | "OPTION_GROUP_LIST"
+  | "ORDER_REVIEW"
+  | "HOSPITAL_REVIEW"
+  | "PUBLIC_SERVICE_REVIEW"
+  | "BASIC_SANDBOX_REVIEW";
+
+export interface SimulationScreenBinding {
+  template: SimulationTemplate;
+  dataSource?: "candidates" | "option-groups" | "review";
+  /** groupIds rendered on this screen when dataSource === "option-groups". */
+  groups?: string[];
+  /** Cards per page for FOUR_CARD_GRID. A kiosk shows a page, not a list. */
+  pageSize?: number;
+  navigation?: { enabled: boolean; classification: "SYNTHETIC_MOCK" };
+}
+
+export interface SimulationBinding {
+  driver: "SIMULATION";
+  screens: Record<string, SimulationScreenBinding>;
+}
+
+/**
+ * The environment data the platform hands us. Layout templates only — it
+ * carries no coordinates and no profile data.
+ *
+ * `compatibilityRules` and `reviewMapping` are left opaque on purpose: the
+ * platform executes them, the engine never reads them. Transcribing that rule
+ * DSL would be ~150 lines we would then have to keep in sync for nothing. If we
+ * ever want to self-check against them, copy the shapes from
+ * kit/packages/contracts/src/index.ts and narrow these two fields then.
+ */
+export interface PublicFixture {
+  manifest: EnvironmentManifest;
+  candidates: Candidate[];
+  optionGroups: OptionGroup[];
+  screens: ScreenDef[];
+  transitions: Transition[];
+  safetyRules: SafetyRuleDef[];
+  simulationBinding: SimulationBinding;
+  compatibilityRules?: unknown;
+  reviewMapping?: unknown;
+}
+
+// --- The input itself -------------------------------------------------------
+
+/**
+ * Everything the engine needs to produce an EngineResult.
+ *
+ * The engine is a pure function of this: same input, same output. No clock, no
+ * network, no file system — the web app and the submission builder must be able
+ * to call it and get identical results.
+ */
+export interface EngineInput {
+  environmentId: EnvironmentId;
+  fixture: PublicFixture;
+  profile: UserProfile;
+  sessionContext: SessionContext;
+}
