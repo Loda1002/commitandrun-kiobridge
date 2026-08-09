@@ -1,26 +1,69 @@
+/*
+  [접근성(a11y) 완벽 대응 - 전역 스타일 및 디자인 시스템]
+  - 기획 요건: 시력/운동 능력 저하 사용자를 위한 배리어 프리(Barrier-free) 설정
+  - 이 파일은 앱 전체의 뼈대가 되는 색상, 크기, 폰트를 정의합니다.
+*/
+
+/* 
+  1. 폰트 설정 (접근성 필수 요건: 가독성 높은 고딕/Sans-serif 계열 사용)
+  - 얇은 명조체나 장식용 폰트는 저시력자 및 난독증 사용자가 인지하기 어려우므로 배제합니다.
+  - 한국어 웹 환경에서 가장 가독성이 검증된 'Pretendard(프리텐다드)' 폰트를 불러옵니다.
+*/
+@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css");
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* 
+  2. 기본 디자인 시스템 변수 (일반 모드)
+*/
+:root {
+  /* [접근성] 화면 확대/축소를 위한 배율 변수 (기본 1배). px 대신 이 변수를 곱해 글씨를 키웁니다. */
+  --font-scale: 1;            
+  
+  /* 기본 배경색과 글자색 */
+  --color-bg: #ffffff;
+  --color-fg: #1a1a1a;
+  
+  /* [접근성] 포인트 컬러 (명도 대비를 고려해 흰 배경에서도 눈에 잘 띄는 주홍색 사용) */
+  --color-accent: #ff5e00;    
+  
+  /* [접근성] 조작부 최소 터치 영역 보장 (근육 경련, 수전증 사용자를 위한 WCAG 권장 기준 44px) */
+  --tap-min: 44px;            
+  
+  --radius: 12px;
 }
 
+/* 
+  3. 고대비(High Contrast) 테마 
+  - page.tsx에서 버튼을 눌러 html 최상단에 data-contrast="high"가 붙으면 아래 변수들로 덮어씌워집니다.
+  - [접근성] 백내장, 저시력증 사용자를 위해 배경은 완전한 검은색(#000000), 글자는 흰색(#ffffff)으로 강렬한 대비를 줍니다.
+*/
+:root[data-contrast="high"] {
+  --color-bg: #000000;
+  --color-fg: #ffffff;
+  /* 고대비 화면에서 가장 눈에 띄는 쨍한 노란색으로 포인트 컬러 변경 */
+  --color-accent: #ffe600;    
+}
+
+/* 
+  4. 앱 전체 기본 스타일 적용
+*/
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  /* 위에서 정의한 변수들을 화면 바탕과 글자색에 적용 */
+  background-color: var(--color-bg);
+  color: var(--color-fg);
+  
+  /* 
+    [접근성] 폰트 적용 우선순위 (Fallback)
+    1순위로 Pretendard를 적용하고, 만약 인터넷 문제로 로딩에 실패하더라도 
+    운영체제별 최적의 고딕 폰트(Apple SD Gothic Neo, Noto Sans 등)가 나오도록 방어 코드를 작성합니다.
+  */
+  font-family: "Pretendard", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", sans-serif;
+  
+  /* 테마(일반 <-> 고대비) 전환 시 눈이 아프지 않도록 배경과 글자색에 부드러운 전환(0.2초) 효과 추가 */
+  transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
 }
