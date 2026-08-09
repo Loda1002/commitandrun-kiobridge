@@ -70,10 +70,10 @@
     "extensions": {
       "COMMITANDRUN.contextSignals": [
         {
-          "type": "TIME_OF_DAY",
-          "key": "mealWindow",
-          "value": "LUNCH",
-          "source": "device-clock",
+          "type": "STOCK",
+          "key": "unavailableCandidateIds",
+          "value": ["CHICKEN-008"],
+          "source": "environment-fixture:chicken-store/candidates.json#available",
           "observedAt": "2026-08-05T07:00:00.000Z"
         }
       ]
@@ -127,6 +127,7 @@
       "매운맛을 고르셔서 매운맛으로 나오는 메뉴를 먼저 보여드렸습니다.",
       "순살을 고르셔서 뼈 없는 메뉴를 위에 두었습니다.",
       "등록하신 견과류 알레르기와 겹치는 메뉴는 아예 빼고 골랐습니다.",
+      "매장 재고를 확인해 지금 품절인 메뉴는 빼고 골랐습니다.",
       "예산 7,000원 안에서 6,000원인 메뉴를 골랐습니다."
     ],
     "unmetConditions": [],
