@@ -38,7 +38,9 @@ app.setErrorHandler((err, _req, reply) => {
       upstreamBody: err.body,
     });
   }
-  if ((err as { code?: string }).code === "ECONNREFUSED" || err.message.includes("fetch failed")) {
+  // Fastify 5 hands the error in as `unknown`. Narrow once, then read it.
+  const { code, message } = (err ?? {}) as { code?: string; message?: string };
+  if (code === "ECONNREFUSED" || (message ?? "").includes("fetch failed")) {
     return reply.code(503).send({
       error: "UPSTREAM_UNREACHABLE",
       message: "시뮬레이션 서버에 연결하지 못했습니다.",
@@ -46,7 +48,7 @@ app.setErrorHandler((err, _req, reply) => {
     });
   }
   app.log.error(err);
-  return reply.code(500).send({ error: "INTERNAL_ERROR", message: err.message });
+  return reply.code(500).send({ error: "INTERNAL_ERROR", message: message ?? "unknown error" });
 });
 
 function assertEnvironment(id: string): void {
