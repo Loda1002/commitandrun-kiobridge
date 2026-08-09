@@ -46,8 +46,9 @@ export default function Home() {
     <div className="flex justify-center gap-3 w-full">
       <button
         onClick={toggleFontScale}
-        // focus-visible: 마우스 대신 키보드(Tab)로 조작할 때 주홍색 굵은 테두리가 생겨 현재 위치를 알려줍니다.
-        className="focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#ff5e00] focus-visible:ring-offset-2 transition-transform hover:scale-105 active:scale-95"
+        // focus-visible: 마우스 대신 키보드(Tab)로 조작할 때 굵은 테두리가 생겨 현재 위치를 알려줍니다.
+        // 테두리 색은 --color-accent 를 따라가므로 고대비 모드에서는 노란색으로 바뀝니다.
+        className="focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2 transition-transform hover:scale-105 active:scale-95"
         style={{
           minHeight: 'var(--tap-min)', // 손떨림이 있는 분들도 쉽게 누를 수 있게 최소 44px 터치 영역을 보장합니다.
           padding: '0.5rem 1.5rem',
@@ -63,7 +64,7 @@ export default function Home() {
 
       <button
         onClick={toggleContrast}
-        className="focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#ff5e00] focus-visible:ring-offset-2 transition-transform hover:scale-105 active:scale-95"
+        className="focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2 transition-transform hover:scale-105 active:scale-95"
         style={{
           minHeight: 'var(--tap-min)',
           padding: '0.5rem 1.5rem',
@@ -85,7 +86,7 @@ export default function Home() {
       
       {/* 주문 과정 중(Step 1, 2)에는 설정 버튼을 화면 상단에 배치합니다. */}
       {currentStep > 0 && (
-        <header className="pb-4 border-b border-gray-300 dark:border-gray-700 w-full flex justify-center">
+        <header className="pb-4 border-b border-gray-300 w-full flex justify-center">
           {themeButtons}
         </header>
       )}
@@ -95,7 +96,7 @@ export default function Home() {
           기획 요건에 따라 '로그인 없이 시작(비회원)'을 기본이자 가장 눈에 띄게 배치합니다.
          ========================================================== */}
       {currentStep === 0 && (
-        <main className="flex-1 flex flex-col items-center justify-center gap-12 text-center animate-in fade-in zoom-in duration-300 w-full">
+        <main className="flex-1 flex flex-col items-center justify-center gap-12 text-center w-full">
           <div>
             <h1 className="font-extrabold" style={{ fontSize: 'calc(2.5rem * var(--font-scale))' }}>
               안녕하세요!
@@ -108,7 +109,7 @@ export default function Home() {
           <div className="flex flex-col gap-4 w-full max-w-md">
             <button 
               onClick={() => setCurrentStep(1)}
-              className="w-full focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#ff5e00] focus-visible:ring-offset-4 transition-transform hover:scale-105 active:scale-95 shadow-lg"
+              className="w-full focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-4 transition-transform hover:scale-105 active:scale-95 shadow-lg"
               style={{
                 minHeight: 'calc(var(--tap-min) + 16px)', // 메인 버튼이라 44px보다 더 큼직하게 설정
                 borderRadius: 'var(--radius)',
@@ -123,7 +124,7 @@ export default function Home() {
           </div>
 
           {/* 시작 화면에서는 설정 버튼이 메인 액션을 방해하지 않도록 맨 밑으로 내립니다. */}
-          <div className="mt-8 border-t border-gray-200 dark:border-gray-800 pt-8 w-full">
+          <div className="mt-8 border-t border-gray-200 pt-8 w-full">
             {themeButtons}
           </div>
         </main>
@@ -134,7 +135,7 @@ export default function Home() {
           AI가 왜 이 메뉴를 추천했는지(점수), 왜 다른 건 뺐는지(알레르기 등)를 투명하게 공개합니다.
          ========================================================== */}
       {currentStep === 1 && (
-        <main className="flex flex-col gap-8 animate-in slide-in-from-right-8 duration-300 w-full">
+        <main className="flex flex-col gap-8 w-full">
           <h1 className="font-extrabold text-center" style={{ fontSize: 'calc(2rem * var(--font-scale))' }}>
             맞춤형 추천 결과
           </h1>
@@ -162,9 +163,14 @@ export default function Home() {
                 <div key={idx} className="flex items-center gap-4">
                   <span className="w-28 shrink-0">{item.label}</span>
                   <div className="flex-1 flex items-center h-8">
-                    {/* 막대기 전체 통 (회색 배경) */}
-                    <div 
-                      className="h-full bg-gray-200 dark:bg-gray-800 rounded-full overflow-hidden border border-gray-300 dark:border-gray-600"
+                    {/*
+                      막대기 전체 통 (회색 배경)
+                      dark: 접두사를 쓰지 않는 이유 — 배경색은 컴퓨터 테마가 아니라 고대비 토글이 정합니다.
+                      dark:bg-gray-800 이 붙어 있으면 어두운 테마 사용자가 고대비를 켰을 때
+                      검은 배경 위에 짙은 회색 통이 얹혀 대비 1.43:1 로 사라집니다.
+                    */}
+                    <div
+                      className="h-full bg-gray-200 rounded-full overflow-hidden border border-gray-300"
                       style={{ width: item.containerWidth }}
                     >
                       {/* 실제 점수만큼 주홍색으로 채워지는 영역 */}
@@ -206,7 +212,7 @@ export default function Home() {
 
           <button 
             onClick={() => setCurrentStep(2)}
-            className="w-full mt-4 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#ff5e00] focus-visible:ring-offset-4 transition-transform hover:scale-105 active:scale-95"
+            className="w-full mt-4 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-4 transition-transform hover:scale-105 active:scale-95"
             style={{
               minHeight: 'calc(var(--tap-min) + 8px)',
               borderRadius: 'var(--radius)',
@@ -226,7 +232,7 @@ export default function Home() {
           AI가 임의로 결제하지 않고, 결제 직전(CART_REVIEW)에 멈췄음을 사용자에게 증명합니다.
          ========================================================== */}
       {currentStep === 2 && (
-        <main className="flex flex-col gap-8 animate-in slide-in-from-right-8 duration-300 w-full">
+        <main className="flex flex-col gap-8 w-full">
           {/* 
             [안전 리포트 영역] 
             주의: 고대비 모드일 때는 시인성을 위해 연초록 배경을 없애고 테두리 선만 밝은 초록색(green-400)으로 표시합니다.
@@ -255,7 +261,8 @@ export default function Home() {
               </li>
               <li className={`flex justify-between items-center border-b pb-4 ${isHighContrast ? 'border-gray-700' : 'border-green-200'}`}>
                 <span>정지 지점</span>
-                <span>CART_REVIEW <span className="opacity-70 text-sm">(결제 직전)</span></span>
+                {/* 보조 설명도 큰 글씨 토글을 따라가야 하므로 text-sm 대신 배율을 곱합니다. */}
+                <span>CART_REVIEW <span className="opacity-70" style={{ fontSize: 'calc(0.875rem * var(--font-scale))' }}>(결제 직전)</span></span>
               </li>
               <li 
                 className={`flex justify-between items-center pt-2 ${isHighContrast ? 'text-green-400' : 'text-green-700'}`} 
@@ -272,7 +279,7 @@ export default function Home() {
 
           <button 
             onClick={() => setCurrentStep(0)}
-            className="w-full mt-4 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#ff5e00] focus-visible:ring-offset-4 transition-transform hover:scale-105 active:scale-95"
+            className="w-full mt-4 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-4 transition-transform hover:scale-105 active:scale-95"
             style={{
               minHeight: 'calc(var(--tap-min) + 8px)',
               borderRadius: 'var(--radius)',
