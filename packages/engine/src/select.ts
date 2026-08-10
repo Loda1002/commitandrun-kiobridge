@@ -437,6 +437,9 @@ function hasCode(excluded: ExclusionReason[], reasonCode: string): boolean {
  * The runners-up. `score` already ranked everything and broke the ties, so this
  * reads its answer instead of ranking a second time — two rankings that can
  * disagree with each other is worse than one.
+ *
+ * `count` can only narrow: score keeps two alternatives, so asking for more
+ * still returns two.
  */
 export function buildAlternatives(result: EngineResult, count = 2): string[] {
   return result.alternativeCandidateIds.slice(0, count);
