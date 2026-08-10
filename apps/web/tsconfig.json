@@ -19,7 +19,8 @@
       }
     ],
     "paths": {
-      "@/*": ["./*"]
+      "@/*": ["./*"],
+      "@commitandrun/engine": ["../../packages/engine/src/types.ts"]
     }
   },
   "include": [
@@ -28,7 +29,8 @@
     "**/*.tsx",
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts",
-    "**/*.mts"
+    "**/*.mts",
+    "../../packages/engine/src/**/*.ts"
   ],
   "exclude": ["node_modules"]
 }
