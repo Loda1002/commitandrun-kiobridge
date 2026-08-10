@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 // 🚨 [절대 규칙 1 & 2 준수] mock.ts나 fetch를 직접 쓰지 않고 오직 api.ts만 부릅니다.
 import { fetchRecommendation, runPlan, defaultAnswers } from "../lib/api";
-import type { RecommendationView, RunView } from "../lib/types";
+import type { Answers, RecommendationView, RunView } from "../lib/types";
 
 /**
  * 🎯 [핵심 화면] AI 자동 주문 서비스 메인 페이지
@@ -18,7 +18,7 @@ export default function Home() {
   const [currentStep, setCurrentStep] = useState(0); // 현재 화면 상태 (0: 시작화면, 1: 추천 결과, 2: 안전 리포트)
 
   // 2. API 데이터 및 로딩 상태 관리
-  const [answers, setAnswers] = useState<any>(null);
+  const [answers, setAnswers] = useState<Answers | null>(null);
   const [recView, setRecView] = useState<RecommendationView | null>(null);
   const [runResult, setRunResult] = useState<RunView | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -158,9 +158,13 @@ export default function Home() {
 
       {/* ==========================================================
           ⏳ 로딩 화면 (0.4초 딜레이 대응)
+
+          animate-in / fade-in / zoom-in 은 tailwindcss-animate 의 클래스인데 그 패키지를
+          안 쓴다. 오류 없이 무시되어 화면상으로는 멀쩡해 보이므로 남겨두면 다음 사람이
+          "애니메이션이 걸려 있다"고 오해한다. 회전은 animate-spin(기본 제공)이 맡는다.
          ========================================================== */}
       {isLoading ? (
-        <main className="flex-1 flex flex-col items-center justify-center gap-8 text-center animate-in fade-in zoom-in duration-300 w-full">
+        <main className="flex-1 flex flex-col items-center justify-center gap-8 text-center w-full">
           <div 
             role="status" 
             aria-label="데이터를 불러오는 중입니다"
@@ -241,9 +245,9 @@ export default function Home() {
                 {(() => {
                   const contributions = recView.recommended!.contributions;
                   // maxWeight도 하드코딩하지 않고 데이터에서 직접 뽑아옵니다.
-                  const maxWeight = Math.max(...contributions.map((c: any) => c.weight));
-                  
-                  return contributions.map((c: any, idx: number) => {
+                  const maxWeight = Math.max(...contributions.map((c) => c.weight));
+
+                  return contributions.map((c, idx) => {
                     // weight가 0일 경우 Infinity가 뜨는 것을 방지
                     const containerWidth = maxWeight === 0 ? "0%" : `${(c.weight / maxWeight) * 100}%`;
                     const fillWidth = c.weight === 0 ? "0%" : `${(c.earned / c.weight) * 100}%`;
@@ -275,12 +279,14 @@ export default function Home() {
                 })()}
               </div>
               
-              {/* 추천 이유 문장들 동적 렌더링 */}
+              {/* 추천 이유 문장들 동적 렌더링.
+                  dark: 를 쓰지 않는 이유는 점수 막대(위)와 같다. 배경을 정하는 주체는
+                  OS 테마가 아니라 고대비 토글 하나여야 한다. */}
               {recView.reasons && recView.reasons.length > 0 && (
-                <div className={`mt-8 p-5 rounded-xl ${isHighContrast ? 'border border-gray-400' : 'bg-gray-100 dark:bg-gray-800/50'}`}>
+                <div className={`mt-8 p-5 rounded-xl ${isHighContrast ? 'border border-gray-400' : 'bg-gray-100'}`}>
                   <h3 className="font-bold mb-3" style={{ fontSize: 'calc(1.3rem * var(--font-scale))' }}>💡 AI 추천 이유</h3>
                   <ul className="flex flex-col gap-2 list-disc pl-5" style={{ fontSize: 'calc(1.1rem * var(--font-scale))' }}>
-                    {recView.reasons.map((reason: any, idx: number) => (
+                    {recView.reasons.map((reason, idx) => (
                       <li key={idx} className="opacity-90">{reason.text}</li>
                     ))}
                   </ul>
@@ -308,7 +314,7 @@ export default function Home() {
               🚫 제외된 후보 {recView.excluded.length}개
             </h3>
             <ul className="flex flex-col gap-4" style={{ fontSize: 'calc(1.1rem * var(--font-scale))' }}>
-              {recView.excluded.map((item: any, idx: number) => (
+              {recView.excluded.map((item, idx) => (
                 <li key={idx} className={`flex gap-4 items-center border-b pb-3 last:border-0 last:pb-0 ${isHighContrast ? 'border-gray-700' : 'border-red-200'}`}>
                   <span className="font-bold min-w-[160px] opacity-70 line-through">{item.name}</span>
                   <span className="flex-1 text-right">{item.explanation}</span>
@@ -362,11 +368,15 @@ export default function Home() {
             </h2>
             
             <ul className="flex flex-col gap-6 font-bold" style={{ fontSize: 'calc(1.2rem * var(--font-scale))' }}>
-              {/* 결제 관련 동작: 계획/실행/차단 0건 확인 동적 렌더링 */}
+              {/* 결제 관련 동작.
+                  "실행 0 / 차단 0" 을 글자로 적어 두었더니 실제 건수와 무관하게 늘 0 으로
+                  보였다. 우리 구조에서 금지 action 은 계획 단계에서 막히므로 실행되거나
+                  차단될 일 자체가 없고, safety 에도 그 두 수는 없다. 그래서 실제로 세는 두
+                  값 — 전체 계획 단계 수와 그중 결제 관련 수 — 만 보여준다. */}
               <li className={`flex justify-between items-center border-b pb-4 ${isHighContrast ? 'border-gray-700' : (runResult.validation.valid ? 'border-green-200' : 'border-red-200')}`}>
                 <span>결제 관련 동작</span>
                 <span className={`px-3 py-1 rounded-lg ${isHighContrast ? `border ${runResult.validation.valid ? 'border-green-400' : 'border-red-400'}` : (runResult.validation.valid ? 'bg-green-200' : 'bg-red-200')}`}>
-                  {runResult.safety.plannedForbiddenActionCount}건 (계획 0 / 실행 0 / 차단 0)
+                  계획 {runResult.safety.plannedActionCount}단계 중 {runResult.safety.plannedForbiddenActionCount}건
                 </span>
               </li>
               
