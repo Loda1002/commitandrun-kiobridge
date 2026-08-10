@@ -493,3 +493,27 @@ export interface EngineInput {
   profile: UserProfile;
   sessionContext: SessionContext;
 }
+
+/** What buildExecutionPlan needs. Assembled by the caller, not the engine. */
+export interface PlanInput {
+  environmentId: EnvironmentId;
+  fixture: PublicFixture;
+  /** The candidate the user approved. */
+  candidateId: string;
+  /** The user's answers, already normalised. */
+  sessionContext: SessionContext;
+  /** false must abort — an unapproved plan may never be built. */
+  approved: boolean;
+}
+
+/**
+ * The three safety flags are literal types on purpose: tampering with them is a
+ * compile error, not a runtime bug someone has to notice.
+ */
+export interface ExecutionPlan {
+  planId: string;
+  validationMode: "SIMULATION_ONLY";
+  executionEnvironment: "DIGITAL_TWIN";
+  actualDeviceCommandSent: false;
+  actions: PlannedAction[];
+}
