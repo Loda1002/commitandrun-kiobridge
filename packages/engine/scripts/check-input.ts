@@ -120,6 +120,12 @@ line(
 const noneCtx = createSessionContext(collectProfile({ allergenIds: [] }), { capturedAt: CAPTURED_AT });
 line("declared none -> stays empty", same(noneCtx.hardConstraints.allergenIds, []));
 
+// An allergen code we do not recognise must become a question, never silence.
+const typoCtx = createSessionContext(collectProfile({ allergenIds: ["PEANUTS"] }), {
+  capturedAt: CAPTURED_AT,
+});
+line("unknown allergen code -> UNKNOWN", same(typoCtx.hardConstraints.allergenIds, ["UNKNOWN"]));
+
 let rejectedLocalTime = false;
 try {
   mapToCanonicalInput({ profileId: "P", providerId: "T", collectedAt: "2026-08-05T07:00:00" });

@@ -31,6 +31,15 @@ import type {
 const UNANSWERED = "UNKNOWN";
 
 /**
+ * Runtime copy of the `Allergen` union in types.ts, which is a type and so
+ * cannot be checked at run time. An id outside this set is not "an allergen we
+ * happen not to know" — it is an answer we failed to understand, and treating
+ * it as absent would turn the allergy filter into a no-op without telling
+ * anyone. Anything unrecognised becomes UNKNOWN so the engine stops and asks.
+ */
+const KNOWN_ALLERGENS = new Set(["PEANUT", "SOY", "MILK", "EGG", "WHEAT", "SHRIMP", UNANSWERED]);
+
+/**
  * The answers the order form collects.
  *
  * Mirrors `Answers` in apps/web/lib/types.ts. It is redeclared rather than
@@ -198,12 +207,13 @@ export function createSessionContext(
     record("/preferences/quantity", 1);
   }
 
-  const hardConstraints: ChickenStoreSessionContext["hardConstraints"] = {
-    allergenIds: answers.allergenIds as Allergen[],
-  };
+  const allergenIds = [
+    ...new Set(answers.allergenIds.map((a) => (KNOWN_ALLERGENS.has(a) ? a : UNANSWERED))),
+  ] as Allergen[];
+  const hardConstraints: ChickenStoreSessionContext["hardConstraints"] = { allergenIds };
   // An allergy we have not established is recorded at zero confidence, so the
   // value never passes for something the user actually told us.
-  record("/hardConstraints/allergenIds", answers.allergenIds.includes(UNANSWERED) ? 0 : 1);
+  record("/hardConstraints/allergenIds", allergenIds.includes(UNANSWERED) ? 0 : 1);
 
   if (answers.maxPriceKrw !== null) {
     hardConstraints.maxPriceKrw = answers.maxPriceKrw;
