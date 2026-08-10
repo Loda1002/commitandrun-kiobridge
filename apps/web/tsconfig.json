@@ -11,6 +11,10 @@
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
+    // packages/engine/src/*.ts import each other with the .ts extension so the
+    // engine can be run directly with `node`. This file compiles those sources
+    // too (see `include`), so the extension has to be legal here as well.
+    "allowImportingTsExtensions": true,
     "jsx": "react-jsx",
     "incremental": true,
     "plugins": [
