@@ -174,6 +174,13 @@ function chooseOptionId(
     throw new Error(`buildExecutionPlan: ${String(answer)} is not an option of ${group.groupId}`);
   }
   if (!supported.includes(match.id)) {
+    // The user picked a value this candidate does not come with — a real case,
+    // because scoring does not weigh every option group. Refusing to plan would
+    // strand an order the user already approved, so: an optional group is
+    // dropped rather than overridden, and a required one falls back only when
+    // the candidate leaves a single legal value, which is not a choice at all.
+    if (!group.required) return null;
+    if (supported.length === 1) return supported[0];
     throw new Error(
       `buildExecutionPlan: ${candidate.candidateId} does not support ${group.groupId}=${match.id}`,
     );
