@@ -1,5 +1,10 @@
 /**
- * @commitandrun/engine — step 6: filtering and scoring.
+ * @commitandrun/engine — choosing a candidate and saying why.
+ *
+ * Step 6 (filterCandidates, score) plus the two step 7 functions that read the
+ * result (explainRecommendation, buildAlternatives). They live here rather than
+ * in input.ts because they share the Korean label tables with the exclusion
+ * sentences, and user-facing wording split across files drifts apart.
  *
  * Removes candidates the user must not be offered, says why in a sentence the
  * user can read, then ranks what is left. Showing what we dropped and what each
@@ -19,6 +24,7 @@ import {
   type ExclusionReason,
   type PublicFixture,
   type ReconfirmRequest,
+  type RecommendationReason,
   type ScoreContribution,
   type ServiceType,
   type SessionContext,
@@ -336,4 +342,102 @@ function collectReconfirmRequests(ctx: ChickenStoreSessionContext): ReconfirmReq
 /** 0.4 + 0.25 + 0.2 + 0.15 is 1.0000000000000002 in binary floating point. */
 function round2(n: number): number {
   return Math.round(n * 100) / 100;
+}
+
+/* ===========================================================================
+ * Explaining the result.
+ * =========================================================================== */
+
+/**
+ * Whole sentences per value rather than one template with the value dropped in.
+ * Korean particles change with the word ("순살을" but "뼈를"), and a template
+ * that gets that wrong reads as broken to the person we are trying to help.
+ */
+const SERVICE_TYPE_SENTENCE: Record<string, string> = {
+  TAKE_OUT: "포장으로 받으신다고 하셔서 포장이 되는 메뉴만 남겼습니다.",
+  DINE_IN: "매장에서 드신다고 하셔서 매장 이용이 되는 메뉴만 남겼습니다.",
+};
+
+const BONE_TYPE_SENTENCE: Record<string, string> = {
+  BONELESS: "순살을 고르셔서 뼈 없는 메뉴를 위에 두었습니다.",
+  BONE: "뼈를 고르셔서 뼈 있는 메뉴를 위에 두었습니다.",
+};
+
+/** Every one of these ends in a consonant, so one template fits all three. */
+const SPICY_LABEL: Record<string, string> = {
+  MILD: "순한맛",
+  MEDIUM: "보통맛",
+  HOT: "매운맛",
+};
+
+/**
+ * Why this candidate, in the user's own language.
+ *
+ * Every sentence is "[근거] + [무엇을 했는지]", and each one is only emitted
+ * when it is actually true of this recommendation — claiming we matched the
+ * spice level when we did not is worse than saying nothing. "AI가 추천했습니다"
+ * is not an explanation and is never produced.
+ */
+export function explainRecommendation(
+  recommended: Candidate,
+  ctx: SessionContext,
+  excluded: ExclusionReason[],
+): RecommendationReason[] {
+  if (!isChickenStore(ctx)) {
+    throw new Error(`explainRecommendation: expected an ORDER_FOOD context, got ${ctx.intent.task}`);
+  }
+
+  const reasons: RecommendationReason[] = [];
+  const push = (tag: RecommendationReason["tag"], text: string) => reasons.push({ tag, text });
+
+  const serviceType = ctx.preferences.serviceType;
+  if (
+    serviceType &&
+    !NOT_ANSWERED.has(serviceType) &&
+    recommended.supportedOptions?.SERVICE_TYPE?.includes(serviceType) &&
+    SERVICE_TYPE_SENTENCE[serviceType]
+  ) {
+    push("USER_PREFERENCE", SERVICE_TYPE_SENTENCE[serviceType]);
+  }
+
+  const spicyLevel = ctx.preferences.spicyLevel;
+  if (spicyLevel && recommended.attributes?.spicyLevel === spicyLevel && SPICY_LABEL[spicyLevel]) {
+    const label = SPICY_LABEL[spicyLevel];
+    push("USER_PREFERENCE", `${label}을 고르셔서 ${label}으로 나오는 메뉴를 먼저 보여드렸습니다.`);
+  }
+
+  const boneType = ctx.preferences.boneType;
+  if (boneType && recommended.attributes?.boneType === boneType && BONE_TYPE_SENTENCE[boneType]) {
+    push("USER_PREFERENCE", BONE_TYPE_SENTENCE[boneType]);
+  }
+
+  const declaredAllergens = (ctx.hardConstraints.allergenIds ?? []).filter((a) => a !== "UNKNOWN");
+  if (declaredAllergens.length > 0 && hasCode(excluded, "ALLERGEN_CONFLICT")) {
+    const labels = declaredAllergens.map((a) => ALLERGEN_LABEL[a] ?? a).join("·");
+    push("SAFETY", `등록하신 ${labels} 알레르기와 겹치는 메뉴는 아예 빼고 골랐습니다.`);
+  }
+
+  if (hasCode(excluded, "UNAVAILABLE")) {
+    push("AVAILABILITY", "매장 재고를 확인해 지금 품절인 메뉴는 빼고 골랐습니다.");
+  }
+
+  const limit = ctx.hardConstraints.maxPriceKrw;
+  if (limit !== undefined && recommended.price !== undefined && recommended.price <= limit) {
+    push("USER_PREFERENCE", `예산 ${won(limit)}원 안에서 ${won(recommended.price)}원인 메뉴를 골랐습니다.`);
+  }
+
+  return reasons;
+}
+
+function hasCode(excluded: ExclusionReason[], reasonCode: string): boolean {
+  return excluded.some((e) => e.reasonCode === reasonCode);
+}
+
+/**
+ * The runners-up. `score` already ranked everything and broke the ties, so this
+ * reads its answer instead of ranking a second time — two rankings that can
+ * disagree with each other is worse than one.
+ */
+export function buildAlternatives(result: EngineResult, count = 2): string[] {
+  return result.alternativeCandidateIds.slice(0, count);
 }

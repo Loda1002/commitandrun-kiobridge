@@ -1,7 +1,12 @@
 // Checks filterCandidates against the submission that already passes.
 // Run from the project root:  node packages/engine/scripts/check-select.ts
 import { readFile } from "node:fs/promises";
-import { filterCandidates, score } from "../src/select.ts";
+import {
+  buildAlternatives,
+  explainRecommendation,
+  filterCandidates,
+  score,
+} from "../src/select.ts";
 import type { ChickenStoreSessionContext, PublicFixture } from "../src/types.ts";
 
 const read = async (p: string) => JSON.parse(await readFile(p, "utf8"));
@@ -86,11 +91,38 @@ const okAlts = JSON.stringify(result.alternativeCandidateIds) ===
 const okWeights = Object.values(result.contributions).every(
   (rows) => rows.length === 4 && Math.abs(rows.reduce((s, r) => s + r.weight, 0) - 1) < 1e-9,
 );
+// --- reasons and alternatives -----------------------------------------------
+
+const recommended = survivors.find((c) => c.candidateId === result.recommendedCandidateId)!;
+const reasons = explainRecommendation(recommended, ctx, excluded);
+const goldenReasons = golden.recommendation.recommendationReasons as string[];
+
+console.log("");
+for (const r of reasons) {
+  console.log(`  [${r.tag.padEnd(14)}] ${r.text}`);
+}
+const sameReasons = JSON.stringify(reasons.map((r) => r.text)) === JSON.stringify(goldenReasons);
+console.log("");
+console.log(sameReasons ? "reasons: SAME as golden" : "reasons: DIFFERENT from golden");
+if (!sameReasons) {
+  for (const t of goldenReasons.filter((t) => !reasons.some((r) => r.text === t))) {
+    console.log(`  only in golden: ${t}`);
+  }
+  for (const r of reasons.filter((r) => !goldenReasons.includes(r.text))) {
+    console.log(`  only in mine  : ${r.text}`);
+  }
+}
+
+const alternatives = buildAlternatives(result);
+const okBuild = JSON.stringify(alternatives) === JSON.stringify(result.alternativeCandidateIds);
+
 console.log("");
 console.log(`  1등 CHICKEN-001            : ${okTop ? "OK" : "FAIL"}`);
 console.log(`  대안 003 -> 006            : ${okAlts ? "OK" : "FAIL"}`);
 console.log(`  4항목 · weight 합계 1.0    : ${okWeights ? "OK" : "FAIL"}`);
 console.log(`  제외 3건 골든 일치         : ${sameAsGolden ? "OK" : "FAIL"}`);
+console.log(`  이유 6문장 골든 일치       : ${sameReasons ? "OK" : "FAIL"}`);
+console.log(`  buildAlternatives 일치     : ${okBuild ? "OK" : "FAIL"}  (${alternatives.join(", ")})`);
 console.log("");
 
 // Safety path: "모르겠어요" must not be read as "no allergy". Filtering cannot
