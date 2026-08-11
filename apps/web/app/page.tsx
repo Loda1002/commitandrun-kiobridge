@@ -11,7 +11,6 @@ import { RecommendScreen } from "../components/RecommendScreen";
 import { ConfirmScreen } from "../components/ConfirmScreen";
 import { ResultScreen } from "../components/ResultScreen";
 
-// 대회 요건: 사용자가 직접 고르기 전에는 아무것도 미리 선택되어 있지 않아야 함 (개수만 기본 Q1)
 const EMPTY_ANSWERS: Answers = {
   serviceType: "",
   spicyLevel: "",
@@ -25,7 +24,7 @@ const EMPTY_ANSWERS: Answers = {
 export default function Home() {
   const [fontScale, setFontScale] = useState(1);
   const [isHighContrast, setIsHighContrast] = useState(false);
-  const [currentStep, setCurrentStep] = useState(0); // 0: 시작, 1: 상황입력, 2: 추천결과, 3: 최종확인, 4: 결과+안전리포트
+  const [currentStep, setCurrentStep] = useState(0);
 
   const [questions, setQuestions] = useState<QuestionDef[]>([]);
   const [answers, setAnswers] = useState<Answers>(EMPTY_ANSWERS);
@@ -53,12 +52,10 @@ export default function Home() {
     }
   };
 
-  // Step 0 -> Step 1 (상황 입력 화면)
   const handleStart = () => {
     setCurrentStep(1);
   };
 
-  // Step 1 -> Step 2 (상황 입력 완료 -> 추천 결과 API 호출)
   const handleContextSubmit = async (userAnswers: Answers) => {
     setAnswers(userAnswers);
     setIsLoading(true);
@@ -73,24 +70,21 @@ export default function Home() {
     }
   };
 
-  // Step 2 -> Step 3 (추천 결과 -> 최종 확인 화면)
   const handleRecommendNext = () => {
     setCurrentStep(3);
   };
 
-  // 다시 상황 입력 화면(Step 1)으로 이동
   const handleBackToContext = () => {
     setCurrentStep(1);
   };
 
-  // Step 3 -> Step 4 (사람 승인 게이트 -> 실행 계획 + 안전 리포트 API 호출)
   const handleApprove = async () => {
     if (!recView || !recView.recommended) return;
     setIsLoading(true);
     try {
       const run = await runPlan({
         candidateId: recView.recommended.candidateId,
-        approved: true, // 사용자가 직접 버튼을 눌렀을 때만 true 전달
+        approved: true,
       });
       setRunResult(run);
       setCurrentStep(4);

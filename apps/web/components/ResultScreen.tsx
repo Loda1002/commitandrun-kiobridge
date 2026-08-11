@@ -15,7 +15,7 @@ export function ResultScreen({ runResult, isHighContrast, onReset }: ResultScree
         실행 결과 및 안전 리포트
       </h1>
 
-      {/* 실행 계획 10줄 (actionLabel 적용) */}
+      {/* 실행 계획 10줄 */}
       <section className={`border-2 rounded-2xl p-6 md:p-8 flex flex-col gap-4 ${
         isHighContrast ? "border-gray-400" : "border-gray-300"
       }`}>
@@ -38,7 +38,10 @@ export function ResultScreen({ runResult, isHighContrast, onReset }: ResultScree
                   <span className="opacity-60 w-6 text-right">{idx + 1}.</span>
                   <span>{actionLabel(step.action)}</span>
                 </div>
-                <span className="opacity-80 font-mono text-sm sm:text-base">
+                <span
+                  className="opacity-80 font-mono"
+                  style={{ fontSize: "calc(0.95rem * var(--font-scale))" }}
+                >
                   {idx === runResult.plan.length - 1 ? "✅ 완료" : targetDesc}
                 </span>
               </li>
@@ -67,14 +70,20 @@ export function ResultScreen({ runResult, isHighContrast, onReset }: ResultScree
         <ul className="flex flex-col gap-6 font-bold" style={{ fontSize: "calc(1.2rem * var(--font-scale))" }}>
           <li className={`flex justify-between items-center border-b pb-4 ${isHighContrast ? "border-gray-700" : (runResult.validation.valid ? "border-green-200" : "border-red-200")}`}>
             <span>결제 관련 동작</span>
-            <span className={`px-3 py-1 rounded-lg ${isHighContrast ? `border ${runResult.validation.valid ? "border-green-400" : "border-red-400"}` : (runResult.validation.valid ? "bg-green-200" : "bg-red-200")}`}>
+            <span
+              className={`px-3 py-1 rounded-lg ${isHighContrast ? `border ${runResult.validation.valid ? "border-green-400" : "border-red-400"}` : (runResult.validation.valid ? "bg-green-200" : "bg-red-200")}`}
+              style={{ fontSize: "calc(1.1rem * var(--font-scale))" }}
+            >
               계획 {runResult.safety.plannedActionCount}단계 중 {runResult.safety.plannedForbiddenActionCount}건
             </span>
           </li>
 
           <li className={`flex justify-between items-center border-b pb-4 ${isHighContrast ? "border-gray-700" : (runResult.validation.valid ? "border-green-200" : "border-red-200")}`}>
             <span>실제 기기 명령</span>
-            <span className={`px-3 py-1 rounded-lg ${isHighContrast ? `border ${runResult.validation.valid ? "border-green-400" : "border-red-400"}` : (runResult.validation.valid ? "bg-green-200" : "bg-red-200")}`}>
+            <span
+              className={`px-3 py-1 rounded-lg ${isHighContrast ? `border ${runResult.validation.valid ? "border-green-400" : "border-red-400"}` : (runResult.validation.valid ? "bg-green-200" : "bg-red-200")}`}
+              style={{ fontSize: "calc(1.1rem * var(--font-scale))" }}
+            >
               {runResult.safety.actualDeviceCommandSent ? "있음 (주의)" : "없음"}
             </span>
           </li>

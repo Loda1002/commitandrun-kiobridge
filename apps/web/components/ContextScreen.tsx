@@ -26,12 +26,6 @@ export function ContextScreen({
     setAnswers((prev) => ({ ...prev, [id]: value }));
   };
 
-  /**
-   * 알레르기 다중 선택 처리:
-   * - "NONE" (없어요): 알레르기 없음 -> 빈 배열 [] (정상 추천)
-   * - "UNKNOWN" (모르겠어요): 알레르기 모름 -> ["UNKNOWN"] (엔진 재확인 트리거)
-   * - 개별 알레르기 토글
-   */
   const handleAllergenChange = (value: string) => {
     setAnswers((prev) => {
       const current = prev.allergenIds;
@@ -71,7 +65,6 @@ export function ContextScreen({
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-8 w-full">
         {questions.map((q) => {
-          // 1. 예산 (숫자 입력칸)
           if (q.kind === "number") {
             const inputId = `question-${q.id}`;
             return (
@@ -112,7 +105,6 @@ export function ContextScreen({
             );
           }
 
-          // 2. 알레르기 (다중 선택: <fieldset> + <legend>)
           if (q.kind === "multi") {
             const allergenOptions = [
               { value: "NONE", label: "없어요 (해당 없음)" },
@@ -184,7 +176,6 @@ export function ContextScreen({
             );
           }
 
-          // 3. 단일 선택 (라디오: <fieldset> + <legend>)
           const currentValue = (answers as any)[q.id] ?? "";
           return (
             <fieldset
@@ -216,7 +207,7 @@ export function ContextScreen({
                         isChecked
                           ? "border-[var(--color-accent)] bg-orange-500/10"
                           : isHighContrast ? "border-gray-700 hover:border-gray-500" : "border-gray-200 hover:border-gray-400"
-                      }`}
+                        }`}
                       style={{ minHeight: "var(--tap-min)" }}
                     >
                       <input
