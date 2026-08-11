@@ -18,8 +18,18 @@ export function ContextScreen({
 }: ContextScreenProps) {
   const [answers, setAnswers] = useState<Answers>(currentAnswers);
 
+  /**
+   * `allergenIds: []` means "I have none" to the engine (see input.ts:
+   * "The form must only send [] when the user picked 없음"). An empty array is
+   * also the starting value, so the group has to remember whether the user
+   * actually touched it — otherwise skipping the question would be sent as an
+   * answer of "no allergies", which is us answering on their behalf.
+   */
+  const [allergenAnswered, setAllergenAnswered] = useState(currentAnswers.allergenIds.length > 0);
+
   useEffect(() => {
     setAnswers(currentAnswers);
+    setAllergenAnswered(currentAnswers.allergenIds.length > 0);
   }, [currentAnswers]);
 
   const handleSingleChange = (id: keyof Answers, value: string) => {
@@ -27,6 +37,7 @@ export function ContextScreen({
   };
 
   const handleAllergenChange = (value: string) => {
+    setAllergenAnswered(true);
     setAnswers((prev) => {
       const current = prev.allergenIds;
 
@@ -54,7 +65,9 @@ export function ContextScreen({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit(answers);
+    // Untouched allergy question → "did not answer", never "has none". The
+    // engine stops and asks again on UNKNOWN, which is the safe direction.
+    onSubmit(allergenAnswered ? answers : { ...answers, allergenIds: ["UNKNOWN"] });
   };
 
   return (
@@ -111,7 +124,7 @@ export function ContextScreen({
               ...q.options,
             ];
 
-            const isNoneSelected = answers.allergenIds.length === 0;
+            const isNoneSelected = allergenAnswered && answers.allergenIds.length === 0;
             const isUnknownSelected = answers.allergenIds.includes("UNKNOWN");
 
             return (

@@ -51,6 +51,9 @@ export function ConfirmScreen({
               {answers.boneType === "BONELESS" ? "순살" : answers.boneType === "BONE" ? "뼈" : "뼈/순살 미지정"}
             </span>
             <span className={`px-3 py-1 rounded-lg font-bold ${isHighContrast ? "border border-gray-400" : "bg-gray-100"}`}>
+              {answers.cupOption === "PAPER" ? "종이컵" : answers.cupOption === "REGULAR" ? "일반 컵" : "컵 미지정"}
+            </span>
+            <span className={`px-3 py-1 rounded-lg font-bold ${isHighContrast ? "border border-gray-400" : "bg-gray-100"}`}>
               {answers.quantity === "Q1" ? "1개" : answers.quantity === "Q2" ? "2개" : "3개"}
             </span>
           </div>

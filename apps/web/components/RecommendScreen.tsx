@@ -15,11 +15,72 @@ export function RecommendScreen({
   onNext,
   onBackToContext,
 }: RecommendScreenProps) {
+  /**
+   * An unanswered hard constraint outranks anything we could show. The engine
+   * returns no recommendation at all in this state (select.ts: mayRecommend),
+   * so the screen asks the question again instead of offering a way forward.
+   * There is deliberately no "continue" button here.
+   */
+  if (recView.reconfirmRequests.length > 0) {
+    return (
+      <main className="flex flex-col gap-8 w-full">
+        <h1 className="font-extrabold text-center" style={{ fontSize: "calc(2rem * var(--font-scale))" }}>
+          한 가지만 더 여쭐게요
+        </h1>
+
+        {recView.reconfirmRequests.map((request, idx) => (
+          <section
+            key={idx}
+            className={`border-4 rounded-2xl p-6 md:p-8 flex flex-col gap-4 ${
+              isHighContrast ? "border-yellow-300 bg-transparent" : "border-orange-500 bg-orange-50"
+            }`}
+          >
+            <p className="font-extrabold" style={{ fontSize: "calc(1.5rem * var(--font-scale))" }}>
+              {request.question}
+            </p>
+            <p className="opacity-90" style={{ fontSize: "calc(1.1rem * var(--font-scale))" }}>
+              {request.because}
+            </p>
+          </section>
+        ))}
+
+        <button
+          type="button"
+          onClick={onBackToContext}
+          className="w-full mt-4 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-4 transition-transform hover:scale-105 active:scale-95"
+          style={{
+            minHeight: "calc(var(--tap-min) + 8px)",
+            borderRadius: "var(--radius)",
+            backgroundColor: "var(--color-accent)",
+            color: "var(--color-bg)",
+            fontSize: "calc(1.3rem * var(--font-scale))",
+            fontWeight: "bold",
+          }}
+        >
+          다시 답하러 가기
+        </button>
+      </main>
+    );
+  }
+
   return (
     <main className="flex flex-col gap-8 w-full">
       <h1 className="font-extrabold text-center" style={{ fontSize: "calc(2rem * var(--font-scale))" }}>
         맞춤형 추천 결과
       </h1>
+
+      {/* Nothing is blocking, but the top score is weak enough that the server
+          would refuse it unconfirmed (LOW_CONFIDENCE_THRESHOLD). Say so. */}
+      {recView.requiresReconfirmation && (
+        <p
+          className={`rounded-xl p-4 font-bold ${
+            isHighContrast ? "border-2 border-yellow-300" : "bg-orange-50 border-2 border-orange-500"
+          }`}
+          style={{ fontSize: "calc(1.1rem * var(--font-scale))" }}
+        >
+          ⚠️ 조건에 딱 맞는 메뉴가 없어 확신이 높지 않습니다. 아래 내용을 한 번 더 확인해 주세요.
+        </p>
+      )}
 
       {recView.recommended ? (
         <section className="border-2 rounded-2xl p-6 md:p-8" style={{ borderColor: "var(--color-accent)" }}>
