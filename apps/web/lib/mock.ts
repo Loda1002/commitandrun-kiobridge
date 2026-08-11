@@ -208,19 +208,29 @@ export const MOCK_RECOMMENDATION: RecommendationView = {
 };
 
 /**
- * Same recommendation, but the user answered "모르겠어요" to the allergy
- * question. Use this to build the re-ask screen: the flow must not continue
- * until the user answers, because guessing an allergy is a safety failure.
+ * The user answered "모르겠어요" to the allergy question. The flow must not
+ * continue until they answer, because guessing an allergy is a safety failure.
+ *
+ * There is no recommendation here, and that is not a shortcut for the mock:
+ * `recommend()` in packages/engine/src/select.ts returns
+ * `recommendedCandidateId: null` and no alternatives whenever a reconfirm
+ * request exists. The exclusion list keeps only the two removals that hold
+ * without a declared allergen — the peanut one cannot be claimed when we do
+ * not know what the user reacts to.
  */
 export const MOCK_RECOMMENDATION_NEEDS_RECONFIRM: RecommendationView = {
   ...MOCK_RECOMMENDATION,
+  recommended: null,
+  alternatives: [],
+  excluded: EXCLUDED.filter((item) => item.reasonCode !== "ALLERGEN_CONFLICT"),
+  reasons: [],
   confidence: 0.41,
   requiresReconfirmation: true,
   reconfirmRequests: [
     {
       path: "/hardConstraints/allergenIds",
-      question: "못 드시는 재료가 있으신지 한 번만 더 확인해 주세요.",
-      because: "알레르기는 저희가 짐작해서 채울 수 없습니다. 모르는 채로 추천하면 위험합니다.",
+      question: "드시면 안 되는 재료가 있으신가요? 없으시면 '없어요 (해당 없음)'을 골라 주세요.",
+      because: "알레르기를 확인하지 못한 상태로는 안전하게 추천해 드릴 수 없습니다.",
     },
   ],
 };
