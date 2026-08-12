@@ -1,0 +1,53 @@
+{
+  "_note": "COMMITANDRUN 서비스가 관공서 민원 화면에서 수집한 원본 입력. src/participant.ts 의 collectProfile('public-office') 이 읽습니다.",
+  "_dataClassification": "합성 데이터. 주민등록번호는 수집하지 않으며 어떤 신분 확인 값도 들어 있지 않습니다.",
+  "_timestamps": "고정값입니다. 엔진은 시계를 읽지 않으므로 같은 입력이면 언제 돌려도 같은 제출물이 나옵니다.",
+  "_safety": "availableAuthMethods 는 '어떤 방법을 쓸 수 있는지'이지 신분 확인 값 자체가 아닙니다. 자격 판단은 하지 않습니다.",
+
+  "collectionChannel": "WEB_FORM",
+  "profileId": "COMMITANDRUN-PROFILE-003",
+  "providerId": "COMMITANDRUN",
+  "collectedAt": "2026-08-05T07:00:00.000Z",
+
+  "accessibility": {
+    "largeText": true,
+    "simpleSteps": true,
+    "visualGuidance": true,
+    "hearingSupport": false,
+    "mobilitySupport": false,
+    "highContrast": true,
+    "staffAssistancePreferred": false
+  },
+  "interaction": {
+    "preferredInput": "TOUCH",
+    "language": "ko-KR",
+    "confirmationRequired": true
+  },
+  "consent": {
+    "personalization": true,
+    "retentionPolicy": "SESSION_ONLY"
+  },
+
+  "session": {
+    "capturedAt": "2026-08-05T07:00:00.000Z",
+    "source": "WEB_FORM",
+    "_confirmedPaths": "손님이 최종 확인 화면에서 눈으로 보고 확인한 값들입니다.",
+    "confirmedPaths": [
+      "/facts/serviceCategory",
+      "/capabilities/availableAuthMethods"
+    ],
+    "answers": {
+      "serviceCategory": "RESIDENT",
+      "availableAuthMethods": ["MOBILE_AUTH", "ID_CARD"],
+      "stepByStep": true,
+      "simpleLanguage": true
+    }
+  },
+
+  "decision": {
+    "_note": "최종 확인 화면에서 손님이 누른 결과입니다. 승인 없이 실행계획을 만들지 않습니다.",
+    "approved": true,
+    "confirmedAt": "2026-08-05T07:01:00.000Z",
+    "note": "화면에서 민원 종류와 필요한 준비물을 확인한 뒤 승인했습니다."
+  }
+}

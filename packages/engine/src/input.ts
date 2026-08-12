@@ -1,30 +1,47 @@
 /**
- * @commitandrun/engine — step 7a: tidying the input.
+ * @commitandrun/engine — tidying the input.
  *
- * Three thin functions that turn what the web form collected into the two
- * official shapes the rest of the engine and the submission expect.
+ * Turns what a form collected into the two official shapes the rest of the
+ * engine and the submission expect: a `CanonicalProfile` and one of the three
+ * session contexts.
  *
- * Two rules run through all of them. Nothing is guessed: a field the user did
- * not answer stays "UNKNOWN" so the engine can ask, rather than being quietly
+ * Two rules run through all of it. Nothing is guessed: a field the user did not
+ * answer stays "UNKNOWN" so the engine can ask, rather than being quietly
  * filled with a plausible value. And nothing is read from the outside: the
  * timestamps are handed in, because the engine must give the same answer in the
  * browser and in the submission builder.
+ *
+ * Where each environment keeps its answers is not a detail we get to choose —
+ * the platform's context schemas do. A chicken shop's answers are preferences,
+ * a hospital's are mostly facts about the visit, and a public office splits
+ * them between facts and capabilities. The three builders below follow that,
+ * and `domains/*.ts` reads them back from the same places.
  *
  * Same rule as the rest of src/ — `./types.ts` is the only import allowed.
  */
 
 import type {
   Allergen,
+  AppointmentStatus,
+  AuthMethod,
   BoneType,
   CanonicalProfile,
   ChickenStoreSessionContext,
   CollectionChannel,
   CupOption,
+  Department,
+  EnvironmentId,
   FieldMetadata,
   FieldSource,
+  HospitalSessionContext,
   PublicFixture,
+  PublicOfficeSessionContext,
+  ServiceCategory,
   ServiceType,
+  SessionContext,
   SpicyLevel,
+  SupportMode,
+  VisitType,
 } from "./types.ts";
 
 /** The value every question falls back to. The engine may never guess past it. */
@@ -232,6 +249,272 @@ export function createSessionContext(
   const signals = contextSignals(fixture, provenance.capturedAt);
   if (signals) ctx.extensions = { "COMMITANDRUN.contextSignals": signals };
   return ctx;
+}
+
+/* ===========================================================================
+ * hospital
+ * =========================================================================== */
+
+/**
+ * Runtime copies of the type unions, which cannot be checked at run time.
+ *
+ * Same reasoning as KNOWN_ALLERGENS above: a value outside these sets is not
+ * "an option we happen not to know", it is an answer we failed to understand.
+ * Letting it through would route someone to a desk on the strength of a string
+ * nobody recognised, so it becomes UNKNOWN and the engine stops and asks.
+ */
+const KNOWN_VISIT_TYPES = new Set(["FIRST_VISIT", "REVISIT", "HEALTH_SCREENING", "EXAM"]);
+const KNOWN_APPOINTMENT = new Set(["HAS_APPOINTMENT", "NO_APPOINTMENT"]);
+const KNOWN_DEPARTMENTS = new Set([
+  "INTERNAL_MEDICINE", "ORTHOPEDICS", "ENT", "RADIOLOGY", "HEALTH_SCREENING", "UNSPECIFIED",
+]);
+const KNOWN_SUPPORT_MODES = new Set([
+  "LARGE_TEXT", "HEARING_SUPPORT", "VISUAL_GUIDANCE", "SIMPLE_STEPS", "STAFF_HELP", "GUARDIAN_MODE",
+]);
+
+/** The answers a hospital check-in form collects. */
+export interface HospitalAnswers {
+  visitType: string;
+  appointmentStatus: string;
+  /** "UNSPECIFIED" is a real answer — "미정 (안내 필요)". Only "" or UNKNOWN is not. */
+  departmentId: string;
+  /** Empty means no extra support requested, which is the baseline, not a gap. */
+  supportModes: string[];
+  /** null means the form did not ask. */
+  guardianPresent: boolean | null;
+}
+
+/**
+ * Build a hospital session context.
+ *
+ * The three routing answers land in `facts` rather than `preferences` because
+ * that is what they are: things that are true of this visit, not wishes about
+ * it. `medicalInferenceAllowed: false` is written every time and is not a
+ * setting — it is us recording, in the submission itself, that nothing here
+ * inferred a department from a symptom.
+ */
+export function createHospitalSessionContext(
+  answers: HospitalAnswers,
+  provenance: AnswerProvenance,
+  fixture?: PublicFixture,
+): HospitalSessionContext {
+  requireUtc(provenance.capturedAt, "capturedAt");
+  const { fieldMetadata, record } = recorder(provenance);
+
+  const facts: HospitalSessionContext["facts"] = {};
+  const visitType = known(answers.visitType, KNOWN_VISIT_TYPES);
+  if (visitType) {
+    facts.visitType = visitType as VisitType;
+    record("/facts/visitType", 1);
+  }
+  const appointment = known(answers.appointmentStatus, KNOWN_APPOINTMENT);
+  if (appointment) {
+    facts.appointmentStatus = appointment as AppointmentStatus;
+    record("/facts/appointmentStatus", 1);
+  }
+  const department = known(answers.departmentId, KNOWN_DEPARTMENTS);
+  if (department) {
+    facts.departmentId = department as Department;
+    // "미정" is an answer about not knowing, so it is recorded as one — full
+    // confidence that the user told us they do not know which department.
+    record("/facts/departmentId", 1);
+  }
+  if (answers.guardianPresent !== null) {
+    facts.guardianPresent = answers.guardianPresent;
+    record("/facts/guardianPresent", 1);
+  }
+
+  const supportModes = [
+    ...new Set(answers.supportModes.filter((m) => KNOWN_SUPPORT_MODES.has(m))),
+  ] as SupportMode[];
+  const preferences: HospitalSessionContext["preferences"] = {};
+  if (supportModes.length > 0) {
+    preferences.supportModes = supportModes;
+    record("/preferences/supportModes", 1);
+  }
+
+  const ctx: HospitalSessionContext = {
+    intent: { task: "CHECK_IN" },
+    facts,
+    preferences,
+    // Not a toggle. The platform forbids diagnose/triage outright, and this
+    // says so in the submission rather than only in our code.
+    hardConstraints: { medicalInferenceAllowed: false },
+    capabilities: { canUseSelfCheckIn: true },
+    fieldMetadata,
+  };
+
+  const signals = contextSignals(fixture, provenance.capturedAt);
+  if (signals) ctx.extensions = { "COMMITANDRUN.contextSignals": signals };
+  return ctx;
+}
+
+/* ===========================================================================
+ * public-office
+ * =========================================================================== */
+
+const KNOWN_CATEGORIES = new Set(["RESIDENT", "FAMILY", "INSURANCE", "TAX", "STAFF"]);
+const KNOWN_AUTH_METHODS = new Set([
+  "MOBILE_AUTH", "ID_CARD", "BIOMETRIC", "STAFF_ASSIST", "NONE",
+]);
+
+/** The answers a public-office guidance form collects. */
+export interface PublicOfficeAnswers {
+  serviceCategory: string;
+  /**
+   * Which KINDS of proof the user can produce today. Never the proof itself —
+   * `collect_ssn` is a forbidden action and no identifier is collected here.
+   */
+  availableAuthMethods: string[];
+  stepByStep: boolean | null;
+  simpleLanguage: boolean | null;
+}
+
+/**
+ * Build a public-office session context.
+ *
+ * `legalEligibilityInferenceAllowed: false` is written every time, for the same
+ * reason the hospital records its medical equivalent: the submission itself
+ * should carry the statement that entitlement was never judged.
+ */
+export function createPublicOfficeSessionContext(
+  answers: PublicOfficeAnswers,
+  provenance: AnswerProvenance,
+  fixture?: PublicFixture,
+): PublicOfficeSessionContext {
+  requireUtc(provenance.capturedAt, "capturedAt");
+  const { fieldMetadata, record } = recorder(provenance);
+
+  const facts: PublicOfficeSessionContext["facts"] = {};
+  const category = known(answers.serviceCategory, KNOWN_CATEGORIES);
+  if (category) {
+    facts.serviceCategory = category as ServiceCategory;
+    record("/facts/serviceCategory", 1);
+  }
+
+  const preferences: PublicOfficeSessionContext["preferences"] = {};
+  if (answers.stepByStep !== null) {
+    preferences.stepByStep = answers.stepByStep;
+    record("/preferences/stepByStep", 1);
+  }
+  if (answers.simpleLanguage !== null) {
+    preferences.simpleLanguage = answers.simpleLanguage;
+    record("/preferences/simpleLanguage", 1);
+  }
+
+  const availableAuthMethods = [
+    ...new Set(answers.availableAuthMethods.filter((m) => KNOWN_AUTH_METHODS.has(m))),
+  ] as AuthMethod[];
+  const capabilities: PublicOfficeSessionContext["capabilities"] = {};
+  if (availableAuthMethods.length > 0) {
+    capabilities.availableAuthMethods = availableAuthMethods;
+    record("/capabilities/availableAuthMethods", 1);
+  }
+
+  const ctx: PublicOfficeSessionContext = {
+    intent: { task: "PUBLIC_SERVICE_GUIDANCE" },
+    facts,
+    preferences,
+    hardConstraints: { legalEligibilityInferenceAllowed: false },
+    capabilities,
+    fieldMetadata,
+  };
+
+  const signals = contextSignals(fixture, provenance.capturedAt);
+  if (signals) ctx.extensions = { "COMMITANDRUN.contextSignals": signals };
+  return ctx;
+}
+
+/* ===========================================================================
+ * shared
+ * =========================================================================== */
+
+/**
+ * The value if we recognise it, otherwise undefined — which leaves the field
+ * out of the context entirely rather than storing a placeholder a later reader
+ * could mistake for a choice.
+ */
+function known(value: string | undefined, vocabulary: ReadonlySet<string>): string | undefined {
+  const trimmed = value?.trim();
+  return trimmed && vocabulary.has(trimmed) ? trimmed : undefined;
+}
+
+/** Collects provenance as fields are written, so the two cannot drift apart. */
+function recorder(provenance: AnswerProvenance) {
+  const fieldMetadata: Record<string, FieldMetadata> = {};
+  const record = (path: string, confidence: number): void => {
+    fieldMetadata[path] = {
+      source: provenance.source ?? "WEB_FORM",
+      confidence,
+      confirmedByUser: provenance.confirmedPaths?.includes(path) ?? false,
+      capturedAt: provenance.capturedAt,
+    };
+  };
+  return { fieldMetadata, record };
+}
+
+/** Complete a hospital answer set. A missing list is empty, not absent. */
+export function collectHospitalAnswers(
+  raw: Partial<HospitalAnswers> | null | undefined,
+): HospitalAnswers {
+  const a = raw ?? {};
+  return {
+    visitType: answered(a.visitType),
+    appointmentStatus: answered(a.appointmentStatus),
+    departmentId: answered(a.departmentId),
+    supportModes: a.supportModes ? [...a.supportModes] : [],
+    guardianPresent: typeof a.guardianPresent === "boolean" ? a.guardianPresent : null,
+  };
+}
+
+/** Complete a public-office answer set. */
+export function collectPublicOfficeAnswers(
+  raw: Partial<PublicOfficeAnswers> | null | undefined,
+): PublicOfficeAnswers {
+  const a = raw ?? {};
+  return {
+    serviceCategory: answered(a.serviceCategory),
+    availableAuthMethods: a.availableAuthMethods ? [...a.availableAuthMethods] : [],
+    stepByStep: typeof a.stepByStep === "boolean" ? a.stepByStep : null,
+    simpleLanguage: typeof a.simpleLanguage === "boolean" ? a.simpleLanguage : null,
+  };
+}
+
+/**
+ * Normalise whatever a form posted and build the context for that environment.
+ *
+ * One entry point so the web app and the submission builder cannot end up
+ * normalising differently — which is the whole reason the two share an engine.
+ * The answer shapes have nothing in common, so the caller hands in the one that
+ * matches; the vocabulary filtering inside each builder is what actually checks
+ * that claim, and anything unrecognised becomes an unanswered question.
+ */
+export function createContextFor(
+  environmentId: EnvironmentId,
+  answers: Record<string, unknown> | null | undefined,
+  provenance: AnswerProvenance,
+  fixture?: PublicFixture,
+): SessionContext {
+  switch (environmentId) {
+    case "chicken-store":
+      return createSessionContext(
+        collectProfile(answers as Partial<WebAnswers>),
+        provenance,
+        fixture,
+      );
+    case "hospital":
+      return createHospitalSessionContext(
+        collectHospitalAnswers(answers as Partial<HospitalAnswers>),
+        provenance,
+        fixture,
+      );
+    case "public-office":
+      return createPublicOfficeSessionContext(
+        collectPublicOfficeAnswers(answers as Partial<PublicOfficeAnswers>),
+        provenance,
+        fixture,
+      );
+  }
 }
 
 /**

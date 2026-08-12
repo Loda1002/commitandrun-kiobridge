@@ -49,10 +49,8 @@ import type {
 } from "@kiobridge/participant-sdk";
 
 import {
-  collectProfile as normalizeAnswers,
-  createSessionContext as engineCreateSessionContext,
+  createContextFor as engineCreateContextFor,
   mapToCanonicalInput as engineMapToCanonicalInput,
-  type WebAnswers,
 } from "../../../../packages/engine/src/input.ts";
 import { buildExecutionPlan as engineBuildExecutionPlan } from "../../../../packages/engine/src/plan.ts";
 import {
@@ -93,7 +91,8 @@ interface CollectedInput {
     capturedAt: string;
     source?: string;
     confirmedPaths?: string[];
-    answers: Partial<WebAnswers>;
+    /** 환경마다 묻는 것이 달라 모양이 다릅니다. 어휘 검사는 엔진이 합니다. */
+    answers: Record<string, unknown>;
   };
   decision: { approved: boolean; confirmedAt?: string; note?: string };
 }
@@ -120,8 +119,14 @@ const asEngineCandidates = (list: Candidate[]) => list as unknown as EngineCandi
  * 로그인은 요구하지 않습니다. 실제 주민등록번호·전화번호·카드번호는 수집하지
  * 않으며, 파일 안의 값은 전부 합성 데이터입니다.
  */
-export async function collectProfile(): Promise<RawUserInput> {
-  const file = path.join(import.meta.dirname, "..", "input", "raw-user-input.json");
+export async function collectProfile(
+  environmentId = "chicken-store",
+): Promise<RawUserInput> {
+  // 환경마다 묻는 것이 다르므로 수집 결과도 파일이 따로입니다. 닭강정집은 이미
+  // 기록된 SHA-256 이 이 파일 이름에 걸려 있어 그대로 둡니다.
+  const name =
+    environmentId === "chicken-store" ? "raw-user-input.json" : `${environmentId}-input.json`;
+  const file = path.join(import.meta.dirname, "..", "input", name);
   return JSON.parse(readFileSync(file, "utf8")) as RawUserInput;
 }
 
@@ -161,8 +166,9 @@ export function mapToCanonicalInput(raw: RawUserInput): UserProfile {
  */
 export function createSessionContext(raw: RawUserInput, fixture: PublicFixture): SessionContext {
   const { session } = raw as unknown as CollectedInput;
-  return engineCreateSessionContext(
-    normalizeAnswers(session.answers),
+  return engineCreateContextFor(
+    fixture.manifest.environmentId as never,
+    session.answers,
     {
       capturedAt: session.capturedAt,
       source: session.source as never,
@@ -405,7 +411,7 @@ export async function buildSubmission(
   fixture: PublicFixture,
   teamId: string,
 ): Promise<ParticipantSubmission> {
-  const raw = await collectProfile();
+  const raw = await collectProfile(fixture.manifest.environmentId);
   const input = raw as unknown as CollectedInput;
 
   const profile = mapToCanonicalInput(raw);
