@@ -1,15 +1,30 @@
 /**
- * @commitandrun/engine — step 5: the semantic execution plan.
+ * @commitandrun/engine — the semantic execution plan.
  *
  * Turns "the user approved this candidate" into the ordered note the simulator
  * replays. Purely semantic: what to pick and in which order, never how a screen
  * is laid out. Coordinates, automationIds and control ids are rejected by the
  * platform, and a payment-shaped action fails the run even if it is blocked.
  *
- * Same rule as types.ts — this file runs in the browser too, so `./types.ts` is
- * the only import allowed. Never import from the kit.
+ * The order is not written down anywhere — it is read off the environment's own
+ * state machine. Walk the shortest legal route from the initial state to the
+ * review boundary; whenever an action on that route is the one that selects an
+ * option group, attach that group's choice; whenever a state offers a self-loop
+ * that selects a group, drain the groups waiting on it before moving on. That
+ * single rule reproduces all three official environments — a chicken shop's ten
+ * steps, a hospital desk's seven, a public office's six — with no per-environment
+ * branching here. What differs between them lives in `domain.ts`.
+ *
+ * Because the route comes from `fixture.transitions`, an environment whose state
+ * machine changes moves the plan with it instead of silently going stale.
+ *
+ * Same rule as the rest of src/ — nothing outside this package is imported, so
+ * this file also runs in the deployed web app where the kit does not exist.
  */
 
+import { domainFor } from "./domain.ts";
+// Registers the three official domains — see the same import in select.ts.
+import "./domains/index.ts";
 import {
   FORBIDDEN_ACTIONS,
   type Candidate,
@@ -18,33 +33,15 @@ import {
   type PlanInput,
   type PlannedAction,
   type PublicFixture,
+  type SessionContext,
   type Transition,
 } from "./types.ts";
 
 /** Prefix of every planId we emit. The submission is filed under this team. */
 const TEAM_ID = "COMMITANDRUN";
 
-/**
- * Which `sessionContext.preferences` key answers which fixture option group.
- * The fixture names the groups; only this bridge is ours, so it lives here
- * rather than being guessed from the group label.
- */
-const PREFERENCE_KEY_BY_GROUP: Record<string, string> = {
-  SERVICE_TYPE: "serviceType",
-  SPICY_LEVEL: "spicyLevel",
-  BONE_TYPE: "boneType",
-  CUP: "cupOption",
-  QUANTITY: "quantity",
-};
-
 /** Values that mean "the user did not tell us". Never filled in by guessing. */
 const NOT_ANSWERED = new Set(["UNKNOWN", "NO_PREFERENCE"]);
-
-/** The semantic action that selects a group, keyed by the group's target kind. */
-const ACTION_BY_TARGET_KIND: Record<string, string> = {
-  service_type: "select_service",
-  option: "select_option",
-};
 
 /**
  * One option the plan will select, in a form a screen can render.
@@ -57,7 +54,7 @@ const ACTION_BY_TARGET_KIND: Record<string, string> = {
  */
 export interface OptionSelection {
   groupId: string;
-  /** "service_type" or "option" — which semantic action selects it. */
+  /** The group's semantic kind — "service_type", "option", "department", ... */
   kind: string;
   /** Group label from the fixture, e.g. "맵기". */
   label: string;
@@ -71,7 +68,8 @@ export interface OptionSelection {
 }
 
 /**
- * Work out which option this candidate will be ordered with, group by group.
+ * Work out which option this candidate will be ordered with, group by group,
+ * in the fixture's own group order.
  *
  * Split out of `buildExecutionPlan` so a screen can ask the same question
  * before the user approves. Deliberately NOT a plan: no approval is required to
@@ -80,8 +78,9 @@ export interface OptionSelection {
 export function resolveOptionSelections(
   fixture: PublicFixture,
   candidateId: string,
-  sessionContext: PlanInput["sessionContext"],
+  sessionContext: SessionContext,
 ): OptionSelection[] {
+  const domain = domainFor(fixture.manifest.environmentId, sessionContext);
   const candidate = fixture.candidates.find((c) => c.candidateId === candidateId);
   if (!candidate) {
     throw new Error(`resolveOptionSelections: unknown candidate ${candidateId}`);
@@ -90,19 +89,21 @@ export function resolveOptionSelections(
     throw new Error(`resolveOptionSelections: candidate ${candidateId} is unavailable`);
   }
 
-  const preferences = sessionContext.preferences as Record<string, unknown>;
   const selections: OptionSelection[] = [];
 
-  const add = (group: OptionGroup): void => {
-    const id = chooseOptionId(group, preferences, candidate);
-    if (id === null) return;
-    const answer = preferences[PREFERENCE_KEY_BY_GROUP[group.groupId] ?? group.groupId];
+  for (const group of fixture.optionGroups) {
+    const answer = domain.answerFor(group, sessionContext);
+    const id = chooseOptionId(group, answer, candidate);
+    if (id === null) continue;
+
     const answered = answer !== undefined && answer !== null && !NOT_ANSWERED.has(String(answer));
-    // QUANTITY is carried as a number; report the option id either way so a
+    // A quantity is carried as a number; report the option id either way so a
     // screen compares like with like.
-    const asOptionId = typeof answer === "number"
-      ? group.options.find((o) => o.value === answer)?.id ?? null
-      : String(answer ?? "");
+    const asOptionId =
+      typeof answer === "number"
+        ? group.options.find((o) => o.value === answer)?.id ?? null
+        : String(answer ?? "");
+
     selections.push({
       groupId: group.groupId,
       kind: group.kind ?? "option",
@@ -114,19 +115,8 @@ export function resolveOptionSelections(
         ? group.options.find((o) => o.id === asOptionId)?.label ?? asOptionId
         : null,
     });
-  };
+  }
 
-  const serviceGroup = groupByKind(fixture.optionGroups, "service_type");
-  if (serviceGroup) {
-    if (chooseOptionId(serviceGroup, preferences, candidate) === null) {
-      throw new Error("buildExecutionPlan: service type is required but unanswered");
-    }
-    add(serviceGroup);
-  }
-  for (const group of fixture.optionGroups) {
-    if (group.kind !== "option") continue;
-    add(group);
-  }
   return selections;
 }
 
@@ -145,6 +135,8 @@ export function buildExecutionPlan(input: PlanInput): ExecutionPlan {
     );
   }
 
+  const domain = domainFor(input.environmentId, input.sessionContext);
+
   const candidate = fixture.candidates.find((c) => c.candidateId === candidateId);
   if (!candidate) {
     throw new Error(`buildExecutionPlan: unknown candidate ${candidateId}`);
@@ -154,24 +146,25 @@ export function buildExecutionPlan(input: PlanInput): ExecutionPlan {
     throw new Error(`buildExecutionPlan: candidate ${candidateId} is unavailable`);
   }
 
-  const preferences = input.sessionContext.preferences as Record<string, unknown>;
   const forbidden = new Set([...FORBIDDEN_ACTIONS, ...manifest.forbiddenActions]);
+
+  // The selections come from the same function the approval screen calls, so
+  // what the user approved and what the plan does cannot drift apart.
+  const selections = resolveOptionSelections(fixture, candidateId, input.sessionContext);
+  const selectionByGroup = new Map(selections.map((s) => [s.groupId, s]));
+  const emitted = new Set<string>();
 
   const actions: PlannedAction[] = [];
   let state = manifest.initialState;
 
-  /**
-   * Append one action and advance. The before/after states come from
-   * `fixture.transitions`, never from a literal — if the environment's state
-   * machine moves, the plan moves with it instead of silently going stale.
-   */
   const step = (action: string, target?: PlannedAction["target"]): void => {
     const move = transitionFor(transitions, state, action);
     actions.push({
       actionIndex: actions.length,
       action,
-      // Review and confirmation steps have nothing to name but the state they
-      // land on, which is exactly what the simulator matches them against.
+      // Steps that name nothing but the state they land on — a welcome screen,
+      // a confirmation, a requirements page — carry that state, which is
+      // exactly what the simulator matches them against.
       target: target ?? { kind: "review", id: move.to },
       expectedBeforeState: move.from,
       expectedAfterState: move.to,
@@ -179,40 +172,65 @@ export function buildExecutionPlan(input: PlanInput): ExecutionPlan {
     state = move.to;
   };
 
-  // 1. Service type, then the menu item itself. The selections come from the
-  //    same function the approval screen calls, so what the user approved and
-  //    what the plan does cannot drift apart.
-  const selections = resolveOptionSelections(fixture, candidateId, input.sessionContext);
+  /** Groups this action selects that are still waiting, in fixture order. */
+  const pendingFor = (action: string): OptionGroup[] =>
+    fixture.optionGroups.filter(
+      (g) =>
+        !emitted.has(g.groupId) &&
+        selectionByGroup.has(g.groupId) &&
+        domain.actionByGroupKind[g.kind ?? "option"] === action,
+    );
 
-  const service = selections.find((s) => s.kind === "service_type");
-  if (service) {
-    step(ACTION_BY_TARGET_KIND.service_type, { kind: service.kind, id: service.optionId });
-  }
+  const selectGroup = (action: string, group: OptionGroup): void => {
+    step(action, targetFor(selectionByGroup.get(group.groupId)!));
+    emitted.add(group.groupId);
+  };
 
-  step("select_menu", { kind: "candidate", id: candidateId });
+  /**
+   * Some states select their groups without moving: a chicken shop picks four
+   * options while sitting in OPTION_SELECTION, a hospital desk picks the
+   * department while sitting in DEPARTMENT_SELECTION. Those show up as
+   * self-loops in the transition table, which route-finding skips, so they are
+   * drained here before the route moves on.
+   */
+  const drainSelfLoops = (): void => {
+    for (const loop of transitions) {
+      if (loop.from !== state || loop.to !== state || forbidden.has(loop.action)) continue;
+      for (const group of pendingFor(loop.action)) selectGroup(loop.action, group);
+    }
+  };
 
-  // 2. Every remaining group, once each, in fixture order. Iterating the groups
-  //    rather than the user's answers is what makes a double-pick impossible.
-  for (const option of selections.filter((s) => s.kind === "option")) {
-    step(ACTION_BY_TARGET_KIND.option, {
-      kind: "option",
-      groupId: option.groupId,
-      id: option.optionId,
-    });
-  }
-
-  // 3. Walk the state machine to the review boundary. Shortest legal route, so
-  //    no page-turning or re-entry steps sneak in — the simulator handles those.
   for (const move of routeTo(transitions, state, manifest.reviewBoundaryState, forbidden)) {
+    drainSelfLoops();
+
+    if (move.action === domain.candidateAction) {
+      step(move.action, { kind: "candidate", id: candidateId });
+      continue;
+    }
+    const [group] = pendingFor(move.action);
+    if (group) {
+      selectGroup(move.action, group);
+      continue;
+    }
     step(move.action);
   }
+  drainSelfLoops();
 
-  // 4. Stop here and check. A missing verifier is MISSING_VERIFIER.
+  // Stop here and check. A missing verifier is MISSING_VERIFIER.
   step(manifest.requiredVerifierAction);
 
   assertSafe(actions, manifest.allowedActions, forbidden);
   if (state !== manifest.reviewBoundaryState) {
     throw new Error(`buildExecutionPlan: plan ended at ${state}, not the review boundary`);
+  }
+  // A selection the route never had an action for would be silently dropped —
+  // the user would approve one thing and the simulator replay another.
+  const dropped = selections.filter((s) => !emitted.has(s.groupId));
+  if (dropped.length > 0) {
+    throw new Error(
+      `buildExecutionPlan: ${dropped.map((s) => s.groupId).join(", ")} never reached the plan; ` +
+        `check ${input.environmentId}'s actionByGroupKind against its transitions`,
+    );
   }
 
   return {
@@ -224,8 +242,15 @@ export function buildExecutionPlan(input: PlanInput): ExecutionPlan {
   };
 }
 
-function groupByKind(groups: OptionGroup[], kind: string): OptionGroup | undefined {
-  return groups.find((g) => g.kind === kind);
+/**
+ * `groupId` rides along only for the generic "option" kind, where it is the only
+ * thing telling one selection from another. Named kinds carry it in the kind
+ * itself and the schema rejects the extra field.
+ */
+function targetFor(selection: OptionSelection): PlannedAction["target"] {
+  return selection.kind === "option"
+    ? { kind: "option", groupId: selection.groupId, id: selection.optionId }
+    : { kind: selection.kind, id: selection.optionId };
 }
 
 /**
@@ -235,11 +260,10 @@ function groupByKind(groups: OptionGroup[], kind: string): OptionGroup | undefin
  */
 function chooseOptionId(
   group: OptionGroup,
-  preferences: Record<string, unknown>,
+  answer: unknown,
   candidate: Candidate,
 ): string | null {
   const supported = candidate.supportedOptions?.[group.groupId] ?? group.options.map((o) => o.id);
-  const answer = preferences[PREFERENCE_KEY_BY_GROUP[group.groupId] ?? group.groupId];
 
   if (answer === undefined || answer === null || NOT_ANSWERED.has(String(answer))) {
     if (!group.required) return null;
@@ -251,7 +275,7 @@ function chooseOptionId(
     );
   }
 
-  // QUANTITY arrives as a number (1), the option carries it as `value`.
+  // A quantity arrives as a number (1), the option carries it as `value`.
   const match =
     typeof answer === "number"
       ? group.options.find((o) => o.value === answer)
@@ -282,7 +306,13 @@ function transitionFor(transitions: Transition[], from: string, action: string):
   return move;
 }
 
-/** Shortest sequence of transitions from `from` to `goal`. Breadth-first. */
+/**
+ * Shortest sequence of transitions from `from` to `goal`. Breadth-first, so no
+ * page-turning or re-entry steps sneak in — the simulator handles those.
+ *
+ * Self-loops never appear: their destination is already visited by definition.
+ * `drainSelfLoops` is what puts them back where they belong.
+ */
 function routeTo(
   transitions: Transition[],
   from: string,
@@ -305,11 +335,7 @@ function routeTo(
 }
 
 /** Last gate before the plan leaves this function. */
-function assertSafe(
-  actions: PlannedAction[],
-  allowed: string[],
-  forbidden: Set<string>,
-): void {
+function assertSafe(actions: PlannedAction[], allowed: string[], forbidden: Set<string>): void {
   for (const { action, target } of actions) {
     if (forbidden.has(action)) {
       throw new Error(`buildExecutionPlan: forbidden action ${action} reached the plan`);
