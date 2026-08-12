@@ -27,36 +27,23 @@ import { ConfirmScreen } from "../components/ConfirmScreen";
 import { ResultScreen } from "../components/ResultScreen";
 import { StaffHelp } from "../components/StaffHelp";
 
+// [접근성 2-3] 진행 상황 라벨
+const STEP_LABELS = ["상황 입력", "추천 결과", "최종 확인", "실행 결과"];
+
 export default function Home() {
   const [fontScale, setFontScale] = useState(1);
   const [isHighContrast, setIsHighContrast] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
 
-  /**
-   * Which kiosk we are standing at. Picked on the start screen and carried
-   * through every engine call below — the questions, the rules, the plan and
-   * the safety boundary all differ by environment, so nothing downstream is
-   * allowed to assume one.
-   */
+  // [요건 1] 현재 환경(키오스크) 식별자 상태
   const [environmentId, setEnvironmentId] = useState<EnvironmentId>(DEFAULT_ENVIRONMENT_ID);
-
   const [questions, setQuestions] = useState<QuestionDef[]>([]);
   const [answers, setAnswers] = useState<AnyAnswers>(emptyAnswers(DEFAULT_ENVIRONMENT_ID));
   const [recView, setRecView] = useState<RecommendationView | null>(null);
-  /**
-   * What the user is taking forward. Starts as the top pick, but an alternative
-   * can replace it — the recommendation is a suggestion, not a decision.
-   */
   const [chosen, setChosen] = useState<CandidateView | null>(null);
-  /** What that choice will actually be ordered with. Shown on the approval screen. */
   const [selections, setSelections] = useState<OptionSelection[]>([]);
   const [runResult, setRunResult] = useState<RunView | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  /**
-   * The engine refuses rather than guesses, so a call can legitimately fail —
-   * approving a menu without saying how you want to receive it, for one. The
-   * button used to do nothing at all in that case; say what happened instead.
-   */
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
@@ -104,17 +91,12 @@ export default function Home() {
   const handleChoose = (candidate: CandidateView) => {
     setErrorMessage(null);
     try {
-      // Work out what this menu will actually be ordered with before showing
-      // the approval screen. If the engine refuses, the user finds out here
-      // rather than after pressing the button that says "진행할게요".
       setSelections(previewOrder(candidate.candidateId, answers, environmentId));
       setChosen(candidate);
       setCurrentStep(3);
     } catch (error) {
       console.error("주문 내용 확인 실패:", error);
-      setErrorMessage(
-        "이 메뉴로는 진행할 수 없습니다. 아직 고르지 않은 항목이 있는지 확인하고 다시 답해 주세요.",
-      );
+      setErrorMessage("이 메뉴로는 진행할 수 없습니다. 아직 고르지 않은 항목이 있는지 확인하고 다시 답해 주세요.");
     }
   };
 
@@ -128,8 +110,6 @@ export default function Home() {
     setIsLoading(true);
     setErrorMessage(null);
     try {
-      // The same answers that produced the recommendation: the plan has to be
-      // for the order the user was actually shown and approved.
       const run = await runPlan(
         { candidateId: chosen.candidateId, approved: true },
         answers,
@@ -139,17 +119,13 @@ export default function Home() {
       setCurrentStep(4);
     } catch (error) {
       console.error("실행 계획 실행 실패:", error);
-      setErrorMessage(
-        "주문을 진행하지 못했습니다. 아직 고르지 않은 항목이 있는지 확인하고 다시 답해 주세요.",
-      );
+      setErrorMessage("주문을 진행하지 못했습니다. 아직 고르지 않은 항목이 있는지 확인하고 다시 답해 주세요.");
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleReset = () => {
-    // Back to the environment picker, not to this environment's first question:
-    // the next person at the kiosk may not be here for the same thing.
     setEnvironmentId(DEFAULT_ENVIRONMENT_ID);
     setAnswers(emptyAnswers(DEFAULT_ENVIRONMENT_ID));
     setRecView(null);
@@ -157,7 +133,7 @@ export default function Home() {
     setSelections([]);
     setRunResult(null);
     setErrorMessage(null);
-    setCurrentStep(0);
+    setCurrentStep(0); // 환경 선택(StartScreen)으로 완전 복귀
   };
 
   const a11yBar = (
@@ -170,10 +146,40 @@ export default function Home() {
   );
 
   return (
-    <div className="min-h-screen flex flex-col p-4 sm:p-8 max-w-4xl mx-auto gap-8 w-full">
+    <div className="min-h-screen flex flex-col p-4 sm:p-8 max-w-4xl mx-auto gap-8 w-full relative pb-24">
       {currentStep > 0 && !isLoading && (
-        <header className="pb-4 border-b border-gray-300 w-full flex justify-center">
+        <header className="pb-4 border-b border-gray-300 w-full flex flex-col gap-6">
           {a11yBar}
+          {/* [접근성 2-3] 진행 상황 인디케이터 (aria-current 적용) */}
+          <nav aria-label="진행 상황" className="w-full">
+            <ol 
+              className="flex justify-between items-center rounded-full p-2" 
+              style={{ 
+                backgroundColor: isHighContrast ? 'transparent' : '#f3f4f6', 
+                border: isHighContrast ? '2px solid var(--color-fg)' : 'none' 
+              }}
+            >
+              {STEP_LABELS.map((label, idx) => {
+                const stepNumber = idx + 1;
+                const isActive = currentStep === stepNumber;
+                const isPassed = currentStep > stepNumber;
+                return (
+                  <li
+                    key={label}
+                    aria-current={isActive ? "step" : undefined}
+                    className={`flex-1 text-center font-bold rounded-full py-2 transition-colors ${
+                      isActive 
+                        ? "bg-[var(--color-accent)] text-[var(--color-bg)] shadow-md" 
+                        : isPassed ? "opacity-80" : "opacity-40"
+                    }`}
+                    style={{ fontSize: "calc(0.9rem * var(--font-scale))" }}
+                  >
+                    <span className="hidden sm:inline">{stepNumber}. </span>{label}
+                  </li>
+                );
+              })}
+            </ol>
+          </nav>
         </header>
       )}
 
@@ -191,6 +197,7 @@ export default function Home() {
         </main>
       ) : (
         <>
+          {/* [결함 방어] 세션 10/12 - 엔진 거절 시 죽지 않고 alert 띄우는 로직 보존 */}
           {errorMessage && (
             <p
               role="alert"
@@ -202,7 +209,7 @@ export default function Home() {
           )}
 
           {currentStep === 0 && (
-            <StartScreen onStart={handleStart} accessibilityBar={a11yBar} />
+            <StartScreen onStart={handleStart} accessibilityBar={a11yBar} isHighContrast={isHighContrast} />
           )}
 
           {currentStep === 1 && (
@@ -211,6 +218,7 @@ export default function Home() {
               currentAnswers={answers}
               onSubmit={handleContextSubmit}
               isHighContrast={isHighContrast}
+              environmentId={environmentId}
             />
           )}
 
@@ -244,8 +252,7 @@ export default function Home() {
             />
           )}
 
-          {/* Same place on every screen. A kiosk you can get stuck in is the
-              problem we are fixing, so the way out never moves. */}
+          {/* [결함 방어] 세션 10/12 - 키오스크에 갇히지 않게 StaffHelp 고정 */}
           <div className="mt-auto pt-6 border-t border-gray-300 w-full">
             <StaffHelp
               questions={questions}
