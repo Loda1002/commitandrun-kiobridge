@@ -1,8 +1,15 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { fetchQuestions, fetchRecommendation, runPlan } from "../lib/api";
-import type { Answers, QuestionDef, RecommendationView, RunView } from "../lib/types";
+import { fetchQuestions, fetchRecommendation, previewOrder, runPlan } from "../lib/api";
+import type {
+  Answers,
+  CandidateView,
+  OptionSelection,
+  QuestionDef,
+  RecommendationView,
+  RunView,
+} from "../lib/types";
 
 import { AccessibilityBar } from "../components/AccessibilityBar";
 import { StartScreen } from "../components/StartScreen";
@@ -10,6 +17,7 @@ import { ContextScreen } from "../components/ContextScreen";
 import { RecommendScreen } from "../components/RecommendScreen";
 import { ConfirmScreen } from "../components/ConfirmScreen";
 import { ResultScreen } from "../components/ResultScreen";
+import { StaffHelp } from "../components/StaffHelp";
 
 const EMPTY_ANSWERS: Answers = {
   serviceType: "",
@@ -29,6 +37,13 @@ export default function Home() {
   const [questions, setQuestions] = useState<QuestionDef[]>([]);
   const [answers, setAnswers] = useState<Answers>(EMPTY_ANSWERS);
   const [recView, setRecView] = useState<RecommendationView | null>(null);
+  /**
+   * What the user is taking forward. Starts as the top pick, but an alternative
+   * can replace it — the recommendation is a suggestion, not a decision.
+   */
+  const [chosen, setChosen] = useState<CandidateView | null>(null);
+  /** What that choice will actually be ordered with. Shown on the approval screen. */
+  const [selections, setSelections] = useState<OptionSelection[]>([]);
   const [runResult, setRunResult] = useState<RunView | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   /**
@@ -78,8 +93,21 @@ export default function Home() {
     }
   };
 
-  const handleRecommendNext = () => {
-    setCurrentStep(3);
+  const handleChoose = (candidate: CandidateView) => {
+    setErrorMessage(null);
+    try {
+      // Work out what this menu will actually be ordered with before showing
+      // the approval screen. If the engine refuses, the user finds out here
+      // rather than after pressing the button that says "진행할게요".
+      setSelections(previewOrder(candidate.candidateId, answers));
+      setChosen(candidate);
+      setCurrentStep(3);
+    } catch (error) {
+      console.error("주문 내용 확인 실패:", error);
+      setErrorMessage(
+        "이 메뉴로는 진행할 수 없습니다. 아직 고르지 않은 항목이 있는지 확인하고 다시 답해 주세요.",
+      );
+    }
   };
 
   const handleBackToContext = () => {
@@ -88,16 +116,13 @@ export default function Home() {
   };
 
   const handleApprove = async () => {
-    if (!recView || !recView.recommended) return;
+    if (!chosen) return;
     setIsLoading(true);
     setErrorMessage(null);
     try {
       // The same answers that produced the recommendation: the plan has to be
       // for the order the user was actually shown and approved.
-      const run = await runPlan(
-        { candidateId: recView.recommended.candidateId, approved: true },
-        answers,
-      );
+      const run = await runPlan({ candidateId: chosen.candidateId, approved: true }, answers);
       setRunResult(run);
       setCurrentStep(4);
     } catch (error) {
@@ -113,6 +138,8 @@ export default function Home() {
   const handleReset = () => {
     setAnswers(EMPTY_ANSWERS);
     setRecView(null);
+    setChosen(null);
+    setSelections([]);
     setRunResult(null);
     setErrorMessage(null);
     setCurrentStep(0);
@@ -176,15 +203,15 @@ export default function Home() {
             <RecommendScreen
               recView={recView}
               isHighContrast={isHighContrast}
-              onNext={handleRecommendNext}
+              onChoose={handleChoose}
               onBackToContext={handleBackToContext}
             />
           )}
 
-          {currentStep === 3 && recView && recView.recommended && (
+          {currentStep === 3 && chosen && (
             <ConfirmScreen
-              candidate={recView.recommended}
-              answers={answers}
+              candidate={chosen}
+              selections={selections}
               isHighContrast={isHighContrast}
               onApprove={handleApprove}
               onBackToContext={handleBackToContext}
@@ -198,6 +225,17 @@ export default function Home() {
               onReset={handleReset}
             />
           )}
+
+          {/* Same place on every screen. A kiosk you can get stuck in is the
+              problem we are fixing, so the way out never moves. */}
+          <div className="mt-auto pt-6 border-t border-gray-300 w-full">
+            <StaffHelp
+              answers={answers}
+              answersSubmitted={recView !== null}
+              candidate={chosen ?? recView?.recommended ?? null}
+              isHighContrast={isHighContrast}
+            />
+          </div>
         </>
       )}
     </div>

@@ -16,8 +16,16 @@ import type {
   RecommendationReason,
   ScoreContribution,
 } from "@commitandrun/engine";
+import type { OptionSelection } from "@commitandrun/engine/plan";
 
-export type { PlannedAction, ReasonTag, ReconfirmRequest, RecommendationReason, ScoreContribution };
+export type {
+  OptionSelection,
+  PlannedAction,
+  ReasonTag,
+  ReconfirmRequest,
+  RecommendationReason,
+  ScoreContribution,
+};
 
 /* ── what the user tells us ──────────────────────────────────────────────── */
 

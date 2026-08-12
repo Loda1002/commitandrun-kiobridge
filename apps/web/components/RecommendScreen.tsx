@@ -1,18 +1,19 @@
 "use client";
 
-import type { RecommendationView } from "../lib/types";
+import type { CandidateView, RecommendationView } from "../lib/types";
 
 interface RecommendScreenProps {
   recView: RecommendationView;
   isHighContrast: boolean;
-  onNext: () => void;
+  /** Which candidate the user is taking forward — the top pick or an alternative. */
+  onChoose: (candidate: CandidateView) => void;
   onBackToContext: () => void;
 }
 
 export function RecommendScreen({
   recView,
   isHighContrast,
-  onNext,
+  onChoose,
   onBackToContext,
 }: RecommendScreenProps) {
   /**
@@ -146,6 +147,52 @@ export function RecommendScreen({
         </div>
       )}
 
+      {/* The way back. The top pick is a suggestion, not a decision — a kiosk
+          that offers one path is the problem we are fixing, so the runners-up
+          are shown with their scores and can be taken instead. */}
+      {recView.alternatives.length > 0 && (
+        <section className={`border-2 rounded-2xl p-6 md:p-8 ${isHighContrast ? "border-gray-400" : "border-gray-300"}`}>
+          <h3 className="font-bold mb-5" style={{ fontSize: "calc(1.4rem * var(--font-scale))" }}>
+            🔁 다른 것도 보시겠어요?
+          </h3>
+          <ul className="flex flex-col gap-4">
+            {recView.alternatives.map((alt) => (
+              <li
+                key={alt.candidateId}
+                className={`flex flex-col sm:flex-row sm:items-center gap-4 justify-between border rounded-xl p-4 ${
+                  isHighContrast ? "border-gray-600" : "border-gray-200"
+                }`}
+              >
+                <div className="flex flex-col gap-1">
+                  <span className="font-bold" style={{ fontSize: "calc(1.3rem * var(--font-scale))" }}>
+                    {alt.name}
+                  </span>
+                  <span className="opacity-80 font-bold" style={{ fontSize: "calc(1.1rem * var(--font-scale))" }}>
+                    {alt.priceKrw.toLocaleString()}원 · {Math.round(alt.total * 100)}점
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => onChoose(alt)}
+                  className="focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2 transition-transform active:scale-95 px-6"
+                  style={{
+                    minHeight: "var(--tap-min)",
+                    borderRadius: "var(--radius)",
+                    backgroundColor: "transparent",
+                    color: "var(--color-fg)",
+                    border: "2px solid var(--color-fg)",
+                    fontSize: "calc(1.1rem * var(--font-scale))",
+                    fontWeight: "bold",
+                  }}
+                >
+                  이걸로 할게요
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       <section className={`border-2 rounded-2xl p-6 md:p-8 ${isHighContrast ? "border-red-400 bg-transparent" : "bg-red-50 border-red-500"}`}>
         <h3
           className={`font-bold mb-5 ${isHighContrast ? "text-red-400" : "text-red-700"}`}
@@ -183,7 +230,7 @@ export function RecommendScreen({
 
         <button
           type="button"
-          onClick={onNext}
+          onClick={() => recView.recommended && onChoose(recView.recommended)}
           disabled={!recView.recommended}
           className="flex-1 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-4 transition-transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:hover:scale-100"
           style={{

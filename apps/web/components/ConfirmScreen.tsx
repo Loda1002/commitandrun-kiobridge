@@ -1,10 +1,15 @@
 "use client";
 
-import type { Answers, CandidateView } from "../lib/types";
+import type { CandidateView, OptionSelection } from "../lib/types";
 
 interface ConfirmScreenProps {
   candidate: CandidateView;
-  answers: Answers;
+  /**
+   * What will actually be selected, straight from the engine — not the raw
+   * answers. A menu that only comes one way gets that way whatever was asked
+   * for, and the user has to approve the real thing.
+   */
+  selections: OptionSelection[];
   isHighContrast: boolean;
   onApprove: () => void;
   onBackToContext: () => void;
@@ -12,11 +17,13 @@ interface ConfirmScreenProps {
 
 export function ConfirmScreen({
   candidate,
-  answers,
+  selections,
   isHighContrast,
   onApprove,
   onBackToContext,
 }: ConfirmScreenProps) {
+  const changed = selections.filter((s) => s.userAnswer !== null && s.userAnswer !== s.optionId);
+
   return (
     <main className="flex flex-col gap-8 w-full">
       <h1 className="font-extrabold text-center" style={{ fontSize: "calc(2rem * var(--font-scale))" }}>
@@ -41,23 +48,37 @@ export function ConfirmScreen({
         <div className="flex flex-col gap-3 border-b pb-4" style={{ borderColor: "var(--color-fg)" }}>
           <span className="opacity-80 font-bold" style={{ fontSize: "calc(1.2rem * var(--font-scale))" }}>선택 옵션</span>
           <div className="flex flex-wrap gap-2">
-            <span className={`px-3 py-1 rounded-lg font-bold ${isHighContrast ? "border border-gray-400" : "bg-gray-100"}`}>
-              {answers.serviceType === "TAKE_OUT" ? "포장" : answers.serviceType === "DINE_IN" ? "매장" : "수령방법 미지정"}
-            </span>
-            <span className={`px-3 py-1 rounded-lg font-bold ${isHighContrast ? "border border-gray-400" : "bg-gray-100"}`}>
-              {answers.spicyLevel === "HOT" ? "매운맛" : answers.spicyLevel === "MEDIUM" ? "보통맛" : answers.spicyLevel === "MILD" ? "순한맛" : "맵기 미지정"}
-            </span>
-            <span className={`px-3 py-1 rounded-lg font-bold ${isHighContrast ? "border border-gray-400" : "bg-gray-100"}`}>
-              {answers.boneType === "BONELESS" ? "순살" : answers.boneType === "BONE" ? "뼈" : "뼈/순살 미지정"}
-            </span>
-            <span className={`px-3 py-1 rounded-lg font-bold ${isHighContrast ? "border border-gray-400" : "bg-gray-100"}`}>
-              {answers.cupOption === "PAPER" ? "종이컵" : answers.cupOption === "REGULAR" ? "일반 컵" : "컵 미지정"}
-            </span>
-            <span className={`px-3 py-1 rounded-lg font-bold ${isHighContrast ? "border border-gray-400" : "bg-gray-100"}`}>
-              {answers.quantity === "Q1" ? "1개" : answers.quantity === "Q2" ? "2개" : "3개"}
-            </span>
+            {selections.map((selection) => (
+              <span
+                key={selection.groupId}
+                className={`px-3 py-1 rounded-lg font-bold ${isHighContrast ? "border border-gray-400" : "bg-gray-100"}`}
+              >
+                {selection.label} {selection.optionLabel}
+              </span>
+            ))}
           </div>
         </div>
+
+        {/* Say it out loud when the menu cannot be had the way it was asked for.
+            Finding out after the fact is how a kiosk loses someone's trust. */}
+        {changed.length > 0 && (
+          <div
+            className={`p-4 rounded-xl border-2 flex flex-col gap-2 ${
+              isHighContrast ? "border-yellow-300" : "border-orange-500 bg-orange-50"
+            }`}
+            style={{ fontSize: "calc(1.1rem * var(--font-scale))" }}
+          >
+            <p className="font-extrabold">고르신 것과 다른 부분이 있습니다</p>
+            <ul className="flex flex-col gap-1 list-disc pl-5">
+              {changed.map((selection) => (
+                <li key={selection.groupId}>
+                  {selection.label}: {selection.userAnswerLabel} → <strong>{selection.optionLabel}</strong>
+                  {" "}— 이 메뉴에는 고르신 선택지가 없습니다.
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         <div className="p-4 rounded-xl text-center font-extrabold bg-red-500/10 border-2 border-red-500" style={{ fontSize: "calc(1.2rem * var(--font-scale))" }}>
           ⚠️ 장바구니 담기까지만 진행되며, 결제는 하지 않습니다.

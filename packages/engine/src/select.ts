@@ -127,7 +127,7 @@ function unavailable(candidate: Candidate): ExclusionReason | null {
   if (candidate.available) return null;
   return {
     candidateId: candidate.candidateId,
-    reasonCode: "UNAVAILABLE",
+    reasonCode: "CANDIDATE_UNAVAILABLE",
     explanation: "지금 품절이라 고를 수 없습니다.",
     tag: "AVAILABILITY",
   };
@@ -145,7 +145,7 @@ function overBudget(candidate: Candidate, ctx: ChickenStoreSessionContext): Excl
 
   return {
     candidateId: candidate.candidateId,
-    reasonCode: "PRICE_OVER_LIMIT",
+    reasonCode: "PRICE_LIMIT_EXCEEDED",
     explanation: `정하신 예산 ${won(limit)}원보다 비싸서 제외했습니다.`,
     tag: "USER_PREFERENCE",
   };
@@ -420,7 +420,7 @@ export function explainRecommendation(
     push("SAFETY", `등록하신 ${labels} 알레르기와 겹치는 메뉴는 아예 빼고 골랐습니다.`);
   }
 
-  if (hasCode(excluded, "UNAVAILABLE")) {
+  if (hasCode(excluded, "CANDIDATE_UNAVAILABLE")) {
     push("AVAILABILITY", "매장 재고를 확인해 지금 품절인 메뉴는 빼고 골랐습니다.");
   }
 

@@ -320,14 +320,21 @@ export function buildAlternatives(_candidates: Candidate[], rec: Recommendation)
  * 최종 확인 화면에서 손님이 누른 결과입니다. 자동 추천을 자동 실행으로 잇지
  * 않습니다.
  *
- * 추천이 없거나 되물을 것이 남아 있으면 기록이 무엇이든 승인으로 읽지 않습니다.
- * 손님은 볼 수 없는 것을 승인할 수 없습니다.
+ * 추천이 없으면 기록이 무엇이든 승인으로 읽지 않습니다. 손님은 볼 수 없는 것을
+ * 승인할 수 없습니다.
+ *
+ * ⚠️ `requiresReconfirmation` 만으로 막지 않습니다. 그 값은 원인이 둘이고
+ * (되물을 것이 남았다 / 확신이 LOW_CONFIDENCE_THRESHOLD 미만이다) 둘을 같게
+ * 다루면 화면과 어긋납니다. 화면은 앞의 경우 추천을 아예 그리지 않고 진행
+ * 버튼도 주지 않지만, 뒤의 경우 주의 문구를 얹고 손님이 직접 판단하게 합니다.
+ * 앞의 경우는 엔진이 `recommendedCandidateId` 를 null 로 돌려주므로
+ * (select.ts 의 `mayRecommend`) 아래 조건 하나로 같은 판정이 납니다.
  */
 export async function collectUserDecision(
   rec: Recommendation,
   recorded: CollectedInput["decision"],
 ): Promise<UserDecision> {
-  const offered = rec.recommendedCandidateId !== null && !rec.requiresReconfirmation;
+  const offered = rec.recommendedCandidateId !== null;
   if (!offered || !recorded.approved) {
     return {
       approved: false,

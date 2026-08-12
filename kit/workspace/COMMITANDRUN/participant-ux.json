@@ -1,21 +1,36 @@
 {
+  "_note": "사실대로 적은 신고서입니다. 2026-08-12 배포본(https://kiobridge-mvp.vercel.app)과 apps/web 소스를 대조해 한 줄씩 확인했습니다. 자기 선언만으로 UX PASS 가 되지는 않습니다.",
+
   "anonymousStartSupported": true,
   "loginRequired": false,
   "optionalLoginSupported": false,
-  "localProfileStorage": "OPTIONAL",
-  "deleteStoredProfileSupported": true,
+
+  "_storage": "브라우저에 아무것도 저장하지 않습니다. localStorage·sessionStorage 사용처가 0건이고, 새로고침하면 답변이 사라집니다. 저장하는 것이 없으므로 삭제 기능도 없습니다.",
+  "localProfileStorage": "NONE",
+  "deleteStoredProfileSupported": false,
   "oneTimeUseSupported": true,
+
   "recommendationReasonsShown": true,
   "alternativesShown": true,
   "recommendationCanBeRejected": true,
   "userConfirmationRequired": true,
+
+  "_externalApi": "외부 API 를 부르지 않습니다. 추천 엔진이 브라우저 안에서 돌아 네트워크 호출이 없습니다.",
   "externalApiUsed": false,
   "externalApiFallbackDocumented": false,
+
+  "_accessibility": "실제로 구현한 것만 적었습니다. 음성·수어·보호자 모드는 없습니다.",
   "accessibilityChannels": [
     "LARGE_TEXT",
     "HIGH_CONTRAST"
   ],
-  "manualReviewNotes": [],
-  "_loginRequired": "loginRequired=false 는 '로그인 기능이 전혀 없다'는 뜻이 아니라 '핵심 이용 흐름이 로그인에 의해 차단되지 않는다'는 뜻입니다. 로그인하지 않아도 추천·확인·제출 생성이 가능하면, 선택적 로그인 기능이 있어도 false 입니다.",
-  "_optionalLoginSupported": "서비스에 선택적 로그인 화면이 있으면 true 로 적으세요. true 여도 loginRequired 가 false 라면 정상입니다. 심사에서 익명 경로를 확인합니다."
+
+  "manualReviewNotes": [
+    "알레르기 질문에 '모르겠어요' 를 고르거나 아무것도 고르지 않고 진행하면, 추천을 아예 그리지 않고 되묻습니다. 그 화면에는 진행 버튼이 없습니다 — 되돌아가기 하나뿐입니다.",
+    "추천 이유 문장은 실제로 참일 때만 나옵니다. 알레르기를 등록하지 않으면 알레르기 관련 문장이 한 줄도 나오지 않습니다.",
+    "추천 화면의 '검증 결과' 는 실행계획을 환경의 상태 전이·허용 동작·안전 경계·플래그에 대조한 저희 자체 검사입니다. 공식 시뮬레이션 API 실행 결과가 아닙니다.",
+    "화면과 이 제출물은 packages/engine 의 같은 함수를 씁니다. 화면에 보이는 추천과 제출 JSON 의 추천이 다를 수 없는 구조입니다.",
+    "상황 입력에 필수 응답 검사가 없습니다. 답하지 않은 항목은 UNKNOWN 으로 처리되어 추천이 멈추거나 실행계획 생성이 거절되지만, 어느 항목이 비었는지는 짚어 드리지 못합니다. 알고 있는 미비점입니다.",
+    "직원 도움 버튼은 모든 화면 아래에 있습니다. 직원을 자동으로 부르지는 않으며 화면에 그렇게 적어 두었습니다 — 지금까지 고른 내용을 직원에게 보여드리는 화면입니다."
+  ]
 }

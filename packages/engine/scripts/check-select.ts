@@ -161,7 +161,7 @@ const tightCtx = {
   hardConstraints: { ...ctx.hardConstraints, maxPriceKrw: 5800 },
 } as ChickenStoreSessionContext;
 const tight = filterCandidates(fixture, tightCtx);
-const overBudget = tight.excluded.filter((e) => e.reasonCode === "PRICE_OVER_LIMIT");
+const overBudget = tight.excluded.filter((e) => e.reasonCode === "PRICE_LIMIT_EXCEEDED");
 console.log(
   `budget 5,800: survivors ${tight.survivors.map((c) => c.candidateId).join(", ") || "(none)"}` +
     ` | ${overBudget.length} over budget`,

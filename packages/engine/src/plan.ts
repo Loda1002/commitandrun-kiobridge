@@ -17,6 +17,7 @@ import {
   type OptionGroup,
   type PlanInput,
   type PlannedAction,
+  type PublicFixture,
   type Transition,
 } from "./types.ts";
 
@@ -44,6 +45,90 @@ const ACTION_BY_TARGET_KIND: Record<string, string> = {
   service_type: "select_service",
   option: "select_option",
 };
+
+/**
+ * One option the plan will select, in a form a screen can render.
+ *
+ * Exists so the approval screen can show what will actually happen rather than
+ * what the user typed. The two differ: pick a menu that only comes in one spice
+ * level and the plan selects that level, whatever was asked for. An approval
+ * screen that shows the request instead of the outcome is asking the user to
+ * approve something else.
+ */
+export interface OptionSelection {
+  groupId: string;
+  /** "service_type" or "option" — which semantic action selects it. */
+  kind: string;
+  /** Group label from the fixture, e.g. "맵기". */
+  label: string;
+  optionId: string;
+  /** Option label from the fixture, e.g. "매운맛". */
+  optionLabel: string;
+  /** What the user asked for in this group, or null if they did not answer. */
+  userAnswer: string | null;
+  /** That answer's label, for a screen that has to say what changed. */
+  userAnswerLabel: string | null;
+}
+
+/**
+ * Work out which option this candidate will be ordered with, group by group.
+ *
+ * Split out of `buildExecutionPlan` so a screen can ask the same question
+ * before the user approves. Deliberately NOT a plan: no approval is required to
+ * look, and nothing here can be executed.
+ */
+export function resolveOptionSelections(
+  fixture: PublicFixture,
+  candidateId: string,
+  sessionContext: PlanInput["sessionContext"],
+): OptionSelection[] {
+  const candidate = fixture.candidates.find((c) => c.candidateId === candidateId);
+  if (!candidate) {
+    throw new Error(`resolveOptionSelections: unknown candidate ${candidateId}`);
+  }
+  if (!candidate.available) {
+    throw new Error(`resolveOptionSelections: candidate ${candidateId} is unavailable`);
+  }
+
+  const preferences = sessionContext.preferences as Record<string, unknown>;
+  const selections: OptionSelection[] = [];
+
+  const add = (group: OptionGroup): void => {
+    const id = chooseOptionId(group, preferences, candidate);
+    if (id === null) return;
+    const answer = preferences[PREFERENCE_KEY_BY_GROUP[group.groupId] ?? group.groupId];
+    const answered = answer !== undefined && answer !== null && !NOT_ANSWERED.has(String(answer));
+    // QUANTITY is carried as a number; report the option id either way so a
+    // screen compares like with like.
+    const asOptionId = typeof answer === "number"
+      ? group.options.find((o) => o.value === answer)?.id ?? null
+      : String(answer ?? "");
+    selections.push({
+      groupId: group.groupId,
+      kind: group.kind ?? "option",
+      label: group.label,
+      optionId: id,
+      optionLabel: group.options.find((o) => o.id === id)?.label ?? id,
+      userAnswer: answered ? asOptionId : null,
+      userAnswerLabel: answered
+        ? group.options.find((o) => o.id === asOptionId)?.label ?? asOptionId
+        : null,
+    });
+  };
+
+  const serviceGroup = groupByKind(fixture.optionGroups, "service_type");
+  if (serviceGroup) {
+    if (chooseOptionId(serviceGroup, preferences, candidate) === null) {
+      throw new Error("buildExecutionPlan: service type is required but unanswered");
+    }
+    add(serviceGroup);
+  }
+  for (const group of fixture.optionGroups) {
+    if (group.kind !== "option") continue;
+    add(group);
+  }
+  return selections;
+}
 
 export function buildExecutionPlan(input: PlanInput): ExecutionPlan {
   // An unapproved plan is a safety violation by its mere existence.
@@ -94,25 +179,26 @@ export function buildExecutionPlan(input: PlanInput): ExecutionPlan {
     state = move.to;
   };
 
-  // 1. Service type, then the menu item itself.
-  const serviceGroup = groupByKind(fixture.optionGroups, "service_type");
-  if (serviceGroup) {
-    const id = chooseOptionId(serviceGroup, preferences, candidate);
-    if (id === null) {
-      throw new Error("buildExecutionPlan: service type is required but unanswered");
-    }
-    step(ACTION_BY_TARGET_KIND.service_type, { kind: serviceGroup.kind!, id });
+  // 1. Service type, then the menu item itself. The selections come from the
+  //    same function the approval screen calls, so what the user approved and
+  //    what the plan does cannot drift apart.
+  const selections = resolveOptionSelections(fixture, candidateId, input.sessionContext);
+
+  const service = selections.find((s) => s.kind === "service_type");
+  if (service) {
+    step(ACTION_BY_TARGET_KIND.service_type, { kind: service.kind, id: service.optionId });
   }
 
   step("select_menu", { kind: "candidate", id: candidateId });
 
   // 2. Every remaining group, once each, in fixture order. Iterating the groups
   //    rather than the user's answers is what makes a double-pick impossible.
-  for (const group of fixture.optionGroups) {
-    if (group.kind !== "option") continue;
-    const id = chooseOptionId(group, preferences, candidate);
-    if (id === null) continue;
-    step(ACTION_BY_TARGET_KIND.option, { kind: "option", groupId: group.groupId, id });
+  for (const option of selections.filter((s) => s.kind === "option")) {
+    step(ACTION_BY_TARGET_KIND.option, {
+      kind: "option",
+      groupId: option.groupId,
+      id: option.optionId,
+    });
   }
 
   // 3. Walk the state machine to the review boundary. Shortest legal route, so

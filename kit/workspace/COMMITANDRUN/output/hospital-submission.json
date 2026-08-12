@@ -96,7 +96,7 @@
         "supportModeMatch": 0.06
       },
       "HOS-006": {
-        "total": 0.3,
+        "total": 0.46,
         "visitTypeMatch": 0.4,
         "appointmentMatch": 0,
         "departmentMatch": 0,

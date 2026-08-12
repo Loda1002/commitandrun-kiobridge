@@ -17,7 +17,7 @@
 import { FORBIDDEN_ACTIONS } from "@commitandrun/engine";
 import type { Candidate, ExecutionPlan, ScoreContribution } from "@commitandrun/engine";
 import { collectProfile, createSessionContext } from "@commitandrun/engine/input";
-import { buildExecutionPlan } from "@commitandrun/engine/plan";
+import { buildExecutionPlan, resolveOptionSelections } from "@commitandrun/engine/plan";
 import {
   buildAlternatives,
   explainRecommendation,
@@ -32,6 +32,7 @@ import type {
   CandidateView,
   Decision,
   ExcludedView,
+  OptionSelection,
   QuestionDef,
   RecommendationView,
   RunView,
@@ -95,6 +96,23 @@ export async function fetchRecommendation(answers: Answers): Promise<Recommendat
     requiresReconfirmation: result.requiresReconfirmation,
     reconfirmRequests: result.reconfirmRequests,
   };
+}
+
+/**
+ * What ordering this candidate will actually select, group by group.
+ *
+ * The approval screen shows this rather than the raw answers, because the two
+ * can differ: a menu that only comes in one spice level gets that level
+ * whatever was asked for. Asking someone to approve their request while
+ * planning something else is not consent.
+ *
+ * Not a plan and not approval-gated — nothing here can be executed. It throws
+ * for the same reasons planning would (unknown or sold-out candidate, a
+ * required group the user never answered), which is better felt here, before
+ * the user commits, than one screen later.
+ */
+export function previewOrder(candidateId: string, answers: Answers): OptionSelection[] {
+  return resolveOptionSelections(FIXTURE, candidateId, toSessionContext(answers));
 }
 
 /**

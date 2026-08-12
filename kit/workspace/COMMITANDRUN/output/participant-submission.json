@@ -121,7 +121,7 @@
       },
       {
         "candidateId": "CHICKEN-008",
-        "reasonCode": "UNAVAILABLE",
+        "reasonCode": "CANDIDATE_UNAVAILABLE",
         "explanation": "지금 품절이라 고를 수 없습니다."
       },
       {
