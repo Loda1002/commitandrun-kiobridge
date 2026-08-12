@@ -1,69 +1,47 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import type { EnvironmentId } from "@commitandrun/engine";
 import { environmentCopy } from "../lib/fixture";
 import type { CandidateView, RecommendationView } from "../lib/types";
 
 interface RecommendScreenProps {
   recView: RecommendationView;
-  /** Names what is being recommended — a 메뉴 here is a 접수 경로 elsewhere. */
   environmentId: EnvironmentId;
   isHighContrast: boolean;
-  /** Which candidate the user is taking forward — the top pick or an alternative. */
   onChoose: (candidate: CandidateView) => void;
   onBackToContext: () => void;
 }
 
-export function RecommendScreen({
-  recView,
-  environmentId,
-  isHighContrast,
-  onChoose,
-  onBackToContext,
-}: RecommendScreenProps) {
+// [디자인] 환경별 점수 막대그래프 색상 (주황, 파랑, 초록)
+const PROGRESS_COLORS: Record<string, string> = {
+  "chicken-store": "#f97316",
+  "hospital": "#3b82f6",
+  "public-office": "#10b981",
+};
+
+export function RecommendScreen({ recView, environmentId, isHighContrast, onChoose, onBackToContext }: RecommendScreenProps) {
+  // [접근성 2-1] h1 포커스 이동
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  useEffect(() => { headingRef.current?.focus(); }, []);
+
   const copy = environmentCopy(environmentId);
-  /**
-   * An unanswered hard constraint outranks anything we could show. The engine
-   * returns no recommendation at all in this state (select.ts: mayRecommend),
-   * so the screen asks the question again instead of offering a way forward.
-   * There is deliberately no "continue" button here.
-   */
+  const barColor = isHighContrast ? "var(--color-accent)" : PROGRESS_COLORS[environmentId] || "var(--color-accent)";
+
+  // [결함 방어] 세션 10/12 재확인 게이트 완벽 보존
   if (recView.reconfirmRequests.length > 0) {
     return (
       <main className="flex flex-col gap-8 w-full">
-        <h1 className="font-extrabold text-center" style={{ fontSize: "calc(2rem * var(--font-scale))" }}>
+        <h1 ref={headingRef} tabIndex={-1} className="font-extrabold text-center focus-visible:outline-none" style={{ fontSize: "calc(2rem * var(--font-scale))" }}>
           한 가지만 더 여쭐게요
         </h1>
-
         {recView.reconfirmRequests.map((request, idx) => (
-          <section
-            key={idx}
-            className={`border-4 rounded-2xl p-6 md:p-8 flex flex-col gap-4 ${
-              isHighContrast ? "border-yellow-300 bg-transparent" : "border-orange-500 bg-orange-50"
-            }`}
-          >
-            <p className="font-extrabold" style={{ fontSize: "calc(1.5rem * var(--font-scale))" }}>
-              {request.question}
-            </p>
-            <p className="opacity-90" style={{ fontSize: "calc(1.1rem * var(--font-scale))" }}>
-              {request.because}
-            </p>
+          <section key={idx} className={`border-4 rounded-2xl p-6 md:p-8 flex flex-col gap-4 ${isHighContrast ? "border-yellow-300 bg-transparent" : "border-orange-500 bg-orange-50 shadow-sm"}`}>
+            <p className="font-extrabold" style={{ fontSize: "calc(1.5rem * var(--font-scale))" }}>{request.question}</p>
+            <p className="opacity-90 font-medium" style={{ fontSize: "calc(1.1rem * var(--font-scale))" }}>{request.because}</p>
           </section>
         ))}
-
-        <button
-          type="button"
-          onClick={onBackToContext}
-          className="w-full mt-4 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-4 transition-transform hover:scale-105 active:scale-95"
-          style={{
-            minHeight: "calc(var(--tap-min) + 8px)",
-            borderRadius: "var(--radius)",
-            backgroundColor: "var(--color-accent)",
-            color: "var(--color-bg)",
-            fontSize: "calc(1.3rem * var(--font-scale))",
-            fontWeight: "bold",
-          }}
-        >
+        <button type="button" onClick={onBackToContext} className="w-full mt-4 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-4 transition-transform hover:scale-[1.02] active:scale-95 duration-200 motion-reduce:transition-none motion-reduce:transform-none" style={{ minHeight: "calc(var(--tap-min) + 8px)", borderRadius: "var(--radius)", backgroundColor: "var(--color-accent)", color: "var(--color-bg)", fontSize: "calc(1.3rem * var(--font-scale))", fontWeight: "bold" }}>
           다시 답하러 가기
         </button>
       </main>
@@ -72,126 +50,74 @@ export function RecommendScreen({
 
   return (
     <main className="flex flex-col gap-8 w-full">
-      <h1 className="font-extrabold text-center" style={{ fontSize: "calc(2rem * var(--font-scale))" }}>
+      <h1 ref={headingRef} tabIndex={-1} className="font-extrabold text-center focus-visible:outline-none" style={{ fontSize: "calc(2rem * var(--font-scale))" }}>
         맞춤형 추천 결과
       </h1>
 
-      {/* Nothing is blocking, but the top score is weak enough that the server
-          would refuse it unconfirmed (LOW_CONFIDENCE_THRESHOLD). Say so. */}
       {recView.requiresReconfirmation && (
-        <p
-          className={`rounded-xl p-4 font-bold ${
-            isHighContrast ? "border-2 border-yellow-300" : "bg-orange-50 border-2 border-orange-500"
-          }`}
-          style={{ fontSize: "calc(1.1rem * var(--font-scale))" }}
-        >
+        <p className={`rounded-xl p-4 font-bold ${isHighContrast ? "border-2 border-yellow-300" : "bg-orange-50 border-2 border-orange-500"}`} style={{ fontSize: "calc(1.1rem * var(--font-scale))" }}>
           ⚠️ 조건에 딱 맞는 {copy.noun}이 없어 확신이 높지 않습니다. 아래 내용을 한 번 더 확인해 주세요.
         </p>
       )}
 
       {recView.recommended ? (
-        <section className="border-2 rounded-2xl p-6 md:p-8" style={{ borderColor: "var(--color-accent)" }}>
+        <section className={`border-2 rounded-2xl p-6 md:p-8 ${isHighContrast ? "" : "shadow-md"}`} style={{ borderColor: isHighContrast ? "var(--color-accent)" : barColor }}>
           <div className="flex justify-between items-end mb-6 border-b pb-4" style={{ borderColor: "var(--color-fg)" }}>
-            <h2 className="font-bold" style={{ fontSize: "calc(1.8rem * var(--font-scale))" }}>
-              {recView.recommended.name}
-            </h2>
-            <span className="font-bold" style={{ fontSize: "calc(1.8rem * var(--font-scale))", color: "var(--color-accent)" }}>
-              {Math.round(recView.recommended.total * 100)}점
-            </span>
+            <h2 className="font-extrabold" style={{ fontSize: "calc(1.8rem * var(--font-scale))" }}>{recView.recommended.name}</h2>
+            <span className="font-extrabold" style={{ fontSize: "calc(1.8rem * var(--font-scale))", color: barColor }}>{Math.round(recView.recommended.total * 100)}점</span>
           </div>
 
           <div className="flex flex-col gap-5 font-bold" style={{ fontSize: "calc(1.1rem * var(--font-scale))" }}>
-            {(() => {
-              const contributions = recView.recommended!.contributions;
-              const maxWeight = Math.max(...contributions.map((c) => c.weight));
+            {recView.recommended.contributions.map((c, idx) => {
+              const maxWeight = Math.max(...recView.recommended!.contributions.map((x) => x.weight));
+              const containerWidth = maxWeight === 0 ? "0%" : `${(c.weight / maxWeight) * 100}%`;
+              const fillWidth = c.weight === 0 ? "0%" : `${(c.earned / c.weight) * 100}%`;
 
-              return contributions.map((c, idx) => {
-                const containerWidth = maxWeight === 0 ? "0%" : `${(c.weight / maxWeight) * 100}%`;
-                const fillWidth = c.weight === 0 ? "0%" : `${(c.earned / c.weight) * 100}%`;
-
-                return (
-                  <div key={idx} className="flex items-center gap-4">
-                    <span className="w-28 shrink-0">{c.label || "항목"}</span>
-                    <div className="flex-1 flex items-center h-8">
-                      <div
-                        className="h-full bg-gray-200 rounded-full overflow-hidden border border-gray-300"
-                        style={{ width: containerWidth }}
-                      >
-                        <div
-                          className="h-full transition-all duration-700 ease-out"
-                          style={{ width: fillWidth, backgroundColor: "var(--color-accent)" }}
-                        />
-                      </div>
+              return (
+                <div key={idx} className="flex items-center gap-4">
+                  <span className="w-28 shrink-0">{c.label || "항목"}</span>
+                  <div className="flex-1 flex items-center h-8">
+                    <div className="h-full bg-gray-200 rounded-full overflow-hidden border border-gray-300" style={{ width: containerWidth }}>
+                      {/* [디자인] motion-reduce 존중 */}
+                      <div className="h-full transition-all duration-700 ease-out motion-reduce:transition-none" style={{ width: fillWidth, backgroundColor: barColor }} />
                     </div>
-                    <span className="w-32 text-right shrink-0">
-                      {c.earned.toFixed(2)} / {c.weight.toFixed(2)}
-                    </span>
                   </div>
-                );
-              });
-            })()}
+                  <span className="w-32 text-right shrink-0">{c.earned.toFixed(2)} / {c.weight.toFixed(2)}</span>
+                </div>
+              );
+            })}
           </div>
 
           {recView.reasons && recView.reasons.length > 0 && (
             <div className={`mt-8 p-5 rounded-xl ${isHighContrast ? "border border-gray-400" : "bg-gray-100"}`}>
-              <h3 className="font-bold mb-3" style={{ fontSize: "calc(1.3rem * var(--font-scale))" }}>
-                💡 AI 추천 이유
-              </h3>
+              <h3 className="font-bold mb-3" style={{ fontSize: "calc(1.3rem * var(--font-scale))" }}>💡 AI 추천 이유</h3>
               <ul className="flex flex-col gap-2 list-disc pl-5" style={{ fontSize: "calc(1.1rem * var(--font-scale))" }}>
-                {recView.reasons.map((reason, idx) => (
-                  <li key={idx} className="opacity-90">{reason.text}</li>
-                ))}
+                {recView.reasons.map((reason, idx) => <li key={idx} className="opacity-90">{reason.text}</li>)}
               </ul>
             </div>
           )}
         </section>
       ) : (
-        <div className="p-8 text-center border-2 border-dashed border-gray-400 rounded-2xl">
-          <p className="font-bold" style={{ fontSize: "calc(1.2rem * var(--font-scale))" }}>
-            조건에 맞는 {copy.noun}이 없습니다. 직원의 도움을 받아주세요.
-          </p>
+        <div className="p-8 text-center border-2 border-dashed border-gray-400 rounded-2xl bg-gray-50">
+          <p className="font-bold" style={{ fontSize: "calc(1.2rem * var(--font-scale))" }}>조건에 맞는 {copy.noun}이 없습니다. 직원의 도움을 받아주세요.</p>
         </div>
       )}
 
-      {/* The way back. The top pick is a suggestion, not a decision — a kiosk
-          that offers one path is the problem we are fixing, so the runners-up
-          are shown with their scores and can be taken instead. */}
+      {/* [결함 방어] 대안 카드 2장 고르기 로직 보존 */}
       {recView.alternatives.length > 0 && (
-        <section className={`border-2 rounded-2xl p-6 md:p-8 ${isHighContrast ? "border-gray-400" : "border-gray-300"}`}>
-          <h3 className="font-bold mb-5" style={{ fontSize: "calc(1.4rem * var(--font-scale))" }}>
-            🔁 다른 것도 보시겠어요?
-          </h3>
+        <section className={`border-2 rounded-2xl p-6 md:p-8 ${isHighContrast ? "border-gray-400" : "border-gray-300 bg-gray-50"}`}>
+          <h3 className="font-bold mb-5" style={{ fontSize: "calc(1.4rem * var(--font-scale))" }}>🔁 다른 것도 보시겠어요?</h3>
           <ul className="flex flex-col gap-4">
             {recView.alternatives.map((alt) => (
-              <li
-                key={alt.candidateId}
-                className={`flex flex-col sm:flex-row sm:items-center gap-4 justify-between border rounded-xl p-4 ${
-                  isHighContrast ? "border-gray-600" : "border-gray-200"
-                }`}
-              >
+              <li key={alt.candidateId} className={`flex flex-col sm:flex-row sm:items-center gap-4 justify-between border rounded-xl p-4 transition-colors ${isHighContrast ? "border-gray-600" : "border-gray-200 bg-white hover:border-gray-400"}`}>
                 <div className="flex flex-col gap-1">
-                  <span className="font-bold" style={{ fontSize: "calc(1.3rem * var(--font-scale))" }}>
-                    {alt.name}
-                  </span>
+                  <span className="font-bold" style={{ fontSize: "calc(1.3rem * var(--font-scale))" }}>{alt.name}</span>
                   <span className="opacity-80 font-bold" style={{ fontSize: "calc(1.1rem * var(--font-scale))" }}>
-                    {alt.priceKrw > 0 && `${alt.priceKrw.toLocaleString()}원 · `}
-                    {Math.round(alt.total * 100)}점
+                    {/* [결함 방어] 가격은 있을 때만 표시 (0원은 공짜 오해 방지) */}
+                    {alt.priceKrw > 0 && `${alt.priceKrw.toLocaleString()}원 · `}{Math.round(alt.total * 100)}점
                   </span>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => onChoose(alt)}
-                  className="focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2 transition-transform active:scale-95 px-6"
-                  style={{
-                    minHeight: "var(--tap-min)",
-                    borderRadius: "var(--radius)",
-                    backgroundColor: "transparent",
-                    color: "var(--color-fg)",
-                    border: "2px solid var(--color-fg)",
-                    fontSize: "calc(1.1rem * var(--font-scale))",
-                    fontWeight: "bold",
-                  }}
-                >
+                <button type="button" onClick={() => onChoose(alt)} className="focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2 transition-transform duration-200 motion-reduce:transition-none motion-reduce:transform-none active:scale-95 px-6" style={{ minHeight: "var(--tap-min)", borderRadius: "var(--radius)", backgroundColor: "transparent", color: "var(--color-fg)", border: "2px solid var(--color-fg)", fontSize: "calc(1.1rem * var(--font-scale))", fontWeight: "bold" }}>
                   이걸로 할게요
                 </button>
               </li>
@@ -200,13 +126,8 @@ export function RecommendScreen({
         </section>
       )}
 
-      <section className={`border-2 rounded-2xl p-6 md:p-8 ${isHighContrast ? "border-red-400 bg-transparent" : "bg-red-50 border-red-500"}`}>
-        <h3
-          className={`font-bold mb-5 ${isHighContrast ? "text-red-400" : "text-red-700"}`}
-          style={{ fontSize: "calc(1.4rem * var(--font-scale))" }}
-        >
-          🚫 제외된 후보 {recView.excluded.length}개
-        </h3>
+      <section className={`border-2 rounded-2xl p-6 md:p-8 ${isHighContrast ? "border-red-400 bg-transparent" : "bg-red-50 border-red-300"}`}>
+        <h3 className={`font-bold mb-5 ${isHighContrast ? "text-red-400" : "text-red-700"}`} style={{ fontSize: "calc(1.4rem * var(--font-scale))" }}>🚫 제외된 후보 {recView.excluded.length}개</h3>
         <ul className="flex flex-col gap-4" style={{ fontSize: "calc(1.1rem * var(--font-scale))" }}>
           {recView.excluded.map((item, idx) => (
             <li key={idx} className={`flex gap-4 items-center border-b pb-3 last:border-0 last:pb-0 ${isHighContrast ? "border-gray-700" : "border-red-200"}`}>
@@ -218,37 +139,10 @@ export function RecommendScreen({
       </section>
 
       <div className="flex flex-col sm:flex-row gap-4 w-full mt-4">
-        <button
-          type="button"
-          onClick={onBackToContext}
-          className="flex-1 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-4 transition-transform hover:scale-105 active:scale-95"
-          style={{
-            minHeight: "calc(var(--tap-min) + 8px)",
-            borderRadius: "var(--radius)",
-            backgroundColor: "transparent",
-            color: "var(--color-fg)",
-            border: "2px solid var(--color-fg)",
-            fontSize: "calc(1.2rem * var(--font-scale))",
-            fontWeight: "bold",
-          }}
-        >
+        <button type="button" onClick={onBackToContext} className="flex-1 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-4 transition-transform hover:scale-[1.02] active:scale-95 duration-200 motion-reduce:transition-none motion-reduce:transform-none" style={{ minHeight: "calc(var(--tap-min) + 8px)", borderRadius: "var(--radius)", backgroundColor: "transparent", color: "var(--color-fg)", border: "2px solid var(--color-fg)", fontSize: "calc(1.2rem * var(--font-scale))", fontWeight: "bold" }}>
           조건 다시 입력하기
         </button>
-
-        <button
-          type="button"
-          onClick={() => recView.recommended && onChoose(recView.recommended)}
-          disabled={!recView.recommended}
-          className="flex-1 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-4 transition-transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:hover:scale-100"
-          style={{
-            minHeight: "calc(var(--tap-min) + 8px)",
-            borderRadius: "var(--radius)",
-            backgroundColor: "var(--color-accent)",
-            color: "var(--color-bg)",
-            fontSize: "calc(1.3rem * var(--font-scale))",
-            fontWeight: "bold",
-          }}
-        >
+        <button type="button" onClick={() => recView.recommended && onChoose(recView.recommended)} disabled={!recView.recommended} className="flex-1 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-4 transition-transform hover:scale-[1.02] active:scale-95 duration-200 motion-reduce:transition-none motion-reduce:transform-none disabled:opacity-50 disabled:hover:scale-100" style={{ minHeight: "calc(var(--tap-min) + 8px)", borderRadius: "var(--radius)", backgroundColor: "var(--color-accent)", color: "var(--color-bg)", fontSize: "calc(1.3rem * var(--font-scale))", fontWeight: "bold" }}>
           선택하고 최종 확인하기
         </button>
       </div>
