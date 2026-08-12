@@ -1,0 +1,8 @@
+[
+  { "state": "WELCOME", "title": "관공서 민원 안내", "hint": "민원 안내를 시작합니다.", "targetKinds": ["review", "staff"], "progress": 0.16 },
+  { "state": "SERVICE_CATEGORY", "title": "민원 분야를 선택하세요", "targetKinds": ["category", "staff"], "progress": 0.33 },
+  { "state": "SERVICE_SELECTION", "title": "민원 업무를 선택하세요", "targetKinds": ["candidate", "staff"], "progress": 0.5 },
+  { "state": "REQUIREMENTS_GUIDE", "title": "준비물 · 요건 안내", "hint": "필요한 준비사항을 안내합니다.", "targetKinds": ["review", "staff"], "progress": 0.66 },
+  { "state": "AUTH_METHOD", "title": "인증 방법을 선택하세요", "targetKinds": ["auth_method", "staff"], "progress": 0.83 },
+  { "state": "APPLICATION_REVIEW", "title": "안내 내용 확인 (실제 신청 아님)", "hint": "확인만 하며 신청·발급은 진행되지 않습니다.", "targetKinds": ["review", "staff"], "progress": 1.0, "isFinalReview": true }
+]

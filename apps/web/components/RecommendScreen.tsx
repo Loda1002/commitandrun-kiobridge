@@ -1,9 +1,13 @@
 "use client";
 
+import type { EnvironmentId } from "@commitandrun/engine";
+import { environmentCopy } from "../lib/fixture";
 import type { CandidateView, RecommendationView } from "../lib/types";
 
 interface RecommendScreenProps {
   recView: RecommendationView;
+  /** Names what is being recommended — a 메뉴 here is a 접수 경로 elsewhere. */
+  environmentId: EnvironmentId;
   isHighContrast: boolean;
   /** Which candidate the user is taking forward — the top pick or an alternative. */
   onChoose: (candidate: CandidateView) => void;
@@ -12,10 +16,12 @@ interface RecommendScreenProps {
 
 export function RecommendScreen({
   recView,
+  environmentId,
   isHighContrast,
   onChoose,
   onBackToContext,
 }: RecommendScreenProps) {
+  const copy = environmentCopy(environmentId);
   /**
    * An unanswered hard constraint outranks anything we could show. The engine
    * returns no recommendation at all in this state (select.ts: mayRecommend),
@@ -79,7 +85,7 @@ export function RecommendScreen({
           }`}
           style={{ fontSize: "calc(1.1rem * var(--font-scale))" }}
         >
-          ⚠️ 조건에 딱 맞는 메뉴가 없어 확신이 높지 않습니다. 아래 내용을 한 번 더 확인해 주세요.
+          ⚠️ 조건에 딱 맞는 {copy.noun}이 없어 확신이 높지 않습니다. 아래 내용을 한 번 더 확인해 주세요.
         </p>
       )}
 
@@ -142,7 +148,7 @@ export function RecommendScreen({
       ) : (
         <div className="p-8 text-center border-2 border-dashed border-gray-400 rounded-2xl">
           <p className="font-bold" style={{ fontSize: "calc(1.2rem * var(--font-scale))" }}>
-            조건에 맞는 메뉴가 없습니다. 직원의 도움을 받아주세요.
+            조건에 맞는 {copy.noun}이 없습니다. 직원의 도움을 받아주세요.
           </p>
         </div>
       )}
@@ -168,7 +174,8 @@ export function RecommendScreen({
                     {alt.name}
                   </span>
                   <span className="opacity-80 font-bold" style={{ fontSize: "calc(1.1rem * var(--font-scale))" }}>
-                    {alt.priceKrw.toLocaleString()}원 · {Math.round(alt.total * 100)}점
+                    {alt.priceKrw > 0 && `${alt.priceKrw.toLocaleString()}원 · `}
+                    {Math.round(alt.total * 100)}점
                   </span>
                 </div>
                 <button

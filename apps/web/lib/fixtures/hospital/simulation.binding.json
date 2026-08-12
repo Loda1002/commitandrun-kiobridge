@@ -1,0 +1,42 @@
+{
+  "driver": "SIMULATION",
+  "screens": {
+    "WELCOME": {
+      "template": "LANDING"
+    },
+    "VISIT_TYPE": {
+      "template": "TWO_COLUMN_SELECTION",
+      "dataSource": "option-groups",
+      "groups": [
+        "VISIT_TYPE"
+      ]
+    },
+    "APPOINTMENT_CHECK": {
+      "template": "TWO_COLUMN_SELECTION",
+      "dataSource": "option-groups",
+      "groups": [
+        "APPOINTMENT"
+      ]
+    },
+    "DEPARTMENT_SELECTION": {
+      "template": "FOUR_CARD_GRID",
+      "dataSource": "candidates",
+      "pageSize": 4,
+      "navigation": {
+        "enabled": true,
+        "classification": "SYNTHETIC_MOCK"
+      }
+    },
+    "ACCESSIBILITY_SUPPORT": {
+      "template": "OPTION_GROUP_LIST",
+      "dataSource": "option-groups",
+      "groups": [
+        "SUPPORT"
+      ]
+    },
+    "CHECKIN_REVIEW": {
+      "template": "HOSPITAL_REVIEW",
+      "dataSource": "review"
+    }
+  }
+}

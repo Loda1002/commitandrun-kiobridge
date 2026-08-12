@@ -1,0 +1,52 @@
+{
+  "environmentId": "public-office",
+  "name": "관공서 민원",
+  "description": "자주 이용하는 민원과 인증방식을 바탕으로 업무 안내 경로를 시뮬레이션합니다.",
+  "summary": "민원 선택/요건/인증방식 절차 안내",
+  "testFocus": "민원 선택과 절차 안내만 수행하며 자격 자동판단·실제 신청은 하지 않음",
+  "fixtureVersion": "public-office@0.2.0",
+  "dataClassification": "SYNTHETIC_MOCK",
+  "states": [
+    "WELCOME",
+    "SERVICE_CATEGORY",
+    "SERVICE_SELECTION",
+    "REQUIREMENTS_GUIDE",
+    "AUTH_METHOD",
+    "APPLICATION_REVIEW",
+    "STOP"
+  ],
+  "initialState": "WELCOME",
+  "reviewBoundaryState": "APPLICATION_REVIEW",
+  "requiredVerifierAction": "verify_application",
+  "terminalState": "STOP",
+  "finalReviewState": "APPLICATION_REVIEW",
+  "finalState": "STOP",
+  "allowedActions": [
+    "start",
+    "select_category",
+    "select_service",
+    "view_requirements",
+    "select_auth_method",
+    "verify_application",
+    "request_staff_help"
+  ],
+  "forbiddenActions": [
+    "submit_application",
+    "issue_document",
+    "auto_eligibility_decision",
+    "collect_ssn",
+    "connect_gov_system",
+    "select_payment",
+    "confirm_payment",
+    "submit_payment"
+  ],
+  "displayName": "관공서 민원",
+  "inputContract": {
+    "version": "1.0.0",
+    "schemaRef": "domains/public-office.context.schema.json",
+    "vocabularyRef": "vocabularies/public-office.vocabulary.json"
+  },
+  "supportedProfileContractVersions": [
+    "1.0.0"
+  ]
+}

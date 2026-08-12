@@ -1,5 +1,7 @@
 "use client";
 
+import type { EnvironmentId } from "@commitandrun/engine";
+import { environmentCopy } from "../lib/fixture";
 import type { CandidateView, OptionSelection } from "../lib/types";
 
 interface ConfirmScreenProps {
@@ -10,6 +12,8 @@ interface ConfirmScreenProps {
    * for, and the user has to approve the real thing.
    */
   selections: OptionSelection[];
+  /** Decides what this screen is approving, and what it stops short of. */
+  environmentId: EnvironmentId;
   isHighContrast: boolean;
   onApprove: () => void;
   onBackToContext: () => void;
@@ -18,32 +22,38 @@ interface ConfirmScreenProps {
 export function ConfirmScreen({
   candidate,
   selections,
+  environmentId,
   isHighContrast,
   onApprove,
   onBackToContext,
 }: ConfirmScreenProps) {
   const changed = selections.filter((s) => s.userAnswer !== null && s.userAnswer !== s.optionId);
+  const copy = environmentCopy(environmentId);
 
   return (
     <main className="flex flex-col gap-8 w-full">
       <h1 className="font-extrabold text-center" style={{ fontSize: "calc(2rem * var(--font-scale))" }}>
-        주문 최종 확인
+        {copy.confirmTitle}
       </h1>
 
       <section className={`border-2 rounded-2xl p-6 md:p-8 flex flex-col gap-6 ${
         isHighContrast ? "border-gray-400" : "border-gray-300"
       }`}>
         <div className="flex justify-between items-center border-b pb-4" style={{ borderColor: "var(--color-fg)" }}>
-          <span className="opacity-80 font-bold" style={{ fontSize: "calc(1.2rem * var(--font-scale))" }}>메뉴</span>
+          <span className="opacity-80 font-bold" style={{ fontSize: "calc(1.2rem * var(--font-scale))" }}>{copy.noun}</span>
           <span className="font-extrabold" style={{ fontSize: "calc(1.6rem * var(--font-scale))" }}>{candidate.name}</span>
         </div>
 
-        <div className="flex justify-between items-center border-b pb-4" style={{ borderColor: "var(--color-fg)" }}>
-          <span className="opacity-80 font-bold" style={{ fontSize: "calc(1.2rem * var(--font-scale))" }}>가격</span>
-          <span className="font-extrabold" style={{ fontSize: "calc(1.6rem * var(--font-scale))", color: "var(--color-accent)" }}>
-            {candidate.priceKrw.toLocaleString()}원
-          </span>
-        </div>
+        {/* Only the chicken shop prices anything. A check-in route has no price,
+            and "0원" reads as free rather than as not applicable. */}
+        {candidate.priceKrw > 0 && (
+          <div className="flex justify-between items-center border-b pb-4" style={{ borderColor: "var(--color-fg)" }}>
+            <span className="opacity-80 font-bold" style={{ fontSize: "calc(1.2rem * var(--font-scale))" }}>가격</span>
+            <span className="font-extrabold" style={{ fontSize: "calc(1.6rem * var(--font-scale))", color: "var(--color-accent)" }}>
+              {candidate.priceKrw.toLocaleString()}원
+            </span>
+          </div>
+        )}
 
         <div className="flex flex-col gap-3 border-b pb-4" style={{ borderColor: "var(--color-fg)" }}>
           <span className="opacity-80 font-bold" style={{ fontSize: "calc(1.2rem * var(--font-scale))" }}>선택 옵션</span>
@@ -73,7 +83,7 @@ export function ConfirmScreen({
               {changed.map((selection) => (
                 <li key={selection.groupId}>
                   {selection.label}: {selection.userAnswerLabel} → <strong>{selection.optionLabel}</strong>
-                  {" "}— 이 메뉴에는 고르신 선택지가 없습니다.
+                  {" "}— 이 {copy.noun}에는 고르신 선택지가 없습니다.
                 </li>
               ))}
             </ul>
@@ -81,7 +91,7 @@ export function ConfirmScreen({
         )}
 
         <div className="p-4 rounded-xl text-center font-extrabold bg-red-500/10 border-2 border-red-500" style={{ fontSize: "calc(1.2rem * var(--font-scale))" }}>
-          ⚠️ 장바구니 담기까지만 진행되며, 결제는 하지 않습니다.
+          ⚠️ {copy.boundaryNotice}
         </div>
       </section>
 

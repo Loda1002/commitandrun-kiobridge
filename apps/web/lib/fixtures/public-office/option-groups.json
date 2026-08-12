@@ -1,0 +1,26 @@
+[
+  {
+    "groupId": "CATEGORY",
+    "kind": "category",
+    "label": "민원 분야",
+    "required": true,
+    "options": [
+      { "id": "RESIDENT", "label": "주민등록" },
+      { "id": "FAMILY", "label": "가족관계" },
+      { "id": "INSURANCE", "label": "건강보험" },
+      { "id": "TAX", "label": "지방세" },
+      { "id": "STAFF", "label": "직원 상담" }
+    ]
+  },
+  {
+    "groupId": "AUTH_METHOD",
+    "kind": "auth_method",
+    "label": "인증 방식",
+    "required": true,
+    "options": [
+      { "id": "MOBILE_AUTH", "label": "모바일 인증" },
+      { "id": "ID_CARD", "label": "신분증 인증" },
+      { "id": "STAFF_ASSIST", "label": "직원 확인" }
+    ]
+  }
+]

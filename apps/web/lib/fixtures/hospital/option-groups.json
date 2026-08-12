@@ -1,0 +1,49 @@
+[
+  {
+    "groupId": "VISIT_TYPE",
+    "kind": "visit_type",
+    "label": "방문 유형",
+    "required": true,
+    "options": [
+      { "id": "FIRST_VISIT", "label": "초진" },
+      { "id": "REVISIT", "label": "재진" },
+      { "id": "HEALTH_SCREENING", "label": "건강검진" },
+      { "id": "EXAM", "label": "검사" }
+    ]
+  },
+  {
+    "groupId": "APPOINTMENT",
+    "kind": "appointment",
+    "label": "예약 여부",
+    "required": true,
+    "options": [
+      { "id": "HAS_APPOINTMENT", "label": "예약 있음" },
+      { "id": "NO_APPOINTMENT", "label": "예약 없음" }
+    ]
+  },
+  {
+    "groupId": "DEPARTMENT",
+    "kind": "department",
+    "label": "진료과",
+    "required": true,
+    "options": [
+      { "id": "INTERNAL_MEDICINE", "label": "내과" },
+      { "id": "ORTHOPEDICS", "label": "정형외과" },
+      { "id": "RADIOLOGY", "label": "영상의학과" },
+      { "id": "HEALTH_SCREENING", "label": "건강검진센터" },
+      { "id": "UNSPECIFIED", "label": "미정 (안내 필요)" }
+    ]
+  },
+  {
+    "groupId": "SUPPORT",
+    "kind": "support",
+    "label": "접근성 지원",
+    "required": true,
+    "options": [
+      { "id": "NONE", "label": "지원 없음" },
+      { "id": "LARGE_TEXT", "label": "큰 글씨" },
+      { "id": "HEARING", "label": "청각 지원" },
+      { "id": "STAFF_HELP", "label": "직원 도움" }
+    ]
+  }
+]

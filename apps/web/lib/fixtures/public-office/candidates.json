@@ -1,0 +1,176 @@
+[
+  {
+    "candidateId": "PUBLIC-001",
+    "name": "주민등록등본 발급 안내",
+    "domain": "public-office",
+    "available": true,
+    "dataClassification": "SYNTHETIC_MOCK",
+    "attributes": {
+      "serviceCategory": "RESIDENT"
+    },
+    "requirements": {
+      "authenticationMethods": [
+        "MOBILE_AUTH",
+        "ID_CARD"
+      ]
+    },
+    "supports": {
+      "largeText": true,
+      "stepByStep": true,
+      "staffHelp": true
+    },
+    "supportedOptions": {
+      "CATEGORY": [
+        "RESIDENT"
+      ],
+      "AUTH_METHOD": [
+        "MOBILE_AUTH",
+        "ID_CARD"
+      ]
+    }
+  },
+  {
+    "candidateId": "PUBLIC-002",
+    "name": "주민등록초본 발급 안내",
+    "domain": "public-office",
+    "available": true,
+    "dataClassification": "SYNTHETIC_MOCK",
+    "attributes": {
+      "serviceCategory": "RESIDENT"
+    },
+    "requirements": {
+      "authenticationMethods": [
+        "MOBILE_AUTH",
+        "ID_CARD"
+      ]
+    },
+    "supports": {
+      "largeText": true,
+      "stepByStep": true,
+      "staffHelp": true
+    },
+    "supportedOptions": {
+      "CATEGORY": [
+        "RESIDENT"
+      ],
+      "AUTH_METHOD": [
+        "MOBILE_AUTH",
+        "ID_CARD"
+      ]
+    }
+  },
+  {
+    "candidateId": "PUBLIC-003",
+    "name": "가족관계증명서 발급 안내",
+    "domain": "public-office",
+    "available": true,
+    "dataClassification": "SYNTHETIC_MOCK",
+    "attributes": {
+      "serviceCategory": "FAMILY"
+    },
+    "requirements": {
+      "authenticationMethods": [
+        "MOBILE_AUTH",
+        "ID_CARD"
+      ]
+    },
+    "supports": {
+      "largeText": true,
+      "stepByStep": true,
+      "staffHelp": true
+    },
+    "supportedOptions": {
+      "CATEGORY": [
+        "FAMILY"
+      ],
+      "AUTH_METHOD": [
+        "MOBILE_AUTH",
+        "ID_CARD"
+      ]
+    }
+  },
+  {
+    "candidateId": "PUBLIC-004",
+    "name": "건강보험 자격확인서 안내",
+    "domain": "public-office",
+    "available": true,
+    "dataClassification": "SYNTHETIC_MOCK",
+    "attributes": {
+      "serviceCategory": "INSURANCE"
+    },
+    "requirements": {
+      "authenticationMethods": [
+        "MOBILE_AUTH"
+      ]
+    },
+    "supports": {
+      "largeText": true,
+      "stepByStep": false,
+      "staffHelp": true
+    },
+    "supportedOptions": {
+      "CATEGORY": [
+        "INSURANCE"
+      ],
+      "AUTH_METHOD": [
+        "MOBILE_AUTH"
+      ]
+    }
+  },
+  {
+    "candidateId": "PUBLIC-005",
+    "name": "지방세 납세증명 안내",
+    "domain": "public-office",
+    "available": true,
+    "dataClassification": "SYNTHETIC_MOCK",
+    "attributes": {
+      "serviceCategory": "TAX"
+    },
+    "requirements": {
+      "authenticationMethods": [
+        "ID_CARD"
+      ]
+    },
+    "supports": {
+      "largeText": true,
+      "stepByStep": true,
+      "staffHelp": true
+    },
+    "supportedOptions": {
+      "CATEGORY": [
+        "TAX"
+      ],
+      "AUTH_METHOD": [
+        "ID_CARD"
+      ]
+    }
+  },
+  {
+    "candidateId": "PUBLIC-006",
+    "name": "직원 상담 요청",
+    "domain": "public-office",
+    "available": true,
+    "dataClassification": "SYNTHETIC_MOCK",
+    "attributes": {
+      "serviceCategory": "STAFF"
+    },
+    "requirements": {
+      "authenticationMethods": [
+        "STAFF_ASSIST"
+      ]
+    },
+    "supports": {
+      "largeText": true,
+      "stepByStep": true,
+      "staffHelp": true
+    },
+    "supportedOptions": {
+      "CATEGORY": [
+        "STAFF"
+      ],
+      "AUTH_METHOD": [
+        "STAFF_ASSIST"
+      ]
+    }
+  }
+]

@@ -1,9 +1,17 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { fetchQuestions, fetchRecommendation, previewOrder, runPlan } from "../lib/api";
+import type { EnvironmentId } from "@commitandrun/engine";
+import {
+  emptyAnswers,
+  fetchQuestions,
+  fetchRecommendation,
+  previewOrder,
+  runPlan,
+} from "../lib/api";
+import { DEFAULT_ENVIRONMENT_ID } from "../lib/fixture";
 import type {
-  Answers,
+  AnyAnswers,
   CandidateView,
   OptionSelection,
   QuestionDef,
@@ -19,23 +27,21 @@ import { ConfirmScreen } from "../components/ConfirmScreen";
 import { ResultScreen } from "../components/ResultScreen";
 import { StaffHelp } from "../components/StaffHelp";
 
-const EMPTY_ANSWERS: Answers = {
-  serviceType: "",
-  spicyLevel: "",
-  boneType: "",
-  cupOption: "",
-  quantity: "Q1",
-  allergenIds: [],
-  maxPriceKrw: null,
-};
-
 export default function Home() {
   const [fontScale, setFontScale] = useState(1);
   const [isHighContrast, setIsHighContrast] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
 
+  /**
+   * Which kiosk we are standing at. Picked on the start screen and carried
+   * through every engine call below — the questions, the rules, the plan and
+   * the safety boundary all differ by environment, so nothing downstream is
+   * allowed to assume one.
+   */
+  const [environmentId, setEnvironmentId] = useState<EnvironmentId>(DEFAULT_ENVIRONMENT_ID);
+
   const [questions, setQuestions] = useState<QuestionDef[]>([]);
-  const [answers, setAnswers] = useState<Answers>(EMPTY_ANSWERS);
+  const [answers, setAnswers] = useState<AnyAnswers>(emptyAnswers(DEFAULT_ENVIRONMENT_ID));
   const [recView, setRecView] = useState<RecommendationView | null>(null);
   /**
    * What the user is taking forward. Starts as the top pick, but an alternative
@@ -54,8 +60,8 @@ export default function Home() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchQuestions().then(setQuestions).catch(console.error);
-  }, []);
+    fetchQuestions(environmentId).then(setQuestions).catch(console.error);
+  }, [environmentId]);
 
   const toggleFontScale = () => {
     const nextScale = fontScale === 1 ? 1.25 : fontScale === 1.25 ? 1.5 : 1;
@@ -73,16 +79,18 @@ export default function Home() {
     }
   };
 
-  const handleStart = () => {
+  const handleStart = (picked: EnvironmentId) => {
+    setEnvironmentId(picked);
+    setAnswers(emptyAnswers(picked));
     setCurrentStep(1);
   };
 
-  const handleContextSubmit = async (userAnswers: Answers) => {
+  const handleContextSubmit = async (userAnswers: AnyAnswers) => {
     setAnswers(userAnswers);
     setIsLoading(true);
     setErrorMessage(null);
     try {
-      const view = await fetchRecommendation(userAnswers);
+      const view = await fetchRecommendation(userAnswers, environmentId);
       setRecView(view);
       setCurrentStep(2);
     } catch (error) {
@@ -99,7 +107,7 @@ export default function Home() {
       // Work out what this menu will actually be ordered with before showing
       // the approval screen. If the engine refuses, the user finds out here
       // rather than after pressing the button that says "진행할게요".
-      setSelections(previewOrder(candidate.candidateId, answers));
+      setSelections(previewOrder(candidate.candidateId, answers, environmentId));
       setChosen(candidate);
       setCurrentStep(3);
     } catch (error) {
@@ -122,7 +130,11 @@ export default function Home() {
     try {
       // The same answers that produced the recommendation: the plan has to be
       // for the order the user was actually shown and approved.
-      const run = await runPlan({ candidateId: chosen.candidateId, approved: true }, answers);
+      const run = await runPlan(
+        { candidateId: chosen.candidateId, approved: true },
+        answers,
+        environmentId,
+      );
       setRunResult(run);
       setCurrentStep(4);
     } catch (error) {
@@ -136,7 +148,10 @@ export default function Home() {
   };
 
   const handleReset = () => {
-    setAnswers(EMPTY_ANSWERS);
+    // Back to the environment picker, not to this environment's first question:
+    // the next person at the kiosk may not be here for the same thing.
+    setEnvironmentId(DEFAULT_ENVIRONMENT_ID);
+    setAnswers(emptyAnswers(DEFAULT_ENVIRONMENT_ID));
     setRecView(null);
     setChosen(null);
     setSelections([]);
@@ -202,6 +217,7 @@ export default function Home() {
           {currentStep === 2 && recView && (
             <RecommendScreen
               recView={recView}
+              environmentId={environmentId}
               isHighContrast={isHighContrast}
               onChoose={handleChoose}
               onBackToContext={handleBackToContext}
@@ -212,6 +228,7 @@ export default function Home() {
             <ConfirmScreen
               candidate={chosen}
               selections={selections}
+              environmentId={environmentId}
               isHighContrast={isHighContrast}
               onApprove={handleApprove}
               onBackToContext={handleBackToContext}
@@ -221,6 +238,7 @@ export default function Home() {
           {currentStep === 4 && runResult && (
             <ResultScreen
               runResult={runResult}
+              environmentId={environmentId}
               isHighContrast={isHighContrast}
               onReset={handleReset}
             />
@@ -230,9 +248,11 @@ export default function Home() {
               problem we are fixing, so the way out never moves. */}
           <div className="mt-auto pt-6 border-t border-gray-300 w-full">
             <StaffHelp
+              questions={questions}
               answers={answers}
               answersSubmitted={recView !== null}
               candidate={chosen ?? recView?.recommended ?? null}
+              environmentId={environmentId}
               isHighContrast={isHighContrast}
             />
           </div>

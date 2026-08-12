@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import type { Answers, CandidateView } from "../lib/types";
+import type { EnvironmentId } from "@commitandrun/engine";
+import { ENVIRONMENTS } from "../lib/fixture";
+import type { AnyAnswers, CandidateView, QuestionDef } from "../lib/types";
 
 /**
  * The way out, available from every screen.
@@ -12,13 +14,19 @@ import type { Answers, CandidateView } from "../lib/types";
  * a button that promises help it cannot deliver is worse than no button. What
  * it does do is put everything the user has chosen on one screen, in Korean,
  * for them to show a person.
+ *
+ * The rows are built from the question list, not from a table of field names,
+ * so this works at all three kiosks and cannot drift from what was actually
+ * asked. Every label shown here is the same string the user read on the form.
  */
 interface StaffHelpProps {
-  answers: Answers;
+  /** The questions this environment asked. Also the source of every label. */
+  questions: QuestionDef[];
+  answers: AnyAnswers;
   /**
    * Whether the form has been submitted at least once.
    *
-   * `allergenIds: []` carries two meanings and only this tells them apart:
+   * An empty multi-select carries two meanings and only this tells them apart:
    * before submitting it is the starting value ("not asked yet"), after
    * submitting it is the user saying they have none. Telling staff "없다고
    * 답하셨습니다" about a question nobody answered is exactly the kind of
@@ -27,44 +35,28 @@ interface StaffHelpProps {
   answersSubmitted: boolean;
   /** What the user is looking at right now, if anything. */
   candidate: CandidateView | null;
+  environmentId: EnvironmentId;
   isHighContrast: boolean;
 }
 
-const SERVICE_TYPE: Record<string, string> = { TAKE_OUT: "포장", DINE_IN: "매장에서 먹기" };
-const SPICY: Record<string, string> = { MILD: "순한맛", MEDIUM: "보통맛", HOT: "매운맛" };
-const BONE: Record<string, string> = { BONELESS: "순살", BONE: "뼈 있는 것" };
-const CUP: Record<string, string> = { PAPER: "종이컵", REGULAR: "일반 컵" };
-const QUANTITY: Record<string, string> = { Q1: "1개", Q2: "2개", Q3: "3개" };
-const ALLERGEN: Record<string, string> = {
-  PEANUT: "땅콩·견과류",
-  SOY: "콩",
-  MILK: "우유",
-  EGG: "달걀",
-  WHEAT: "밀",
-  SHRIMP: "새우",
-};
-
 /** Unanswered says so rather than going blank — the staff need to know which. */
-const ANSWERED = "아직 안 고르셨습니다";
+const NOT_ANSWERED = "아직 안 고르셨습니다";
 
-function allergenLine(ids: string[], submitted: boolean): string {
-  if (ids.includes("UNKNOWN")) return "모르겠다고 답하셨습니다 — 꼭 확인해 주세요";
-  if (ids.length === 0) return submitted ? "없다고 답하셨습니다" : ANSWERED;
-  return ids.map((id) => ALLERGEN[id] ?? id).join(", ");
-}
-
-export function StaffHelp({ answers, answersSubmitted, candidate, isHighContrast }: StaffHelpProps) {
+export function StaffHelp({
+  questions,
+  answers,
+  answersSubmitted,
+  candidate,
+  environmentId,
+  isHighContrast,
+}: StaffHelpProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const noun = ENVIRONMENTS.find((e) => e.id === environmentId)?.noun ?? "고르신 것";
 
-  const rows: Array<[string, string]> = [
-    ["받는 방법", SERVICE_TYPE[answers.serviceType] ?? ANSWERED],
-    ["맵기", SPICY[answers.spicyLevel] ?? ANSWERED],
-    ["뼈 / 순살", BONE[answers.boneType] ?? ANSWERED],
-    ["못 드시는 것", allergenLine(answers.allergenIds, answersSubmitted)],
-    ["컵", CUP[answers.cupOption] ?? ANSWERED],
-    ["개수", QUANTITY[answers.quantity] ?? ANSWERED],
-    ["예산", answers.maxPriceKrw === null ? "정하지 않으셨습니다" : `${answers.maxPriceKrw.toLocaleString()}원까지`],
-  ];
+  const rows: Array<[string, string]> = questions.map((q) => [
+    q.short ?? q.label,
+    describe(q, answers[q.id], answersSubmitted),
+  ]);
 
   return (
     <div className="w-full">
@@ -107,7 +99,9 @@ export function StaffHelp({ answers, answersSubmitted, candidate, isHighContrast
               className="font-bold border-b pb-4"
               style={{ borderColor: "var(--color-fg)", fontSize: "calc(1.2rem * var(--font-scale))" }}
             >
-              보고 계신 메뉴: {candidate.name} · {candidate.priceKrw.toLocaleString()}원
+              보고 계신 {noun}: {candidate.name}
+              {/* Only the chicken shop prices anything; 0 means "no price", not free. */}
+              {candidate.priceKrw > 0 && ` · ${candidate.priceKrw.toLocaleString()}원`}
             </p>
           )}
 
@@ -127,4 +121,28 @@ export function StaffHelp({ answers, answersSubmitted, candidate, isHighContrast
       )}
     </div>
   );
+}
+
+/** One answer, in the same words the user saw when they gave it. */
+function describe(q: QuestionDef, value: unknown, submitted: boolean): string {
+  const labelOf = (id: string) => q.options.find((o) => o.value === id)?.label ?? id;
+
+  if (q.kind === "number") {
+    return typeof value === "number"
+      ? `${value.toLocaleString()}${q.unit ?? ""}`
+      : "정하지 않으셨습니다";
+  }
+
+  if (q.kind === "multi") {
+    const ids = Array.isArray(value) ? (value as string[]) : [];
+    // A question that offered "모르겠어요" is one where not knowing is itself
+    // dangerous, so it gets said out loud rather than shown as a blank row.
+    if (ids.includes("UNKNOWN")) return "모르겠다고 답하셨습니다 — 꼭 확인해 주세요";
+    if (ids.length === 0) return submitted ? "없다고 답하셨습니다" : NOT_ANSWERED;
+    return ids.map(labelOf).join(", ");
+  }
+
+  const id = typeof value === "string" ? value : "";
+  if (id === "" || id === "UNKNOWN") return NOT_ANSWERED;
+  return labelOf(id);
 }

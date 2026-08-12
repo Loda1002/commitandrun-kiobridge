@@ -1,0 +1,39 @@
+{
+  "driver": "SIMULATION",
+  "screens": {
+    "WELCOME": {
+      "template": "LANDING"
+    },
+    "SERVICE_CATEGORY": {
+      "template": "OPTION_GROUP_LIST",
+      "dataSource": "option-groups",
+      "groups": [
+        "CATEGORY"
+      ]
+    },
+    "SERVICE_SELECTION": {
+      "template": "FOUR_CARD_GRID",
+      "dataSource": "candidates",
+      "pageSize": 4,
+      "navigation": {
+        "enabled": true,
+        "classification": "SYNTHETIC_MOCK"
+      }
+    },
+    "REQUIREMENTS_GUIDE": {
+      "template": "LANDING",
+      "dataSource": "review"
+    },
+    "AUTH_METHOD": {
+      "template": "TWO_COLUMN_SELECTION",
+      "dataSource": "option-groups",
+      "groups": [
+        "AUTH_METHOD"
+      ]
+    },
+    "APPLICATION_REVIEW": {
+      "template": "PUBLIC_SERVICE_REVIEW",
+      "dataSource": "review"
+    }
+  }
+}

@@ -1,14 +1,26 @@
 "use client";
 
-import { actionLabel, type RunView } from "../lib/types";
+import type { EnvironmentId } from "@commitandrun/engine";
+import { actionLabel, stateLabel, type RunView } from "../lib/types";
 
 interface ResultScreenProps {
   runResult: RunView;
+  /**
+   * Needed to name the actions: `select_service` picks dine-in or takeaway at a
+   * chicken shop and the civil service itself at a public office. The action
+   * vocabulary is shared across environments; the meaning is not.
+   */
+  environmentId: EnvironmentId;
   isHighContrast: boolean;
   onReset: () => void;
 }
 
-export function ResultScreen({ runResult, isHighContrast, onReset }: ResultScreenProps) {
+export function ResultScreen({
+  runResult,
+  environmentId,
+  isHighContrast,
+  onReset,
+}: ResultScreenProps) {
   return (
     <main className="flex flex-col gap-8 w-full">
       <h1 className="font-extrabold text-center" style={{ fontSize: "calc(2rem * var(--font-scale))" }}>
@@ -36,7 +48,7 @@ export function ResultScreen({ runResult, isHighContrast, onReset }: ResultScree
               >
                 <div className="flex items-center gap-3">
                   <span className="opacity-60 w-6 text-right">{idx + 1}.</span>
-                  <span>{actionLabel(step.action)}</span>
+                  <span>{actionLabel(step.action, environmentId)}</span>
                 </div>
                 <span
                   className="opacity-80 font-mono"
@@ -91,8 +103,10 @@ export function ResultScreen({ runResult, isHighContrast, onReset }: ResultScree
           <li className={`flex justify-between items-center border-b pb-4 ${isHighContrast ? "border-gray-700" : (runResult.validation.valid ? "border-green-200" : "border-red-200")}`}>
             <span>정지 지점</span>
             <span>
-              {runResult.safety.boundaryState}
-              <span className="opacity-70 ml-2" style={{ fontSize: "calc(0.875rem * var(--font-scale))" }}>(결제 직전)</span>
+              {stateLabel(runResult.safety.boundaryState)}
+              <span className="opacity-70 ml-2" style={{ fontSize: "calc(0.875rem * var(--font-scale))" }}>
+                {environmentId === "chicken-store" ? "(결제 직전)" : "(사람이 이어서 합니다)"}
+              </span>
             </span>
           </li>
 

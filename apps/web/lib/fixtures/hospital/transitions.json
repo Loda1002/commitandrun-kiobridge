@@ -1,0 +1,9 @@
+[
+  { "from": "WELCOME", "action": "start", "to": "VISIT_TYPE" },
+  { "from": "VISIT_TYPE", "action": "select_visit_type", "to": "APPOINTMENT_CHECK" },
+  { "from": "APPOINTMENT_CHECK", "action": "check_appointment", "to": "DEPARTMENT_SELECTION" },
+  { "from": "DEPARTMENT_SELECTION", "action": "select_department", "to": "DEPARTMENT_SELECTION" },
+  { "from": "DEPARTMENT_SELECTION", "action": "select_flow", "to": "ACCESSIBILITY_SUPPORT" },
+  { "from": "ACCESSIBILITY_SUPPORT", "action": "select_support", "to": "CHECKIN_REVIEW" },
+  { "from": "CHECKIN_REVIEW", "action": "verify_checkin", "to": "CHECKIN_REVIEW", "guards": ["readOnly"] }
+]

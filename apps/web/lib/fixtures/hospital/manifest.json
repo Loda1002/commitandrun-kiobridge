@@ -1,0 +1,54 @@
+{
+  "environmentId": "hospital",
+  "name": "병원 접수",
+  "description": "예약·초진·재진·접근성 지원을 바탕으로 접수 경로를 시뮬레이션합니다.",
+  "summary": "예약/초진/재진/접근성 접수 안내",
+  "testFocus": "접수 경로 안내만 수행하며 진단·응급도·치료판단은 하지 않음",
+  "displayName": "병원 접수",
+  "fixtureVersion": "hospital@0.2.0",
+  "dataClassification": "SYNTHETIC_MOCK",
+  "states": [
+    "WELCOME",
+    "VISIT_TYPE",
+    "APPOINTMENT_CHECK",
+    "DEPARTMENT_SELECTION",
+    "ACCESSIBILITY_SUPPORT",
+    "CHECKIN_REVIEW",
+    "STOP"
+  ],
+  "initialState": "WELCOME",
+  "reviewBoundaryState": "CHECKIN_REVIEW",
+  "requiredVerifierAction": "verify_checkin",
+  "terminalState": "STOP",
+  "finalReviewState": "CHECKIN_REVIEW",
+  "finalState": "STOP",
+  "allowedActions": [
+    "start",
+    "select_visit_type",
+    "check_appointment",
+    "select_department",
+    "select_flow",
+    "select_support",
+    "verify_checkin",
+    "request_staff_help"
+  ],
+  "forbiddenActions": [
+    "diagnose",
+    "triage",
+    "recommend_treatment",
+    "assign_department_final",
+    "complete_checkin",
+    "query_patient",
+    "select_payment",
+    "confirm_payment",
+    "submit_payment"
+  ],
+  "inputContract": {
+    "version": "1.0.0",
+    "schemaRef": "domains/hospital.context.schema.json",
+    "vocabularyRef": "vocabularies/hospital.vocabulary.json"
+  },
+  "supportedProfileContractVersions": [
+    "1.0.0"
+  ]
+}

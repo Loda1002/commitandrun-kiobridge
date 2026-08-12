@@ -1,0 +1,203 @@
+[
+  {
+    "candidateId": "HOS-001",
+    "name": "예약 재진 접수",
+    "domain": "hospital",
+    "available": true,
+    "dataClassification": "SYNTHETIC_MOCK",
+    "attributes": {
+      "visitType": "REVISIT",
+      "appointmentStatus": "HAS_APPOINTMENT",
+      "departmentId": "INTERNAL_MEDICINE"
+    },
+    "supports": {
+      "hearingSupport": true,
+      "largeText": true,
+      "staffHelp": true
+    },
+    "supportedOptions": {
+      "VISIT_TYPE": [
+        "REVISIT"
+      ],
+      "APPOINTMENT": [
+        "HAS_APPOINTMENT"
+      ],
+      "DEPARTMENT": [
+        "INTERNAL_MEDICINE"
+      ],
+      "SUPPORT": [
+        "NONE",
+        "LARGE_TEXT",
+        "HEARING",
+        "STAFF_HELP"
+      ]
+    }
+  },
+  {
+    "candidateId": "HOS-002",
+    "name": "예약 초진 접수",
+    "domain": "hospital",
+    "available": true,
+    "dataClassification": "SYNTHETIC_MOCK",
+    "attributes": {
+      "visitType": "FIRST_VISIT",
+      "appointmentStatus": "HAS_APPOINTMENT",
+      "departmentId": "ORTHOPEDICS"
+    },
+    "supports": {
+      "largeText": true,
+      "staffHelp": true
+    },
+    "supportedOptions": {
+      "VISIT_TYPE": [
+        "FIRST_VISIT"
+      ],
+      "APPOINTMENT": [
+        "HAS_APPOINTMENT"
+      ],
+      "DEPARTMENT": [
+        "ORTHOPEDICS"
+      ],
+      "SUPPORT": [
+        "NONE",
+        "LARGE_TEXT",
+        "HEARING",
+        "STAFF_HELP"
+      ]
+    }
+  },
+  {
+    "candidateId": "HOS-003",
+    "name": "비예약 초진 안내",
+    "domain": "hospital",
+    "available": true,
+    "dataClassification": "SYNTHETIC_MOCK",
+    "attributes": {
+      "visitType": "FIRST_VISIT",
+      "appointmentStatus": "NO_APPOINTMENT",
+      "departmentId": "UNSPECIFIED"
+    },
+    "supports": {
+      "largeText": true,
+      "staffHelp": true
+    },
+    "supportedOptions": {
+      "VISIT_TYPE": [
+        "FIRST_VISIT"
+      ],
+      "APPOINTMENT": [
+        "NO_APPOINTMENT"
+      ],
+      "DEPARTMENT": [
+        "UNSPECIFIED"
+      ],
+      "SUPPORT": [
+        "NONE",
+        "LARGE_TEXT",
+        "HEARING",
+        "STAFF_HELP"
+      ]
+    }
+  },
+  {
+    "candidateId": "HOS-004",
+    "name": "건강검진 안내",
+    "domain": "hospital",
+    "available": true,
+    "dataClassification": "SYNTHETIC_MOCK",
+    "attributes": {
+      "visitType": "HEALTH_SCREENING",
+      "appointmentStatus": "HAS_APPOINTMENT",
+      "departmentId": "HEALTH_SCREENING"
+    },
+    "supports": {
+      "largeText": true,
+      "staffHelp": true
+    },
+    "supportedOptions": {
+      "VISIT_TYPE": [
+        "HEALTH_SCREENING"
+      ],
+      "APPOINTMENT": [
+        "HAS_APPOINTMENT"
+      ],
+      "DEPARTMENT": [
+        "HEALTH_SCREENING"
+      ],
+      "SUPPORT": [
+        "NONE",
+        "LARGE_TEXT",
+        "HEARING",
+        "STAFF_HELP"
+      ]
+    }
+  },
+  {
+    "candidateId": "HOS-005",
+    "name": "검사 예약 확인",
+    "domain": "hospital",
+    "available": true,
+    "dataClassification": "SYNTHETIC_MOCK",
+    "attributes": {
+      "visitType": "EXAM",
+      "appointmentStatus": "HAS_APPOINTMENT",
+      "departmentId": "RADIOLOGY"
+    },
+    "supports": {
+      "staffHelp": true
+    },
+    "supportedOptions": {
+      "VISIT_TYPE": [
+        "EXAM"
+      ],
+      "APPOINTMENT": [
+        "HAS_APPOINTMENT"
+      ],
+      "DEPARTMENT": [
+        "RADIOLOGY"
+      ],
+      "SUPPORT": [
+        "NONE",
+        "LARGE_TEXT",
+        "HEARING",
+        "STAFF_HELP"
+      ]
+    }
+  },
+  {
+    "candidateId": "HOS-006",
+    "name": "직원 도움 요청",
+    "domain": "hospital",
+    "available": true,
+    "dataClassification": "SYNTHETIC_MOCK",
+    "attributes": {
+      "appointmentStatus": "NO_APPOINTMENT",
+      "departmentId": "UNSPECIFIED"
+    },
+    "supports": {
+      "staffHelp": true,
+      "largeText": true,
+      "hearingSupport": true
+    },
+    "supportedOptions": {
+      "VISIT_TYPE": [
+        "FIRST_VISIT",
+        "REVISIT",
+        "HEALTH_SCREENING",
+        "EXAM"
+      ],
+      "APPOINTMENT": [
+        "NO_APPOINTMENT"
+      ],
+      "DEPARTMENT": [
+        "UNSPECIFIED"
+      ],
+      "SUPPORT": [
+        "NONE",
+        "LARGE_TEXT",
+        "HEARING",
+        "STAFF_HELP"
+      ]
+    }
+  }
+]

@@ -1,0 +1,8 @@
+[
+  { "state": "WELCOME", "title": "병원 접수 안내", "hint": "접수를 시작합니다.", "targetKinds": ["review", "staff"], "progress": 0.16 },
+  { "state": "VISIT_TYPE", "title": "초진 / 재진을 선택하세요", "targetKinds": ["visit_type", "staff"], "progress": 0.33 },
+  { "state": "APPOINTMENT_CHECK", "title": "예약 여부를 확인하세요", "targetKinds": ["appointment", "staff"], "progress": 0.5 },
+  { "state": "DEPARTMENT_SELECTION", "title": "진료과 후보 안내", "hint": "실제 진료과 확정이 아니라 안내입니다.", "targetKinds": ["department", "candidate", "staff"], "progress": 0.66 },
+  { "state": "ACCESSIBILITY_SUPPORT", "title": "접근성 지원을 선택하세요", "targetKinds": ["support", "staff"], "progress": 0.83 },
+  { "state": "CHECKIN_REVIEW", "title": "접수 내용 확인 (실제 접수 아님)", "hint": "확인만 하며 접수는 완료되지 않습니다.", "targetKinds": ["review", "staff"], "progress": 1.0, "isFinalReview": true }
+]

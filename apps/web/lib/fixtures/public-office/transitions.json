@@ -1,0 +1,8 @@
+[
+  { "from": "WELCOME", "action": "start", "to": "SERVICE_CATEGORY" },
+  { "from": "SERVICE_CATEGORY", "action": "select_category", "to": "SERVICE_SELECTION" },
+  { "from": "SERVICE_SELECTION", "action": "select_service", "to": "REQUIREMENTS_GUIDE" },
+  { "from": "REQUIREMENTS_GUIDE", "action": "view_requirements", "to": "AUTH_METHOD" },
+  { "from": "AUTH_METHOD", "action": "select_auth_method", "to": "APPLICATION_REVIEW" },
+  { "from": "APPLICATION_REVIEW", "action": "verify_application", "to": "APPLICATION_REVIEW", "guards": ["readOnly"] }
+]

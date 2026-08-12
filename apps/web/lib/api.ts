@@ -15,8 +15,14 @@
  * recommendations left in this path.
  */
 import { FORBIDDEN_ACTIONS } from "@commitandrun/engine";
-import type { Candidate, ExecutionPlan, ScoreContribution } from "@commitandrun/engine";
-import { collectProfile, createSessionContext } from "@commitandrun/engine/input";
+import type {
+  Candidate,
+  EnvironmentId,
+  ExecutionPlan,
+  PublicFixture,
+  ScoreContribution,
+} from "@commitandrun/engine";
+import { createContextFor } from "@commitandrun/engine/input";
 import { buildExecutionPlan, resolveOptionSelections } from "@commitandrun/engine/plan";
 import {
   buildAlternatives,
@@ -25,10 +31,17 @@ import {
   score,
 } from "@commitandrun/engine/select";
 
-import { CHICKEN_STORE_FIXTURE as FIXTURE, ENVIRONMENT_ID } from "./fixture";
-import { MOCK_ANSWERS, MOCK_QUESTIONS } from "./mock";
+import { DEFAULT_ENVIRONMENT_ID, fixtureFor } from "./fixture";
+import {
+  HOSPITAL_DEFAULT_ANSWERS,
+  HOSPITAL_QUESTIONS,
+  MOCK_ANSWERS,
+  MOCK_QUESTIONS,
+  PUBLIC_OFFICE_DEFAULT_ANSWERS,
+  PUBLIC_OFFICE_QUESTIONS,
+} from "./mock";
 import type {
-  Answers,
+  AnyAnswers,
   CandidateView,
   Decision,
   ExcludedView,
@@ -46,13 +59,67 @@ import type {
  * asset (wording, help text, option order), not something the engine computes.
  * The option ids in it are the fixture's own — see `option-groups.json`.
  */
-export async function fetchQuestions(): Promise<QuestionDef[]> {
-  return MOCK_QUESTIONS;
+export async function fetchQuestions(
+  environmentId: EnvironmentId = DEFAULT_ENVIRONMENT_ID,
+): Promise<QuestionDef[]> {
+  return QUESTIONS[environmentId];
 }
 
-/** A form default so the context screen can be opened without typing every time. */
-export function defaultAnswers(): Answers {
-  return { ...MOCK_ANSWERS, allergenIds: [...MOCK_ANSWERS.allergenIds] };
+const QUESTIONS: Record<EnvironmentId, QuestionDef[]> = {
+  "chicken-store": MOCK_QUESTIONS,
+  hospital: HOSPITAL_QUESTIONS,
+  "public-office": PUBLIC_OFFICE_QUESTIONS,
+};
+
+/**
+ * A blank answer set for the environment, so a screen can open its form without
+ * knowing which questions are on it.
+ *
+ * Only the chicken shop is prefilled, and only because it is the demo everyone
+ * walks through. The other two start empty — prefilling a hospital form would
+ * be us answering questions about someone's visit on their behalf.
+ */
+export function defaultAnswers(
+  environmentId: EnvironmentId = DEFAULT_ENVIRONMENT_ID,
+): AnyAnswers {
+  switch (environmentId) {
+    case "chicken-store":
+      return { ...MOCK_ANSWERS, allergenIds: [...MOCK_ANSWERS.allergenIds] };
+    case "hospital":
+      return { ...HOSPITAL_DEFAULT_ANSWERS, supportModes: [] };
+    case "public-office":
+      return { ...PUBLIC_OFFICE_DEFAULT_ANSWERS, availableAuthMethods: [] };
+  }
+}
+
+/**
+ * A blank answer set — what the form opens on, and what "처음으로" resets to.
+ *
+ * Written out per environment rather than derived from the question list
+ * because one field is deliberately not blank: the chicken shop's quantity
+ * starts at one, which is what the radio has always shown pre-selected. Every
+ * other field starts empty, and an empty field is what makes the engine ask
+ * rather than assume.
+ */
+export function emptyAnswers(
+  environmentId: EnvironmentId = DEFAULT_ENVIRONMENT_ID,
+): AnyAnswers {
+  switch (environmentId) {
+    case "chicken-store":
+      return {
+        serviceType: "",
+        spicyLevel: "",
+        boneType: "",
+        cupOption: "",
+        quantity: "Q1",
+        allergenIds: [],
+        maxPriceKrw: null,
+      };
+    case "hospital":
+      return { ...HOSPITAL_DEFAULT_ANSWERS, supportModes: [] };
+    case "public-office":
+      return { ...PUBLIC_OFFICE_DEFAULT_ANSWERS, availableAuthMethods: [] };
+  }
 }
 
 /**
@@ -63,12 +130,16 @@ export function defaultAnswers(): Answers {
  * recommendation and a reconfirm request. That is the engine refusing to guess a
  * hard constraint, not an error path — the screen has to handle it.
  */
-export async function fetchRecommendation(answers: Answers): Promise<RecommendationView> {
-  const ctx = toSessionContext(answers);
-  const { survivors, excluded } = filterCandidates(FIXTURE, ctx);
+export async function fetchRecommendation(
+  answers: AnyAnswers,
+  environmentId: EnvironmentId = DEFAULT_ENVIRONMENT_ID,
+): Promise<RecommendationView> {
+  const fixture = fixtureFor(environmentId);
+  const ctx = toSessionContext(answers, environmentId);
+  const { survivors, excluded } = filterCandidates(fixture, ctx);
   const result = score(survivors, ctx);
 
-  const byId = new Map(FIXTURE.candidates.map((c) => [c.candidateId, c]));
+  const byId = new Map(fixture.candidates.map((c) => [c.candidateId, c]));
   const view = (candidateId: string): CandidateView | null => {
     const candidate = byId.get(candidateId);
     const contributions = result.contributions[candidateId];
@@ -111,8 +182,16 @@ export async function fetchRecommendation(answers: Answers): Promise<Recommendat
  * required group the user never answered), which is better felt here, before
  * the user commits, than one screen later.
  */
-export function previewOrder(candidateId: string, answers: Answers): OptionSelection[] {
-  return resolveOptionSelections(FIXTURE, candidateId, toSessionContext(answers));
+export function previewOrder(
+  candidateId: string,
+  answers: AnyAnswers,
+  environmentId: EnvironmentId = DEFAULT_ENVIRONMENT_ID,
+): OptionSelection[] {
+  return resolveOptionSelections(
+    fixtureFor(environmentId),
+    candidateId,
+    toSessionContext(answers, environmentId),
+  );
 }
 
 /**
@@ -127,23 +206,28 @@ export function previewOrder(candidateId: string, answers: Answers): OptionSelec
  * unapproved plan is a safety violation by its mere existence, and
  * `buildExecutionPlan` refuses it too.
  */
-export async function runPlan(decision: Decision, answers: Answers): Promise<RunView> {
+export async function runPlan(
+  decision: Decision,
+  answers: AnyAnswers,
+  environmentId: EnvironmentId = DEFAULT_ENVIRONMENT_ID,
+): Promise<RunView> {
   if (!decision.approved) {
     throw new Error("사용자 승인 없이는 실행할 수 없습니다.");
   }
 
+  const fixture = fixtureFor(environmentId);
   const plan = buildExecutionPlan({
-    environmentId: ENVIRONMENT_ID,
-    fixture: FIXTURE,
+    environmentId,
+    fixture,
     candidateId: decision.candidateId,
-    sessionContext: toSessionContext(answers),
+    sessionContext: toSessionContext(answers, environmentId),
     approved: decision.approved,
   });
 
-  const errors = checkPlan(plan);
+  const errors = checkPlan(plan, fixture);
   return {
     plan: plan.actions,
-    safety: toSafetyView(plan, errors.length === 0),
+    safety: toSafetyView(plan, fixture, errors.length === 0),
     validation: { valid: errors.length === 0, errors },
   };
 }
@@ -158,20 +242,50 @@ export async function runPlan(decision: Decision, answers: Answers): Promise<Run
  * in rather than read by the engine — the engine must give the same answer here
  * and in the submission builder, so it never reads a clock of its own.
  */
-function toSessionContext(answers: Answers) {
-  const normalized = collectProfile({
-    ...answers,
-    quantity: quantityAnswer(answers.quantity),
-    allergenIds: [...answers.allergenIds],
-  });
-
-  return createSessionContext(
-    normalized,
+function toSessionContext(answers: AnyAnswers, environmentId: EnvironmentId) {
+  const fixture = fixtureFor(environmentId);
+  return createContextFor(
+    environmentId,
+    forEngine(answers, environmentId, fixture),
     { capturedAt: new Date().toISOString(), source: "WEB_FORM" },
     // Passing the fixture is what puts the stock signal in the context, so
     // "지금 품절인 메뉴는 빼고 골랐습니다" has something behind it.
-    FIXTURE,
+    fixture,
   );
+}
+
+/**
+ * Translate the two places a form's values are not the values the engine reads.
+ *
+ * A form only ever produces strings, and the session contexts do not: a
+ * quantity is a number, and "step by step" is a boolean. Nothing here invents a
+ * value — an answer we do not recognise passes through untouched and lands as
+ * unanswered, which is what makes the engine stop and ask instead of guessing.
+ */
+function forEngine(
+  answers: AnyAnswers,
+  environmentId: EnvironmentId,
+  fixture: PublicFixture,
+): AnyAnswers {
+  if (environmentId === "chicken-store") {
+    return { ...answers, quantity: quantityAnswer(answers.quantity, fixture) };
+  }
+  const out = { ...answers };
+  for (const key of BOOLEAN_ANSWERS) {
+    if (key in out) out[key] = asBoolean(out[key]);
+  }
+  return out;
+}
+
+/** Form fields the session context carries as booleans rather than strings. */
+const BOOLEAN_ANSWERS = ["guardianPresent", "stepByStep", "simpleLanguage"];
+
+/** null means "not answered" — never false, which is an answer. */
+function asBoolean(value: unknown): boolean | null {
+  if (typeof value === "boolean") return value;
+  if (value === "true") return true;
+  if (value === "false") return false;
+  return null;
 }
 
 /**
@@ -179,12 +293,12 @@ function toSessionContext(answers: Answers) {
  * quantity as the number itself. Read the mapping off the fixture rather than
  * writing the table out, so it cannot drift from `option-groups.json`.
  */
-function quantityAnswer(optionId: string): string {
-  const group = FIXTURE.optionGroups.find((g) => g.groupId === "QUANTITY");
+function quantityAnswer(optionId: unknown, fixture: PublicFixture): string {
+  const group = fixture.optionGroups.find((g) => g.groupId === "QUANTITY");
   const option = group?.options.find((o) => o.id === optionId);
   // Unrecognised ids pass through untouched and land as UNKNOWN, which the
   // engine treats as unanswered. Guessing a quantity is not ours to do.
-  return option?.value === undefined ? optionId : String(option.value);
+  return option?.value === undefined ? String(optionId ?? "") : String(option.value);
 }
 
 /* ── engine result → view shapes ─────────────────────────────────────────── */
@@ -193,8 +307,9 @@ function toCandidateView(candidate: Candidate, contributions: ScoreContribution[
   return {
     candidateId: candidate.candidateId,
     name: candidate.name,
-    // Every chicken-store candidate carries a price; the field is optional on
-    // the shared Candidate type because other environments have none.
+    // Only the chicken shop prices anything. A hospital check-in route and a
+    // civil service have no price, and 0 is how a screen is told to say nothing
+    // about cost rather than to say it is free.
     priceKrw: candidate.price ?? 0,
     total: round2(contributions.reduce((sum, row) => sum + row.earned, 0)),
     contributions,
@@ -211,9 +326,14 @@ function round2(n: number): number {
 /**
  * Every action the platform forbids, ours and this environment's.
  *
- * A deny-list the plan is asserted against — never something we can emit.
+ * A deny-list the plan is asserted against — never something we can emit. Each
+ * environment bans its own on top of the shared payment ones: a hospital also
+ * bans `diagnose` and `triage`, a public office `issue_document` and
+ * `collect_ssn`.
  */
-const FORBIDDEN = new Set([...FORBIDDEN_ACTIONS, ...FIXTURE.manifest.forbiddenActions]);
+function forbiddenIn(fixture: PublicFixture): Set<string> {
+  return new Set([...FORBIDDEN_ACTIONS, ...fixture.manifest.forbiddenActions]);
+}
 
 /**
  * Re-check the finished plan against the environment contract.
@@ -227,9 +347,10 @@ const FORBIDDEN = new Set([...FORBIDDEN_ACTIONS, ...FIXTURE.manifest.forbiddenAc
  * buildExecutionPlan already refuses to produce anything that fails these, so
  * a non-empty result means the two disagree — which is worth seeing.
  */
-function checkPlan(plan: ExecutionPlan): string[] {
+function checkPlan(plan: ExecutionPlan, fixture: PublicFixture): string[] {
   const errors: string[] = [];
-  const { manifest, transitions } = FIXTURE;
+  const { manifest, transitions } = fixture;
+  const FORBIDDEN = forbiddenIn(fixture);
 
   if (plan.validationMode !== "SIMULATION_ONLY") errors.push("validationMode 가 변조되었습니다.");
   if (plan.executionEnvironment !== "DIGITAL_TWIN") {
@@ -274,8 +395,9 @@ function checkPlan(plan: ExecutionPlan): string[] {
   return errors;
 }
 
-function toSafetyView(plan: ExecutionPlan, valid: boolean): SafetyView {
+function toSafetyView(plan: ExecutionPlan, fixture: PublicFixture, valid: boolean): SafetyView {
   const last = plan.actions[plan.actions.length - 1];
+  const FORBIDDEN = forbiddenIn(fixture);
   return {
     safe: valid,
     plannedActionCount: plan.actions.length,
@@ -285,6 +407,6 @@ function toSafetyView(plan: ExecutionPlan, valid: boolean): SafetyView {
     validationMode: plan.validationMode,
     executionEnvironment: plan.executionEnvironment,
     actualDeviceCommandSent: plan.actualDeviceCommandSent,
-    boundaryState: last?.expectedAfterState ?? FIXTURE.manifest.reviewBoundaryState,
+    boundaryState: last?.expectedAfterState ?? fixture.manifest.reviewBoundaryState,
   };
 }

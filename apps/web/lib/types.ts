@@ -43,15 +43,37 @@ export interface AnswerOption {
  * not give, so the user must always be able to say they do not know.
  */
 export interface QuestionDef {
-  /** Key in `Answers`. */
-  id: keyof Answers;
+  /**
+   * Key in the environment's answer set. A plain string rather than
+   * `keyof Answers` because the three environments ask different questions —
+   * the engine's vocabulary filtering is what actually checks a key is real.
+   */
+  id: string;
   label: string;
+  /**
+   * A short noun for the same thing ("맵기" for "맵기는 어떻게 해드릴까요?").
+   * The staff-help screen lists answers two-up and a full question does not fit
+   * in a table cell. Falls back to `label`.
+   */
+  short?: string;
+  /** Trails a numeric answer, e.g. "원까지". */
+  unit?: string;
   /** Shown under the label. Optional. */
   help?: string;
   kind: "single" | "multi" | "number";
   options: AnswerOption[];
 }
 
+/**
+ * What a form holds, whichever environment it is for.
+ *
+ * `lib/api.ts` hands this straight to the engine, which narrows it to the
+ * environment's own shape and drops anything it does not recognise. Screens
+ * that only ever run one environment can use the typed shapes below.
+ */
+export type AnyAnswers = Record<string, unknown>;
+
+/** chicken-store. */
 export interface Answers {
   serviceType: string;
   spicyLevel: string;
@@ -62,6 +84,30 @@ export interface Answers {
   allergenIds: string[];
   /** null means "no limit given" — not 0. */
   maxPriceKrw: number | null;
+}
+
+/**
+ * hospital. Mirrors `HospitalAnswers` in packages/engine/src/input.ts — kept in
+ * step by hand, for the same reason `Answers` is (see that file's comment).
+ */
+export interface HospitalAnswers {
+  visitType: string;
+  appointmentStatus: string;
+  /** "UNSPECIFIED" (미정) is a real answer. Only "" or UNKNOWN is not. */
+  departmentId: string;
+  supportModes: string[];
+  guardianPresent: boolean | null;
+}
+
+/**
+ * public-office. `availableAuthMethods` is which KINDS of proof the user has,
+ * never the proof itself — collecting an identifier is a forbidden action.
+ */
+export interface PublicOfficeAnswers {
+  serviceCategory: string;
+  availableAuthMethods: string[];
+  stepByStep: boolean | null;
+  simpleLanguage: boolean | null;
 }
 
 /* ── what we show back ───────────────────────────────────────────────────── */
@@ -131,19 +177,62 @@ export interface RunView {
  * The plan is written in the platform's action vocabulary. Screens show Korean.
  * This map is NOT mock data — it stays after the real engine is wired in.
  *
- * Only the actions our chicken-store plan uses are listed. `actionLabel()`
- * falls back to the raw name so a new action shows up visibly instead of
- * silently rendering as blank.
+ * `actionLabel()` falls back to the raw name so an action we have not named yet
+ * shows up visibly instead of silently rendering as blank.
+ *
+ * ⚠️ `select_service` means different things in different environments: at a
+ * chicken shop it picks dine-in or takeaway, at a public office it picks the
+ * civil service itself. The shared table cannot tell them apart, so
+ * `actionLabel` takes the environment.
  */
 export const ACTION_LABELS: Record<string, string> = {
-  select_service: "받는 방법 고르기",
+  // chicken-store
   select_menu: "메뉴 고르기",
   select_option: "옵션 고르기",
   confirm_option: "고른 것 확인하기",
   open_cart_review: "장바구니 열기",
   verify_cart: "장바구니 내용 검사하기",
+  // hospital
+  start: "시작하기",
+  select_visit_type: "방문 유형 고르기",
+  check_appointment: "예약 여부 확인하기",
+  select_department: "진료과 고르기",
+  select_flow: "접수 경로 고르기",
+  select_support: "필요한 도움 고르기",
+  verify_checkin: "접수 내용 검사하기",
+  request_staff_help: "직원 도움 요청하기",
+  // public-office
+  select_category: "민원 분야 고르기",
+  view_requirements: "필요한 것 확인하기",
+  select_auth_method: "확인 방법 고르기",
+  verify_application: "신청 내용 검사하기",
 };
 
-export function actionLabel(action: string): string {
+/** The one action name that means two different things. */
+const SELECT_SERVICE_LABEL: Record<string, string> = {
+  "chicken-store": "받는 방법 고르기",
+  "public-office": "민원 업무 고르기",
+};
+
+export function actionLabel(action: string, environmentId?: string): string {
+  if (action === "select_service") {
+    return SELECT_SERVICE_LABEL[environmentId ?? "chicken-store"] ?? "고르기";
+  }
   return ACTION_LABELS[action] ?? action;
+}
+
+/**
+ * State names → Korean. The result screen shows where the run stopped, and
+ * `CART_REVIEW` on a screen aimed at people who find kiosks hard is not an
+ * answer. Unknown states fall back to the raw name for the same reason as
+ * `actionLabel`.
+ */
+export const STATE_LABELS: Record<string, string> = {
+  CART_REVIEW: "장바구니 확인",
+  CHECKIN_REVIEW: "접수 내용 확인",
+  APPLICATION_REVIEW: "신청 내용 확인",
+};
+
+export function stateLabel(state: string): string {
+  return STATE_LABELS[state] ?? state;
 }
