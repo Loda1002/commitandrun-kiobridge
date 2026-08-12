@@ -75,11 +75,15 @@ export function ContextScreen({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    // [요건 5] 필수 응답 검사 (@lde451 님 함수 머지 시까지 빈 배열로 빌드 에러 방지)
-    console.warn("⚠️ [TODO] @lde451 님의 findMissingAnswers 함수 교체 필요");
-    const missing: string[] = []; 
-    // const missing = findMissingAnswers(environmentId, questions, answers);
-    
+    // [요건 5] 필수 응답 검사. 아래 UI(빨간 테두리·첫 누락 항목으로 포커스·버튼
+    // 잠금)는 이미 동작하고, 채워 넣을 것은 이 목록을 만드는 일뿐이다.
+    //
+    // 엔진의 findMissingAnswers(fixture, ctx) 는 답변이 아니라 세션 컨텍스트를
+    // 받는다. 화면이 답변을 직접 해석하면 화면과 엔진이 같은 답을 두고 서로 다른
+    // 판정을 내릴 수 있으므로, 컨텍스트를 만드는 lib/api.ts 를 거쳐 부른다.
+    // (tsconfig 의 paths 에 engine/required 를 넣어 뒀다 — import 는 이제 된다)
+    const missing: string[] = [];
+
     // 미응답 발생 시 UI 처리: 에러 등록 후 첫 누락 필드로 포커스 이동
     if (missing.length > 0) {
       setMissingIds(missing);
@@ -143,10 +147,13 @@ export function ContextScreen({
 
           return (
             <fieldset key={q.id} className={`border-2 rounded-2xl p-6 md:p-8 flex flex-col gap-4 transition-colors ${baseBorder}`}>
-              <div className="flex justify-between items-center">
-                <legend className="font-bold px-2" style={{ fontSize: "calc(1.3rem * var(--font-scale))" }}>{q.label}</legend>
-                {isError && <span aria-live="polite" className="text-red-600 font-bold px-2" style={{ fontSize: "calc(1.1rem * var(--font-scale))" }}>⚠️ 필수 응답</span>}
-              </div>
+              {/* legend 는 fieldset 의 첫 자식이어야 그룹 이름 노릇을 한다. div 로
+                  감싸면 스크린리더가 "맵기는 어떻게 해드릴까요?" 를 잃고 선택지만
+                  읽는다 — 그래서 에러 표시를 legend 안에 넣는다. */}
+              <legend className="font-bold px-2 w-full flex justify-between items-center gap-3" style={{ fontSize: "calc(1.3rem * var(--font-scale))" }}>
+                <span>{q.label}</span>
+                {isError && <span className="text-red-600 font-bold" style={{ fontSize: "calc(1.1rem * var(--font-scale))" }}>⚠️ 필수 응답</span>}
+              </legend>
               {q.help && <p className="opacity-80 mb-2" style={{ fontSize: "calc(1rem * var(--font-scale))" }}>{q.help}</p>}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {options.map((opt, idx) => {

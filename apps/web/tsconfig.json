@@ -31,6 +31,8 @@
       "@commitandrun/engine": ["../../packages/engine/src/types.ts"],
       "@commitandrun/engine/input": ["../../packages/engine/src/input.ts"],
       "@commitandrun/engine/plan": ["../../packages/engine/src/plan.ts"],
+      "@commitandrun/engine/profile-store": ["../../packages/engine/src/profile-store.ts"],
+      "@commitandrun/engine/required": ["../../packages/engine/src/required.ts"],
       "@commitandrun/engine/select": ["../../packages/engine/src/select.ts"]
     }
   },

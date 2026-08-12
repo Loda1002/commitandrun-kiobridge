@@ -5,6 +5,9 @@ import type { EnvironmentId } from "@commitandrun/engine";
 import { actionLabel, stateLabel, type RunView } from "../lib/types";
 import { fixtureFor } from "../lib/fixture";
 
+/** What a plan step points at, straight from PlannedAction["target"]. */
+type StepTarget = { kind: string; id: string; groupId?: string };
+
 interface ResultScreenProps {
   runResult: RunView;
   environmentId: EnvironmentId;
@@ -19,38 +22,40 @@ export function ResultScreen({ runResult, environmentId, isHighContrast, onReset
     headingRef.current?.focus();
   }, []);
 
-  // 팀장님 말씀대로 번역표를 손으로 쓰지 않고, 오직 fixture와 기존 타입 함수로만 해결
-  const getKoreanTargetLabel = (stepTarget: any) => {
-    if (!stepTarget || !stepTarget.id) return "✅ 완료";
-    
-    const { id, groupId } = stepTarget;
+  /**
+   * Names a plan step's target in Korean without a hand-written table: every
+   * word comes out of the fixture the engine planned against.
+   *
+   * `target.kind` is what joins the two. An option group declares the kind it
+   * backs (`OptionGroup.kind`, e.g. "visit_type"), and only the generic
+   * "option" kind carries a `groupId` — the enumerated kinds do not. Matching
+   * on `groupId` alone therefore misses most hospital and public-office steps,
+   * and comparing an absent `groupId` against an absent field matches
+   * everything: that is how every step ended up labelled "방문 유형".
+   */
+  const targetLabel = (target: StepTarget): string => {
+    const fixture = fixtureFor(environmentId);
 
-    try {
-      const fix = fixtureFor(environmentId);
-      
-      // 1. 후보군(메뉴, 증명서, 진료과) 이름 매칭
-      const candidate = fix.candidates?.find((c: any) => c.candidateId === id || c.id === id);
+    if (target.kind === "candidate") {
+      const candidate = fixture.candidates.find((c) => c.candidateId === target.id);
       if (candidate) return candidate.name;
-      
-      // 2. 화면 상태(Screens) 타이틀 매칭
-      const screen = fix.screens?.find((s: any) => s.state === id);
-      if (screen) return screen.title;
-      
-      // 3. 옵션 그룹 및 옵션 라벨 매칭 (fixture.optionGroups 활용)
-      if (fix.optionGroups) {
-        const group = fix.optionGroups.find((g: any) => g.id === id || g.groupId === id || g.id === groupId);
-        if (group) return group.label;
-
-        for (const g of fix.optionGroups) {
-          const opt = g.options?.find((o: any) => o.value === id || o.id === id);
-          if (opt) return `${g.label} · ${opt.label}`;
-        }
-      }
-    } catch (e) {
-      // fallback
     }
-    
-    return groupId ? `${groupId} · ${id}` : id;
+
+    if (target.kind === "review") {
+      const screen = fixture.screens.find((s) => s.state === target.id);
+      if (screen) return screen.title;
+    }
+
+    const group = fixture.optionGroups.find((g) =>
+      target.groupId ? g.groupId === target.groupId : g.kind === target.kind,
+    );
+    const option = group?.options.find((o) => o.id === target.id);
+    if (group && option) return `${group.label} · ${option.label}`;
+    if (group) return group.label;
+
+    // Nothing in the fixture claims this target. Show it raw rather than
+    // guessing — a wrong Korean label is worse than an untranslated code.
+    return target.groupId ? `${target.groupId} · ${target.id}` : target.id;
   };
 
   return (
@@ -73,7 +78,7 @@ export function ResultScreen({ runResult, environmentId, isHighContrast, onReset
                   <span>{actionLabel(step.action, environmentId)}</span>
                 </div>
                 <span className="opacity-80 font-medium" style={{ fontSize: "calc(1rem * var(--font-scale))" }}>
-                  {isLast ? "✅ 완료" : getKoreanTargetLabel(step.target)}
+                  {isLast ? "✅ 완료" : targetLabel(step.target)}
                 </span>
               </li>
             );
