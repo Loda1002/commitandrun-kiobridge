@@ -1,5 +1,13 @@
 // Checks filterCandidates against the submission that already passes.
 // Run from the project root:  node packages/engine/scripts/check-select.ts
+//
+// ⚠️ "golden" below is now produced BY this engine — since the participant.ts
+// wiring landed, kit/workspace/COMMITANDRUN/src/build-submission.ts writes that
+// file. So a "SAME as golden" line no longer means an independent reference
+// agrees with us; it means the engine still produces what it produced when the
+// submission was last generated. That is a regression snapshot, which is worth
+// having, but the independent verdict is
+//   cd kit && npm run participant:validate -- --file <submission> --execute
 import { readFile } from "node:fs/promises";
 import {
   buildAlternatives,

@@ -1,7 +1,57 @@
 {
-  "_note": "여러분이 수집한 원본 입력을 여기에 두세요. 형식은 자유입니다.",
-  "example": {
+  "_note": "COMMITANDRUN 서비스가 수집한 원본 입력. 형식은 자유이며, src/participant.ts 의 collectProfile() 이 이 파일을 읽습니다.",
+  "_dataClassification": "합성 데이터. 실제 이름·전화·주민번호·카드번호는 들어 있지 않습니다.",
+  "_timestamps": "고정값입니다. 엔진은 시계를 읽지 않고 호출자가 시각을 넘기므로, 같은 입력이면 언제 돌려도 같은 제출물이 나옵니다. 그래야 SHA-256 이 안정적입니다.",
+
+  "collectionChannel": "WEB_FORM",
+  "profileId": "COMMITANDRUN-PROFILE-001",
+  "providerId": "COMMITANDRUN",
+  "collectedAt": "2026-08-05T07:00:00.000Z",
+
+  "accessibility": {
     "largeText": true,
-    "preferredInput": "TOUCH"
+    "simpleSteps": true,
+    "visualGuidance": true,
+    "hearingSupport": false,
+    "mobilitySupport": false,
+    "highContrast": true,
+    "staffAssistancePreferred": false
+  },
+  "interaction": {
+    "preferredInput": "TOUCH",
+    "language": "ko-KR",
+    "confirmationRequired": true
+  },
+  "consent": {
+    "personalization": true,
+    "retentionPolicy": "SESSION_ONLY"
+  },
+
+  "session": {
+    "capturedAt": "2026-08-05T07:00:00.000Z",
+    "source": "WEB_FORM",
+    "_confirmedPaths": "손님이 최종 확인 화면에서 눈으로 보고 확인한 값들입니다. 확인하지 않은 값은 confirmedByUser=false 로 남습니다.",
+    "confirmedPaths": [
+      "/hardConstraints/allergenIds",
+      "/preferences/serviceType",
+      "/preferences/spicyLevel"
+    ],
+    "_answers": "quantity 는 숫자 문자열입니다. 화면의 옵션 id(Q1)가 아니라 사람이 고른 개수입니다.",
+    "answers": {
+      "serviceType": "TAKE_OUT",
+      "spicyLevel": "HOT",
+      "boneType": "BONELESS",
+      "cupOption": "PAPER",
+      "quantity": "1",
+      "allergenIds": ["PEANUT"],
+      "maxPriceKrw": 7000
+    }
+  },
+
+  "decision": {
+    "_note": "최종 확인 화면에서 손님이 누른 결과입니다. 승인 없이 실행계획을 만들지 않습니다.",
+    "approved": true,
+    "confirmedAt": "2026-08-05T07:01:00.000Z",
+    "note": "화면에서 메뉴명·옵션·가격을 확인한 뒤 승인했습니다."
   }
 }

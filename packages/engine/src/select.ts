@@ -333,7 +333,10 @@ function collectReconfirmRequests(ctx: ChickenStoreSessionContext): ReconfirmReq
   return [
     {
       path: "/hardConstraints/allergenIds",
-      question: "드시면 안 되는 재료가 있으신가요? 없으시면 '없음'을 골라 주세요.",
+      // Quotes the option the form actually offers. A question that points at a
+      // button the user cannot find is worse than one that points at nothing —
+      // keep this in step with the allergy question in apps/web.
+      question: "드시면 안 되는 재료가 있으신가요? 없으시면 '없어요 (해당 없음)'을 골라 주세요.",
       because: "알레르기를 확인하지 못한 상태로는 안전하게 추천해 드릴 수 없습니다.",
     },
   ];
