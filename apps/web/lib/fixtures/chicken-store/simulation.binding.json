@@ -1,0 +1,54 @@
+{
+  "driver": "SIMULATION",
+  "screens": {
+    "SERVICE_TYPE": {
+      "template": "TWO_COLUMN_SELECTION",
+      "dataSource": "option-groups",
+      "groups": [
+        "SERVICE_TYPE"
+      ]
+    },
+    "MENU_SELECTION": {
+      "template": "FOUR_CARD_GRID",
+      "dataSource": "candidates",
+      "pageSize": 4,
+      "navigation": {
+        "enabled": true,
+        "classification": "SYNTHETIC_MOCK"
+      }
+    },
+    "OPTION_SELECTION": {
+      "template": "OPTION_GROUP_LIST",
+      "dataSource": "option-groups",
+      "groups": [
+        "SPICY_LEVEL",
+        "BONE_TYPE",
+        "CUP",
+        "QUANTITY"
+      ]
+    },
+    "OPTION_CONFIRM": {
+      "template": "OPTION_GROUP_LIST",
+      "dataSource": "option-groups",
+      "groups": [
+        "SPICY_LEVEL",
+        "BONE_TYPE",
+        "CUP",
+        "QUANTITY"
+      ]
+    },
+    "MENU_SELECTION_WITH_CART": {
+      "template": "FOUR_CARD_GRID",
+      "dataSource": "candidates",
+      "pageSize": 4,
+      "navigation": {
+        "enabled": true,
+        "classification": "SYNTHETIC_MOCK"
+      }
+    },
+    "CART_REVIEW": {
+      "template": "ORDER_REVIEW",
+      "dataSource": "review"
+    }
+  }
+}

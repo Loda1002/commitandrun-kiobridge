@@ -1,0 +1,54 @@
+[
+  {
+    "groupId": "SERVICE_TYPE",
+    "kind": "service_type",
+    "label": "이용 방식",
+    "required": true,
+    "options": [
+      { "id": "DINE_IN", "label": "먹고 가기" },
+      { "id": "TAKE_OUT", "label": "포장하기" }
+    ]
+  },
+  {
+    "groupId": "SPICY_LEVEL",
+    "kind": "option",
+    "label": "맵기",
+    "required": true,
+    "options": [
+      { "id": "MILD", "label": "순한맛" },
+      { "id": "MEDIUM", "label": "보통맛" },
+      { "id": "HOT", "label": "매운맛" }
+    ]
+  },
+  {
+    "groupId": "BONE_TYPE",
+    "kind": "option",
+    "label": "형태",
+    "required": true,
+    "options": [
+      { "id": "BONE", "label": "뼈" },
+      { "id": "BONELESS", "label": "순살" }
+    ]
+  },
+  {
+    "groupId": "CUP",
+    "kind": "option",
+    "label": "컵",
+    "required": false,
+    "options": [
+      { "id": "PAPER", "label": "종이컵" },
+      { "id": "REGULAR", "label": "일반컵" }
+    ]
+  },
+  {
+    "groupId": "QUANTITY",
+    "kind": "option",
+    "label": "수량",
+    "required": true,
+    "options": [
+      { "id": "Q1", "label": "1개", "value": 1 },
+      { "id": "Q2", "label": "2개", "value": 2 },
+      { "id": "Q3", "label": "3개", "value": 3 }
+    ]
+  }
+]

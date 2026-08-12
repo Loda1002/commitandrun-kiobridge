@@ -31,6 +31,12 @@ export default function Home() {
   const [recView, setRecView] = useState<RecommendationView | null>(null);
   const [runResult, setRunResult] = useState<RunView | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  /**
+   * The engine refuses rather than guesses, so a call can legitimately fail —
+   * approving a menu without saying how you want to receive it, for one. The
+   * button used to do nothing at all in that case; say what happened instead.
+   */
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
     fetchQuestions().then(setQuestions).catch(console.error);
@@ -59,12 +65,14 @@ export default function Home() {
   const handleContextSubmit = async (userAnswers: Answers) => {
     setAnswers(userAnswers);
     setIsLoading(true);
+    setErrorMessage(null);
     try {
       const view = await fetchRecommendation(userAnswers);
       setRecView(view);
       setCurrentStep(2);
     } catch (error) {
       console.error("추천 결과 조회 실패:", error);
+      setErrorMessage("추천을 만들지 못했습니다. 답변을 확인하고 다시 시도해 주세요.");
     } finally {
       setIsLoading(false);
     }
@@ -75,21 +83,28 @@ export default function Home() {
   };
 
   const handleBackToContext = () => {
+    setErrorMessage(null);
     setCurrentStep(1);
   };
 
   const handleApprove = async () => {
     if (!recView || !recView.recommended) return;
     setIsLoading(true);
+    setErrorMessage(null);
     try {
-      const run = await runPlan({
-        candidateId: recView.recommended.candidateId,
-        approved: true,
-      });
+      // The same answers that produced the recommendation: the plan has to be
+      // for the order the user was actually shown and approved.
+      const run = await runPlan(
+        { candidateId: recView.recommended.candidateId, approved: true },
+        answers,
+      );
       setRunResult(run);
       setCurrentStep(4);
     } catch (error) {
       console.error("실행 계획 실행 실패:", error);
+      setErrorMessage(
+        "주문을 진행하지 못했습니다. 아직 고르지 않은 항목이 있는지 확인하고 다시 답해 주세요.",
+      );
     } finally {
       setIsLoading(false);
     }
@@ -99,6 +114,7 @@ export default function Home() {
     setAnswers(EMPTY_ANSWERS);
     setRecView(null);
     setRunResult(null);
+    setErrorMessage(null);
     setCurrentStep(0);
   };
 
@@ -133,6 +149,16 @@ export default function Home() {
         </main>
       ) : (
         <>
+          {errorMessage && (
+            <p
+              role="alert"
+              className="rounded-xl p-4 font-bold border-2 border-red-500 bg-red-500/10"
+              style={{ fontSize: "calc(1.1rem * var(--font-scale))" }}
+            >
+              ⚠️ {errorMessage}
+            </p>
+          )}
+
           {currentStep === 0 && (
             <StartScreen onStart={handleStart} accessibilityBar={a11yBar} />
           )}

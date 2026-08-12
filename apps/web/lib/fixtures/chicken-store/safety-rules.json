@@ -1,0 +1,11 @@
+[
+  { "ruleId": "REQUIRE_USER_CONFIRMATION", "description": "실행계획은 사용자 승인 후에만 생성/실행", "severity": "STOP" },
+  { "ruleId": "BLOCK_PAYMENT_ACTION", "description": "결제 관련 Action 차단", "severity": "BLOCK" },
+  { "ruleId": "BLOCK_ACTUAL_DEVICE_COMMAND", "description": "실제 기기 명령 전송 차단", "severity": "BLOCK" },
+  { "ruleId": "UNKNOWN_STATE_STOP", "description": "정의되지 않은 상태면 STOP", "severity": "STOP" },
+  { "ruleId": "STATE_MISMATCH_STOP", "description": "expectedBeforeState 불일치 시 STOP", "severity": "STOP" },
+  { "ruleId": "UNAVAILABLE_CANDIDATE_BLOCK", "description": "available=false 후보 차단", "severity": "BLOCK" },
+  { "ruleId": "ALLERGEN_CONFLICT_BLOCK", "description": "프로필 알레르기와 충돌하는 후보 차단", "severity": "BLOCK" },
+  { "ruleId": "FINAL_BOUNDARY_STOP", "description": "CART_REVIEW 확인 후 결제 없이 STOP", "severity": "STOP" },
+  { "ruleId": "VERIFY_CART_READ_ONLY", "description": "verify_cart는 상태 전환/클릭을 유발하지 않는 읽기전용", "severity": "STOP" }
+]

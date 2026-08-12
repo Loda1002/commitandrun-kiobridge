@@ -1,0 +1,46 @@
+{
+  "environmentId": "chicken-store",
+  "name": "닭강정 가게",
+  "displayName": "닭강정 가게",
+  "description": "메뉴·옵션·포장·알레르기 조건을 기반으로 개인화 주문을 시뮬레이션합니다.",
+  "summary": "메뉴/옵션/포장/알레르기 개인화 주문",
+  "testFocus": "이용방식·맵기·형태·컵·수량 옵션과 알레르기/품절 예외 처리",
+  "fixtureVersion": "chicken-store@0.2.0",
+  "dataClassification": "SYNTHETIC_MOCK",
+  "states": [
+    "SERVICE_TYPE",
+    "MENU_SELECTION",
+    "OPTION_SELECTION",
+    "OPTION_CONFIRM",
+    "MENU_SELECTION_WITH_CART",
+    "CART_REVIEW",
+    "STOP"
+  ],
+  "initialState": "SERVICE_TYPE",
+  "reviewBoundaryState": "CART_REVIEW",
+  "requiredVerifierAction": "verify_cart",
+  "terminalState": "STOP",
+  "allowedActions": [
+    "select_service",
+    "select_menu",
+    "select_option",
+    "confirm_option",
+    "open_cart_review",
+    "verify_cart"
+  ],
+  "forbiddenActions": [
+    "select_payment",
+    "confirm_payment",
+    "submit_payment",
+    "complete_payment",
+    "open_payment_method"
+  ],
+  "inputContract": {
+    "version": "1.0.0",
+    "schemaRef": "domains/chicken-store.context.schema.json",
+    "vocabularyRef": "vocabularies/chicken-store.vocabulary.json"
+  },
+  "supportedProfileContractVersions": [
+    "1.0.0"
+  ]
+}

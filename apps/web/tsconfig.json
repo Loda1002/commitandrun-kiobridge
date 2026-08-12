@@ -22,9 +22,16 @@
         "name": "next"
       }
     ],
+    // The engine is not a published package yet, so each module is mapped by
+    // hand. Subpaths rather than a wildcard: the engine's files import each
+    // other as "./types.ts", and a wildcard here would offer a second name for
+    // the same file — two module identities for one module.
     "paths": {
       "@/*": ["./*"],
-      "@commitandrun/engine": ["../../packages/engine/src/types.ts"]
+      "@commitandrun/engine": ["../../packages/engine/src/types.ts"],
+      "@commitandrun/engine/input": ["../../packages/engine/src/input.ts"],
+      "@commitandrun/engine/plan": ["../../packages/engine/src/plan.ts"],
+      "@commitandrun/engine/select": ["../../packages/engine/src/select.ts"]
     }
   },
   "include": [

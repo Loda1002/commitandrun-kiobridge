@@ -1,0 +1,269 @@
+[
+  {
+    "candidateId": "CHICKEN-001",
+    "name": "매운 순살 닭강정",
+    "domain": "chicken-store",
+    "price": 6000,
+    "available": true,
+    "dataClassification": "SYNTHETIC_MOCK",
+    "supportedOptions": {
+      "SERVICE_TYPE": [
+        "DINE_IN",
+        "TAKE_OUT"
+      ],
+      "SPICY_LEVEL": [
+        "HOT"
+      ],
+      "BONE_TYPE": [
+        "BONELESS"
+      ],
+      "CUP": [
+        "PAPER",
+        "REGULAR"
+      ],
+      "QUANTITY": [
+        "Q1",
+        "Q2",
+        "Q3"
+      ]
+    },
+    "attributes": {
+      "spicyLevel": "HOT",
+      "boneType": "BONELESS",
+      "allergenIds": []
+    }
+  },
+  {
+    "candidateId": "CHICKEN-002",
+    "name": "순한 순살 닭강정",
+    "domain": "chicken-store",
+    "price": 6000,
+    "available": true,
+    "dataClassification": "SYNTHETIC_MOCK",
+    "supportedOptions": {
+      "SERVICE_TYPE": [
+        "DINE_IN",
+        "TAKE_OUT"
+      ],
+      "SPICY_LEVEL": [
+        "MILD"
+      ],
+      "BONE_TYPE": [
+        "BONELESS"
+      ],
+      "CUP": [
+        "PAPER",
+        "REGULAR"
+      ],
+      "QUANTITY": [
+        "Q1",
+        "Q2",
+        "Q3"
+      ]
+    },
+    "attributes": {
+      "spicyLevel": "MILD",
+      "boneType": "BONELESS",
+      "allergenIds": []
+    }
+  },
+  {
+    "candidateId": "CHICKEN-003",
+    "name": "매운 뼈 닭강정",
+    "domain": "chicken-store",
+    "price": 5500,
+    "available": true,
+    "dataClassification": "SYNTHETIC_MOCK",
+    "supportedOptions": {
+      "SERVICE_TYPE": [
+        "DINE_IN",
+        "TAKE_OUT"
+      ],
+      "SPICY_LEVEL": [
+        "HOT"
+      ],
+      "BONE_TYPE": [
+        "BONE"
+      ],
+      "CUP": [
+        "PAPER"
+      ],
+      "QUANTITY": [
+        "Q1",
+        "Q2",
+        "Q3"
+      ]
+    },
+    "attributes": {
+      "spicyLevel": "HOT",
+      "boneType": "BONE",
+      "allergenIds": []
+    }
+  },
+  {
+    "candidateId": "CHICKEN-004",
+    "name": "간장 순살 닭강정",
+    "domain": "chicken-store",
+    "price": 6500,
+    "available": true,
+    "dataClassification": "SYNTHETIC_MOCK",
+    "supportedOptions": {
+      "SERVICE_TYPE": [
+        "DINE_IN",
+        "TAKE_OUT"
+      ],
+      "SPICY_LEVEL": [
+        "MILD"
+      ],
+      "BONE_TYPE": [
+        "BONELESS"
+      ],
+      "CUP": [
+        "PAPER",
+        "REGULAR"
+      ],
+      "QUANTITY": [
+        "Q1",
+        "Q2",
+        "Q3"
+      ]
+    },
+    "attributes": {
+      "spicyLevel": "MILD",
+      "boneType": "BONELESS",
+      "allergenIds": [
+        "SOY"
+      ]
+    }
+  },
+  {
+    "candidateId": "CHICKEN-005",
+    "name": "땅콩 토핑 닭강정",
+    "domain": "chicken-store",
+    "price": 7000,
+    "available": true,
+    "dataClassification": "SYNTHETIC_MOCK",
+    "supportedOptions": {
+      "SERVICE_TYPE": [
+        "DINE_IN",
+        "TAKE_OUT"
+      ],
+      "SPICY_LEVEL": [
+        "MEDIUM"
+      ],
+      "BONE_TYPE": [
+        "BONELESS"
+      ],
+      "CUP": [
+        "PAPER"
+      ],
+      "QUANTITY": [
+        "Q1",
+        "Q2",
+        "Q3"
+      ]
+    },
+    "attributes": {
+      "spicyLevel": "MEDIUM",
+      "boneType": "BONELESS",
+      "allergenIds": [
+        "PEANUT"
+      ]
+    }
+  },
+  {
+    "candidateId": "CHICKEN-006",
+    "name": "포장 전용 닭강정",
+    "domain": "chicken-store",
+    "price": 6000,
+    "available": true,
+    "dataClassification": "SYNTHETIC_MOCK",
+    "supportedOptions": {
+      "SERVICE_TYPE": [
+        "TAKE_OUT"
+      ],
+      "SPICY_LEVEL": [
+        "MEDIUM"
+      ],
+      "BONE_TYPE": [
+        "BONELESS"
+      ],
+      "CUP": [
+        "PAPER"
+      ],
+      "QUANTITY": [
+        "Q1",
+        "Q2",
+        "Q3"
+      ]
+    },
+    "attributes": {
+      "spicyLevel": "MEDIUM",
+      "boneType": "BONELESS",
+      "allergenIds": []
+    }
+  },
+  {
+    "candidateId": "CHICKEN-007",
+    "name": "매장 전용 닭강정",
+    "domain": "chicken-store",
+    "price": 6000,
+    "available": true,
+    "dataClassification": "SYNTHETIC_MOCK",
+    "supportedOptions": {
+      "SERVICE_TYPE": [
+        "DINE_IN"
+      ],
+      "SPICY_LEVEL": [
+        "MEDIUM"
+      ],
+      "BONE_TYPE": [
+        "BONELESS"
+      ],
+      "CUP": [
+        "REGULAR"
+      ],
+      "QUANTITY": [
+        "Q1",
+        "Q2",
+        "Q3"
+      ]
+    },
+    "attributes": {
+      "spicyLevel": "MEDIUM",
+      "boneType": "BONELESS",
+      "allergenIds": []
+    }
+  },
+  {
+    "candidateId": "CHICKEN-008",
+    "name": "품절 닭강정",
+    "domain": "chicken-store",
+    "price": 6000,
+    "available": false,
+    "dataClassification": "SYNTHETIC_MOCK",
+    "supportedOptions": {
+      "SERVICE_TYPE": [
+        "DINE_IN",
+        "TAKE_OUT"
+      ],
+      "SPICY_LEVEL": [
+        "HOT"
+      ],
+      "BONE_TYPE": [
+        "BONELESS"
+      ],
+      "CUP": [
+        "PAPER"
+      ],
+      "QUANTITY": [
+        "Q1"
+      ]
+    },
+    "attributes": {
+      "spicyLevel": "HOT",
+      "boneType": "BONELESS",
+      "allergenIds": []
+    }
+  }
+]

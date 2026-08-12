@@ -1,0 +1,10 @@
+[
+  { "from": "SERVICE_TYPE", "action": "select_service", "to": "MENU_SELECTION" },
+  { "from": "MENU_SELECTION", "action": "select_menu", "to": "OPTION_SELECTION" },
+  { "from": "OPTION_SELECTION", "action": "select_option", "to": "OPTION_SELECTION" },
+  { "from": "OPTION_SELECTION", "action": "confirm_option", "to": "OPTION_CONFIRM" },
+  { "from": "OPTION_CONFIRM", "action": "confirm_option", "to": "MENU_SELECTION_WITH_CART" },
+  { "from": "MENU_SELECTION_WITH_CART", "action": "select_menu", "to": "OPTION_SELECTION" },
+  { "from": "MENU_SELECTION_WITH_CART", "action": "open_cart_review", "to": "CART_REVIEW" },
+  { "from": "CART_REVIEW", "action": "verify_cart", "to": "CART_REVIEW", "guards": ["readOnly"] }
+]
