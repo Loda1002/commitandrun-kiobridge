@@ -522,16 +522,27 @@ export function createContextFor(
  *
  * Recording where the stock figure came from is the point: an explanation that
  * says "지금 품절인 메뉴는 빼고 골랐습니다" has to be traceable to something, and
- * this is that something. Emitted whenever a fixture is supplied, even when
- * nothing is sold out — "we checked and found none" is also evidence.
+ * this is that something.
+ *
+ * Only reported when something actually is sold out. This used to fire for every
+ * fixture on the reasoning that "we checked and found none" is also evidence,
+ * and the official CLI reads it the other way round: declaring a context signal
+ * is a claim that the signal shaped the recommendation, so it checks the reason
+ * sentences for it and fails when none mention it. Hospital and public-office
+ * have no sold-out candidates, so they were declaring a signal that could not
+ * appear in any explanation — `외부 맥락이 추천 이유에 반영됨` FAIL on both.
+ * An empty observation is better left unsaid than declared and unused.
+ * chicken-store does have one, so its signal and its submission are unchanged.
  */
 function contextSignals(fixture: PublicFixture | undefined, observedAt: string) {
   if (!fixture) return null;
+  const unavailable = fixture.candidates.filter((c) => !c.available).map((c) => c.candidateId);
+  if (unavailable.length === 0) return null;
   return [
     {
       type: "STOCK",
       key: "unavailableCandidateIds",
-      value: fixture.candidates.filter((c) => !c.available).map((c) => c.candidateId),
+      value: unavailable,
       source: `environment-fixture:${fixture.manifest.environmentId}/candidates.json#available`,
       observedAt,
     },

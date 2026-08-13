@@ -75,17 +75,6 @@
         "confirmedByUser": true,
         "capturedAt": "2026-08-05T07:00:00.000Z"
       }
-    },
-    "extensions": {
-      "COMMITANDRUN.contextSignals": [
-        {
-          "type": "STOCK",
-          "key": "unavailableCandidateIds",
-          "value": [],
-          "source": "environment-fixture:public-office/candidates.json#available",
-          "observedAt": "2026-08-05T07:00:00.000Z"
-        }
-      ]
     }
   },
   "recommendation": {
