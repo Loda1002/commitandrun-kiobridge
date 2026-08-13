@@ -250,16 +250,30 @@ function reconfirm(raw: SessionContext): ReconfirmRequest[] {
 
 /**
  * The category is a fact about the visit; the auth method is a capability the
- * user has today. The first available method is offered, and `plan.ts` narrows
- * it to one this service actually accepts when the two differ.
+ * user has today.
+ *
+ * The auth method has to be one this counter actually puts on screen, not just
+ * the first one the user is carrying. `AuthMethod` has values this fixture does
+ * not offer (`BIOMETRIC`, `NONE`), and `plan.ts` does not narrow that away: it
+ * throws on a value the group has no option for, before it ever gets to the
+ * per-candidate check. So someone arriving with `["BIOMETRIC", "ID_CARD"]` would
+ * be stopped over the first entry while the second was sitting right there.
+ *
+ * When none of them is offered here, this returns undefined — on this kiosk's
+ * terms the user has not chosen yet. That matters most for the staff desk,
+ * whose only legal value is `STAFF_ASSIST`: `plan.ts` fills a required group
+ * that leaves exactly one value, so the way out stays open for someone whose
+ * means of proof this counter cannot take.
  */
 function answerFor(group: OptionGroup, raw: SessionContext): unknown {
   const ctx = ctxOf(raw);
   switch (group.groupId) {
     case "CATEGORY":
       return ctx.facts.serviceCategory;
-    case "AUTH_METHOD":
-      return (ctx.capabilities.availableAuthMethods ?? [])[0];
+    case "AUTH_METHOD": {
+      const available = ctx.capabilities.availableAuthMethods ?? [];
+      return available.find((method) => group.options.some((o) => o.id === method));
+    }
     default:
       return undefined;
   }
