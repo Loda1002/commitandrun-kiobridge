@@ -254,11 +254,21 @@ const SUPPORTS_KEY_BY_MODE: Partial<Record<SupportMode, string>> = {
  * How a requested support is named when we have to say we did not match it.
  * Written as a whole subject phrase rather than a noun plus a fixed particle,
  * for the same reason the sentences below are whole sentences.
+ *
+ * All six modes are here, not just the three the kiosk has buttons for. A
+ * context can carry any of them — `input.ts` accepts the whole vocabulary, and
+ * an answer can arrive from the profile store or a submission input without
+ * passing through a screen. Leaving the other three out meant saying nothing at
+ * all to the person who asked for them, which is the fault this table exists to
+ * fix.
  */
-const SUPPORT_NEED_LABEL: Partial<Record<SupportMode, string>> = {
+const SUPPORT_NEED_LABEL: Record<SupportMode, string> = {
   LARGE_TEXT: "필요하다고 하신 큰 글씨는",
   HEARING_SUPPORT: "필요하다고 하신 청각 지원은",
   STAFF_HELP: "필요하다고 하신 직원 도움은",
+  VISUAL_GUIDANCE: "필요하다고 하신 시각 안내는",
+  SIMPLE_STEPS: "필요하다고 하신 쉬운 단계별 안내는",
+  GUARDIAN_MODE: "필요하다고 하신 보호자 동반 안내는",
 };
 
 /**
@@ -341,9 +351,15 @@ function explain(
   for (const mode of unmet) {
     const need = SUPPORT_NEED_LABEL[mode];
     if (!need) continue;
+    // Where to send them depends on whether any route could have it. A mode
+    // with no flag in `supports` is one this desk cannot advertise at all, so
+    // pointing at the alternatives would be a promise none of them can keep —
+    // the staff route is the honest answer, and it is always there.
     push(
       "ACCESSIBILITY",
-      `${need} 이 접수 경로에서는 제공되지 않습니다. 아래 대안에서 지원이 되는 경로를 고르실 수 있습니다.`,
+      SUPPORTS_KEY_BY_MODE[mode] === undefined
+        ? `${need} 이 접수처에서는 안내해 드릴 수 없습니다. 직원 도움 요청으로 넘어가실 수 있습니다.`
+        : `${need} 이 접수 경로에서는 제공되지 않습니다. 아래 대안에서 지원이 되는 경로를 고르실 수 있습니다.`,
     );
   }
 

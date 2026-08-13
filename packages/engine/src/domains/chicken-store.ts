@@ -340,6 +340,13 @@ function hasCode(excluded: ExclusionReason[], reasonCode: string): boolean {
  * The hospital and the public office never had this because their `reconfirm`
  * already covered every fact they need; this is the same shape.
  *
+ * The four below are the groups `option-groups.json` marks `required` — CUP is
+ * not one, and is not asked for. `reconfirm` is handed a context and no fixture,
+ * so that list is written out here rather than read, exactly as `hospital.ts`
+ * writes out its three: a fixture that changes which groups are required moves
+ * `required.ts` on its own and leaves this file behind. Until `DomainSpec` can
+ * see the fixture, the two have to be changed together.
+ *
  * Every question quotes the buttons the form actually shows, for the reason
  * given on the allergy question below — keep both in step with `apps/web`.
  */
