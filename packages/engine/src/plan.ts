@@ -107,13 +107,7 @@ export function resolveOptionSelections(
   sessionContext: SessionContext,
 ): OptionSelection[] {
   const domain = domainFor(fixture.manifest.environmentId, sessionContext);
-  const candidate = fixture.candidates.find((c) => c.candidateId === candidateId);
-  if (!candidate) {
-    throw new Error(`resolveOptionSelections: unknown candidate ${candidateId}`);
-  }
-  if (!candidate.available) {
-    throw new Error(`resolveOptionSelections: candidate ${candidateId} is unavailable`);
-  }
+  const candidate = requireOpenCandidate(fixture, candidateId, "resolveOptionSelections");
 
   const selections: OptionSelection[] = [];
 
@@ -149,27 +143,48 @@ export function resolveOptionSelections(
 }
 
 /**
- * Whether every option group could be settled for this candidate without
- * overriding the user — the question `resolveOptionSelections` answers by
- * throwing.
+ * The groups this candidate could not be planned with, in fixture order — the
+ * questions `resolveOptionSelections` answers by throwing on the first one.
  *
- * Asking it as a boolean is what lets a screen find out before it draws a
- * recommendation, rather than after the user presses the confirm button. It is
- * deliberately this function rather than a copy of the rule in `required.ts`:
- * two implementations of "can this be planned" that can disagree would put the
- * screen and the plan back out of step, which is the fault being fixed.
+ * Empty means a plan can be built. Asking it this way is what lets a screen
+ * find out before it draws a recommendation rather than after the user presses
+ * confirm, and naming the groups rather than returning a yes/no is what lets it
+ * ask about the answer that is actually in the way. It is deliberately this
+ * function rather than a copy of the rule in `required.ts`: two implementations
+ * of "can this be planned" that can disagree would put the screen and the plan
+ * back out of step, which is the fault being fixed.
+ *
+ * An unknown or unavailable candidate still throws. Those are not answers the
+ * user can change.
  */
-export function canResolveOptions(
+export function unsettleableGroups(
   fixture: PublicFixture,
   candidateId: string,
   sessionContext: SessionContext,
-): boolean {
-  try {
-    resolveOptionSelections(fixture, candidateId, sessionContext);
-    return true;
-  } catch {
-    return false;
+): string[] {
+  const domain = domainFor(fixture.manifest.environmentId, sessionContext);
+  const candidate = requireOpenCandidate(fixture, candidateId, "unsettleableGroups");
+  const neutral = NEUTRAL_OPTION_IDS[fixture.manifest.environmentId] ?? [];
+
+  return fixture.optionGroups
+    .filter((group) => settle(group, domain.answerFor(group, sessionContext), candidate, neutral).ok === false)
+    .map((group) => group.groupId);
+}
+
+/** Shared by every entry point: the candidate has to exist and be orderable. */
+function requireOpenCandidate(
+  fixture: PublicFixture,
+  candidateId: string,
+  caller: string,
+): Candidate {
+  const candidate = fixture.candidates.find((c) => c.candidateId === candidateId);
+  if (!candidate) {
+    throw new Error(`${caller}: unknown candidate ${candidateId}`);
   }
+  if (!candidate.available) {
+    throw new Error(`${caller}: candidate ${candidateId} is unavailable`);
+  }
+  return candidate;
 }
 
 export function buildExecutionPlan(input: PlanInput): ExecutionPlan {
@@ -316,14 +331,37 @@ function chooseOptionId(
   candidate: Candidate,
   neutral: string[],
 ): string | null {
+  const settled = settle(group, answer, candidate, neutral);
+  if (!settled.ok) throw new Error(settled.reason);
+  return settled.id;
+}
+
+/**
+ * The same decision `chooseOptionId` makes, as a value instead of a throw.
+ *
+ * Split out so `unsettleableGroups` can ask about every group rather than
+ * stopping at the first one that fails — a screen that can only report the
+ * first obstacle sends the user round the loop once per answer. The wording of
+ * every refusal stays here, so the message a caller sees is the same whichever
+ * of the two it went through.
+ */
+type Settlement = { ok: true; id: string | null } | { ok: false; reason: string };
+
+function settle(
+  group: OptionGroup,
+  answer: unknown,
+  candidate: Candidate,
+  neutral: string[],
+): Settlement {
   const supported = candidate.supportedOptions?.[group.groupId] ?? group.options.map((o) => o.id);
 
   if (answer === undefined || answer === null || NOT_ANSWERED.has(String(answer))) {
-    if (!group.required) return null;
-    if (mayFill(group, supported, neutral)) return supported[0];
-    throw new Error(
-      `buildExecutionPlan: ${group.groupId} is required but the user did not answer it`,
-    );
+    if (!group.required) return { ok: true, id: null };
+    if (mayFill(group, supported, neutral)) return { ok: true, id: supported[0] };
+    return {
+      ok: false,
+      reason: `buildExecutionPlan: ${group.groupId} is required but the user did not answer it`,
+    };
   }
 
   // A quantity arrives as a number (1), the option carries it as `value`.
@@ -332,7 +370,10 @@ function chooseOptionId(
       ? group.options.find((o) => o.value === answer)
       : group.options.find((o) => o.id === answer);
   if (!match) {
-    throw new Error(`buildExecutionPlan: ${String(answer)} is not an option of ${group.groupId}`);
+    return {
+      ok: false,
+      reason: `buildExecutionPlan: ${String(answer)} is not an option of ${group.groupId}`,
+    };
   }
   if (!supported.includes(match.id)) {
     // The user picked a value this candidate does not come with — a real case,
@@ -340,13 +381,14 @@ function chooseOptionId(
     // strand an order the user already approved, so an optional group is
     // dropped rather than overridden; a required one falls back only under the
     // rule below, and otherwise goes back to the user as a question.
-    if (!group.required) return null;
-    if (mayFill(group, supported, neutral)) return supported[0];
-    throw new Error(
-      `buildExecutionPlan: ${candidate.candidateId} does not support ${group.groupId}=${match.id}`,
-    );
+    if (!group.required) return { ok: true, id: null };
+    if (mayFill(group, supported, neutral)) return { ok: true, id: supported[0] };
+    return {
+      ok: false,
+      reason: `buildExecutionPlan: ${candidate.candidateId} does not support ${group.groupId}=${match.id}`,
+    };
   }
-  return match.id;
+  return { ok: true, id: match.id };
 }
 
 /**

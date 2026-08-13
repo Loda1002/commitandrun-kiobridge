@@ -24,7 +24,7 @@ import {
 } from "./domain.ts";
 // Registers the three official domains, same as select.ts and plan.ts.
 import "./domains/index.ts";
-import { canResolveOptions } from "./plan.ts";
+import { unsettleableGroups } from "./plan.ts";
 import type { OptionGroup, PublicFixture, SessionContext } from "./types.ts";
 
 export interface MissingAnswer {
@@ -109,11 +109,12 @@ export function findMissingAnswers(
     });
   }
 
-  // Only worth asking once everything has in fact been answered; before that
-  // the questions above are the more useful thing to say.
-  if (missing.length === 0) {
-    missing.push(...findUnservableAnswers(fixture, ctx, answered, paths));
-  }
+  // Runs whether or not something above is still unanswered. Gating it on an
+  // empty list left the dead end open for the commonest hospital user there is:
+  // someone who needs no accessibility support cannot fill SUPPORT from the
+  // screen, so `apps/web` drops that one entry, and with the conflict check
+  // skipped the button unlocked on an answer set no desk can serve.
+  missing.push(...findUnservableAnswers(fixture, ctx, answered, paths));
   return missing;
 }
 
@@ -129,14 +130,19 @@ export function findMissingAnswers(
  * is the dead end pm/20 is about, so the question is asked here instead, before
  * any recommendation is drawn.
  *
- * A group is named only when changing that one answer would open something up.
- * That keeps the report to answers the user can act on: telling someone all
- * three of their answers are wrong when two of them are the reason they came is
- * not help. When nothing can be changed one at a time, every answered group is
- * named — the combination itself is what has to give.
+ * Only the answers the user actually gave are weighed. A group they have not
+ * answered yet is already reported above, and counting it here as well would
+ * name every group in the fixture — an unanswered fact blocks every candidate,
+ * so it drowns out the one answer that is really in the way.
  *
- * Availability is read the way `plan.ts` reads it, so the two agree about which
- * candidates exist at all.
+ * A group is named when it is the *only* thing standing between the user and
+ * some desk, because that is the answer changing which would open something up.
+ * When no single answer does that, every answered group is named: the
+ * combination itself is what has to give. Naming all four when 접근성 지원 was
+ * never the obstacle is the failure this rule replaced.
+ *
+ * Availability and the settling rule both come from `plan.ts`, so the screen
+ * and the plan cannot disagree about the same session.
  */
 function findUnservableAnswers(
   fixture: PublicFixture,
@@ -146,20 +152,15 @@ function findUnservableAnswers(
 ): MissingAnswer[] {
   if (answered.length === 0) return [];
 
-  const open = fixture.candidates.filter((c) => c.available);
-  const servable = (context: SessionContext) =>
-    open.some((c) => canResolveOptions(fixture, c.candidateId, context));
+  const answeredIds = new Set(answered.map((g) => g.groupId));
+  const obstacles = fixture.candidates
+    .filter((c) => c.available)
+    .map((c) => unsettleableGroups(fixture, c.candidateId, ctx).filter((id) => answeredIds.has(id)));
 
-  if (servable(ctx)) return [];
+  if (obstacles.some((groupIds) => groupIds.length === 0)) return [];
 
-  // Which single answer, taken back, would open something up. Taking one back
-  // means the value the context carried before the user answered, which is what
-  // `forgetting` reproduces.
-  const blocking = answered.filter((group) => {
-    const path = paths[group.groupId];
-    return path !== undefined && path !== "" && servable(forgetting(ctx, path));
-  });
-  const named = blocking.length > 0 ? blocking : answered;
+  const alone = new Set(obstacles.filter((g) => g.length === 1).map((g) => g[0]));
+  const named = alone.size > 0 ? answered.filter((g) => alone.has(g.groupId)) : answered;
 
   return named.map((group) => ({
     path: paths[group.groupId] ?? "",
@@ -169,24 +170,6 @@ function findUnservableAnswers(
       `그대로 진행할 수 있는 곳이 없습니다. ${group.label}${subjectParticle(group.label)} ` +
       `맞는지 다시 확인해 주세요.`,
   }));
-}
-
-/** A copy of the context with one pointer removed. Never mutates the original. */
-function forgetting(ctx: SessionContext, pointer: string): SessionContext {
-  const copy = JSON.parse(JSON.stringify(ctx)) as SessionContext;
-  const segments = pointer.split("/").slice(1);
-  const leaf = segments.pop();
-  if (leaf === undefined) return copy;
-
-  let current: unknown = copy;
-  for (const segment of segments) {
-    if (typeof current !== "object" || current === null) return copy;
-    current = (current as Record<string, unknown>)[segment];
-  }
-  if (typeof current === "object" && current !== null) {
-    delete (current as Record<string, unknown>)[leaf];
-  }
-  return copy;
 }
 
 /**
