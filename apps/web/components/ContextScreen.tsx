@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import type { EnvironmentId } from "@commitandrun/engine";
 import type { AnyAnswers, QuestionDef } from "../lib/types";
-import { fixtureFor } from "../lib/fixture"; // 🔥 fixture 데이터를 읽어오기 위해 추가
+import { findMissing } from "../lib/api";
 
 interface ContextScreenProps {
   questions: QuestionDef[];
@@ -69,47 +69,16 @@ export function ContextScreen({
     setValue(id, value.trim() === "" ? null : Number(value));
   };
 
-  // 🔥 프론트엔드 자체 필수 응답 검사 (선택 항목 제외 로직 추가)
-  const getMissingIds = () => {
-    const missing: string[] = [];
-    let fixture;
-    try {
-      fixture = fixtureFor(environmentId);
-    } catch (e) {
-      // fallback
-    }
-
-    for (const q of questions) {
-      // 1. 엔진 데이터(fixture)에서 이 문항이 필수인지 확인합니다.
-      const group = fixture?.optionGroups?.find((g: any) => g.groupId === q.id || g.id === q.id);
-      
-      // 2. 엔진이 필수가 아니라고 했거나(required: false), 
-      // 예산(maxPriceKrw)처럼 옵션 그룹에 아예 없는 별개의 질문이면 선택 사항이므로 검사를 무시합니다!
-      const isRequired = group ? group.required : ((q as any).required === true);
-      
-      if (!isRequired) continue; // 필수가 아니면 무조건 통과!
-
-      const val = answers[q.id];
-      if (q.kind === "single" || q.kind === "number") {
-        if (val === undefined || val === null || val === "") {
-          missing.push(q.id);
-        }
-      } else if (q.kind === "multi" && offersUnknown(q)) {
-        const list = asList(val);
-        if (list.length === 0 && !touched.has(q.id)) {
-          missing.push(q.id);
-        }
-      }
-    }
-    return missing;
-  };
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // 1. 빈칸 검사 실행 (예산 등 선택 사항은 알아서 통과됨)
-    const missing = getMissingIds();
-    
+
+    // [요건 5] 필수 응답 검사. 어느 질문이 필수인지도, 답이 찼는지도 엔진이 정한다
+    // — 화면이 직접 판정하면 화면과 제출본이 같은 답을 두고 다른 말을 하게 된다.
+    // 무엇이 필수인지는 fixture 의 optionGroups[].required 가 정하므로, 환경이
+    // 늘거나 fixture 가 바뀌어도 이 파일은 따라간다. (경위는 pm/22)
+    const missing = findMissing(answers, environmentId);
+
+    // 미응답 발생 시 UI 처리: 에러 등록 후 첫 누락 필드로 포커스 이동
     if (missing.length > 0) {
       setMissingIds(missing);
       inputRefs.current[missing[0]]?.focus(); 
@@ -173,10 +142,14 @@ export function ContextScreen({
 
           return (
             <fieldset key={q.id} className={`border-2 rounded-2xl p-6 md:p-8 flex flex-col gap-4 transition-colors ${baseBorder}`}>
-              <div className="flex justify-between items-center">
-                <legend className="font-bold px-2" style={{ fontSize: "calc(1.3rem * var(--font-scale))" }}>{q.label}</legend>
-                {isError && <span aria-live="polite" className="text-red-600 font-bold px-2" style={{ fontSize: "calc(1.1rem * var(--font-scale))" }}>⚠️ 필수 응답</span>}
-              </div>
+              {/* legend 는 fieldset 의 첫 자식이어야 그룹 이름 노릇을 한다. div 로
+                  감싸면 스크린리더가 "맵기는 어떻게 해드릴까요?" 를 잃고 선택지만
+                  읽는다 — 그래서 에러 표시를 legend 안에 넣는다. 한 번 감쌌다가
+                  6개 그룹이 전부 이름을 잃은 적이 있다 (pm/22 2번). */}
+              <legend className="font-bold px-2 w-full flex justify-between items-center gap-3" style={{ fontSize: "calc(1.3rem * var(--font-scale))" }}>
+                <span>{q.label}</span>
+                {isError && <span aria-live="polite" className="text-red-600 font-bold" style={{ fontSize: "calc(1.1rem * var(--font-scale))" }}>⚠️ 필수 응답</span>}
+              </legend>
               {q.help && <p className="opacity-80 mb-2" style={{ fontSize: "calc(1rem * var(--font-scale))" }}>{q.help}</p>}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {options.map((opt, idx) => {

@@ -24,6 +24,7 @@ import type {
 } from "@commitandrun/engine";
 import { createContextFor } from "@commitandrun/engine/input";
 import { buildExecutionPlan, resolveOptionSelections } from "@commitandrun/engine/plan";
+import { findMissingAnswers } from "@commitandrun/engine/required";
 import {
   buildAlternatives,
   explainRecommendation,
@@ -120,6 +121,61 @@ export function emptyAnswers(
     case "public-office":
       return { ...PUBLIC_OFFICE_DEFAULT_ANSWERS, availableAuthMethods: [] };
   }
+}
+
+/**
+ * The screen ids of the required questions still unanswered. Empty means the
+ * form may be submitted.
+ *
+ * The engine decides this, not the screen. A screen that judged "answered" on
+ * its own would eventually disagree with the submission about the same session,
+ * and the submission is what gets scored.
+ *
+ * Translating the answer is the whole job here. `findMissingAnswers` reports the
+ * fixture's `groupId` (`SPICY_LEVEL`), the form keys off the question id
+ * (`spicyLevel`), and the two never match — that mismatch is why the first
+ * attempt at this silently flagged nothing (pm/22). The bridge is the JSON
+ * Pointer the engine also returns: its last segment IS the question id, for all
+ * eleven groups across the three environments, because `input.ts` writes each
+ * answer to a context field named after the form field it came from. `groupId`
+ * is the fallback so a group that outgrows that table still surfaces by name
+ * rather than vanishing.
+ */
+export function findMissing(
+  answers: AnyAnswers,
+  environmentId: EnvironmentId = DEFAULT_ENVIRONMENT_ID,
+): string[] {
+  const fixture = fixtureFor(environmentId);
+  const ctx = toSessionContext(answers, environmentId);
+  return findMissingAnswers(fixture, ctx)
+    .filter((m) => !isUnanswerableHere(environmentId, m.groupId))
+    .map((m) => m.path.split("/").pop() || m.groupId);
+}
+
+/**
+ * ⚠️ TEMPORARY — one group, and it should be deleted rather than grown.
+ *
+ * Hospital's SUPPORT group is `required: true` and the engine only counts it
+ * answered once `/preferences/supportModes` is non-empty. There is no way for
+ * this screen to make that happen for someone who needs no support: the
+ * question offers 큰 글씨 / 청각 지원 / 직원 도움 and nothing else, and the
+ * profile vocabulary (`SupportMode`) has no "none" member — `input.ts` filters
+ * unknown values out and then skips the field entirely when the list is empty.
+ * Gating on it locks every user who needs no accessibility support out of the
+ * hospital flow, which is a worse dead end than the one this whole change
+ * removes.
+ *
+ * Public-office looks the same and is not: AUTH_METHOD is satisfied by
+ * "직원 확인이 필요해요" (`STAFF_ASSIST`), which anyone can honestly pick.
+ *
+ * The engine is not wrong here — `check-required.ts` asserts this SUPPORT
+ * behaviour deliberately ("If it were counted as answered this would be 3"), so
+ * changing it is a design decision that belongs to whoever owns `required.ts`,
+ * not a patch to slip in from the screen. Written up in pm/22 for that call.
+ * When it lands, delete this function and the `.filter` above.
+ */
+function isUnanswerableHere(environmentId: EnvironmentId, groupId: string): boolean {
+  return environmentId === "hospital" && groupId === "SUPPORT";
 }
 
 /**
