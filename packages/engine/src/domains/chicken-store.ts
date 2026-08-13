@@ -13,6 +13,7 @@
 
 import {
   NOT_ANSWERED,
+  isAnswered,
   registerDomain,
   type DomainCriterion,
   type DomainRule,
@@ -327,22 +328,71 @@ function hasCode(excluded: ExclusionReason[], reasonCode: string): boolean {
 }
 
 /**
- * "모르겠어요" on an allergy is not "no allergy" — we stop and ask instead of
- * recommending something that could hurt.
+ * What has to be settled before a dish can be recommended at all.
+ *
+ * The allergy is the safety question and comes first. The rest are the answers
+ * an order cannot be placed without, and until now nothing asked for them:
+ * someone could say "없어요" to the allergy, skip every other question and be
+ * shown a dish scoring 0.00 on all four bars, and then find that the confirm
+ * button did nothing — `plan.ts` was correctly refusing to invent a service
+ * type, and the refusal reached the browser console instead of the person
+ * standing at the kiosk. 1,024 of the 2,560 answer combinations ended there.
+ * The hospital and the public office never had this because their `reconfirm`
+ * already covered every fact they need; this is the same shape.
+ *
+ * Every question quotes the buttons the form actually shows, for the reason
+ * given on the allergy question below — keep both in step with `apps/web`.
  */
 function reconfirm(raw: SessionContext): ReconfirmRequest[] {
   const ctx = ctxOf(raw);
-  if (!ctx.hardConstraints.allergenIds?.includes("UNKNOWN")) return [];
-  return [
-    {
+  const requests: ReconfirmRequest[] = [];
+
+  if (ctx.hardConstraints.allergenIds?.includes("UNKNOWN")) {
+    requests.push({
       path: "/hardConstraints/allergenIds",
       // Quotes the option the form actually offers. A question that points at a
       // button the user cannot find is worse than one that points at nothing —
       // keep this in step with the allergy question in apps/web.
       question: "드시면 안 되는 재료가 있으신가요? 없으시면 '없어요 (해당 없음)'을 골라 주세요.",
       because: "알레르기를 확인하지 못한 상태로는 안전하게 추천해 드릴 수 없습니다.",
-    },
-  ];
+    });
+  }
+
+  const preferences = ctx.preferences;
+
+  if (!isAnswered(preferences.serviceType)) {
+    requests.push({
+      path: "/preferences/serviceType",
+      question: "어떻게 받으실지 아직 안 고르셨습니다. '먹고 가기' 또는 '포장하기' 를 골라 주세요.",
+      because: "매장에서 드시는지 포장인지에 따라 주문할 수 있는 메뉴가 달라집니다.",
+    });
+  }
+
+  if (!isAnswered(preferences.spicyLevel)) {
+    requests.push({
+      path: "/preferences/spicyLevel",
+      question: "맵기를 아직 안 고르셨습니다. '순한맛' · '보통맛' · '매운맛' 중에서 골라 주세요.",
+      because: "맵기는 대신 정해 드릴 수 없습니다. 고르신 대로만 주문에 넣습니다.",
+    });
+  }
+
+  if (!isAnswered(preferences.boneType)) {
+    requests.push({
+      path: "/preferences/boneType",
+      question: "형태를 아직 안 고르셨습니다. '뼈' 또는 '순살' 을 골라 주세요.",
+      because: "뼈와 순살은 다른 메뉴라, 확인하지 못하면 골라 드릴 수 없습니다.",
+    });
+  }
+
+  if (!isAnswered(preferences.quantity)) {
+    requests.push({
+      path: "/preferences/quantity",
+      question: "수량을 아직 안 고르셨습니다. '1개' · '2개' · '3개' 중에서 골라 주세요.",
+      because: "수량은 짐작하지 않습니다. 고르신 개수 그대로만 주문에 넣습니다.",
+    });
+  }
+
+  return requests;
 }
 
 /** Answers all live in `preferences` here; QUANTITY is carried as a number. */
