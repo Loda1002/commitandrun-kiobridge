@@ -19,6 +19,7 @@
 
 import {
   isAnswered,
+  quoteParticle,
   registerDomain,
   type DomainCriterion,
   type DomainRule,
@@ -138,17 +139,60 @@ const visitTypeMismatch: DomainRule = (candidate, raw) => {
   return {
     candidateId: candidate.candidateId,
     reasonCode: "VISIT_TYPE_MISMATCH",
-    explanation: `${hereLabel} 접수 경로라 ${wantedLabel}이라고 알려주신 것과 맞지 않습니다.`,
+    explanation:
+      `${hereLabel} 접수 경로라 ${wantedLabel}${quoteParticle(wantedLabel)} ` +
+      `알려주신 것과 맞지 않습니다.`,
     tag: "CONTEXT",
   };
 };
 
-/*
- * There is deliberately no department rule here. A department the user did not
- * pick is a question (see `reconfirm`), never an exclusion we work out for them
- * — that is the line between guiding someone to a desk and telling them what is
- * wrong with them. Department agreement is worth points instead.
+/**
+ * A desk that only serves a department other than the one the user named.
+ *
+ * This is not us working out which department someone needs — the opposite. It
+ * reads only what the user told us and drops the desks that cannot honour it,
+ * so the recommendation never arrives at a route that would have to overwrite
+ * the answer on the way to a plan. Without it `plan.ts` was quietly selecting
+ * 내과 for someone who typed 정형외과 in 32 of the 40 answer combinations, which
+ * is `SELECTED_DEPARTMENT_MISMATCH` in the official error catalogue and the
+ * "증상→진료과 추론" line in our own CLAUDE.md.
+ *
+ * Two candidates are deliberately spared. The staff-help route is the way out
+ * and never claims a department, and neither does 비예약 초진 안내 — both carry
+ * `UNSPECIFIED`, the fixture's own "안내 필요". A route that decides nothing
+ * cannot be in conflict with an answer.
+ *
+ * "미정" counts as an answer here, not as silence: someone who says they have
+ * not decided is telling us not to send them to a specific department's desk.
  */
+const departmentMismatch: DomainRule = (candidate, raw) => {
+  if (isFallbackRoute(candidate)) return null;
+  const wanted = ctxOf(raw).facts.departmentId;
+  if (!isAnswered(wanted)) return null;
+
+  const here = candidate.attributes?.departmentId as Department | undefined;
+  if (here === undefined || here === "UNSPECIFIED" || here === wanted) return null;
+
+  const hereLabel = DEPARTMENT_LABEL[here] ?? here;
+  if (wanted === "UNSPECIFIED") {
+    return {
+      candidateId: candidate.candidateId,
+      reasonCode: "DEPARTMENT_MISMATCH",
+      explanation: `진료과를 아직 안 정하셔서 ${hereLabel} 전용 접수 경로는 빼고 골랐습니다.`,
+      tag: "CONTEXT",
+    };
+  }
+
+  const wantedLabel = DEPARTMENT_LABEL[String(wanted)] ?? String(wanted);
+  return {
+    candidateId: candidate.candidateId,
+    reasonCode: "DEPARTMENT_MISMATCH",
+    explanation:
+      `${hereLabel} 접수 경로라 ${wantedLabel}${quoteParticle(wantedLabel)} ` +
+      `알려주신 것과 맞지 않습니다. 증상으로 진료과를 판단하지 않았습니다.`,
+    tag: "CONTEXT",
+  };
+};
 
 /* ===========================================================================
  * Scoring
@@ -207,11 +251,39 @@ const SUPPORTS_KEY_BY_MODE: Partial<Record<SupportMode, string>> = {
 };
 
 /**
- * A real route beats the escape hatch when they somehow tie. Being able to ask
- * for staff is a way out, not a recommendation.
+ * How a requested support is named when we have to say we did not match it.
+ * Written as a whole subject phrase rather than a noun plus a fixed particle,
+ * for the same reason the sentences below are whole sentences.
  */
-function tiebreak(a: Candidate, b: Candidate): number {
+const SUPPORT_NEED_LABEL: Partial<Record<SupportMode, string>> = {
+  LARGE_TEXT: "필요하다고 하신 큰 글씨는",
+  HEARING_SUPPORT: "필요하다고 하신 청각 지원은",
+  STAFF_HELP: "필요하다고 하신 직원 도움은",
+};
+
+/**
+ * Accessibility first, then a real route over the escape hatch.
+ *
+ * The support criterion carries 0.10 against 0.70 for visit type and
+ * appointment, so it can never overturn a lead on the answers themselves — and
+ * it should not, because being routed to the wrong desk with good captions is
+ * still the wrong desk. Where it can decide is between two routes that matched
+ * the answers equally, and there it should: the review found us recommending a
+ * route with no hearing support over one that had it, at the same score.
+ *
+ * Only ties move, so nothing already submitted changes.
+ */
+function tiebreak(a: Candidate, b: Candidate, raw: SessionContext): number {
+  const bySupport = unmetSupportCount(a, raw) - unmetSupportCount(b, raw);
+  if (bySupport !== 0) return bySupport;
   return Number(isFallbackRoute(a)) - Number(isFallbackRoute(b));
+}
+
+/** How many of the requested support modes this route does not provide. */
+function unmetSupportCount(candidate: Candidate, raw: SessionContext): number {
+  const wanted = ctxOf(raw).preferences.supportModes ?? [];
+  const supports = (candidate.supports ?? {}) as Record<string, unknown>;
+  return wanted.filter((mode) => supports[SUPPORTS_KEY_BY_MODE[mode] ?? ""] !== true).length;
 }
 
 /* ===========================================================================
@@ -230,7 +302,7 @@ function explain(
   const visitType = ctx.facts.visitType;
   if (isAnswered(visitType) && recommended.attributes?.visitType === visitType) {
     const label = VISIT_TYPE_LABEL[String(visitType)] ?? String(visitType);
-    push("CONTEXT", `${label}이라고 알려주셔서 ${label} 접수를 안내드립니다.`);
+    push("CONTEXT", `${label}${quoteParticle(label)} 알려주셔서 ${label} 접수를 안내드립니다.`);
   }
 
   const appointment = ctx.facts.appointmentStatus;
@@ -248,12 +320,33 @@ function explain(
     const label = DEPARTMENT_LABEL[String(department)] ?? String(department);
     push(
       "CONTEXT",
-      `${label}라고 알려주신 대로 ${label} 접수로 맞췄습니다. 증상으로 진료과를 판단하지 않았습니다.`,
+      `${label}${quoteParticle(label)} 알려주신 대로 ${label} 접수로 맞췄습니다. ` +
+        `증상으로 진료과를 판단하지 않았습니다.`,
     );
   }
 
   const supportModes = ctx.preferences.supportModes ?? [];
   const supports = (recommended.supports ?? {}) as Record<string, unknown>;
+
+  // Said before the sentences that credit the supports we did match, because it
+  // is the one the reader needs first. Until now the accessibility sentences
+  // only ever fired when the recommendation happened to provide what was asked
+  // for, so someone who told us they cannot hear well and was handed a route
+  // with no hearing support was told nothing at all about it — the single
+  // largest gap the review named. The support criterion is worth 0.10 against
+  // 0.70 for visit type and appointment, so it cannot turn the ranking over on
+  // its own; saying plainly what was not matched, and that the alternatives are
+  // where to look, is the honest way to close that.
+  const unmet = supportModes.filter((m) => supports[SUPPORTS_KEY_BY_MODE[m] ?? ""] !== true);
+  for (const mode of unmet) {
+    const need = SUPPORT_NEED_LABEL[mode];
+    if (!need) continue;
+    push(
+      "ACCESSIBILITY",
+      `${need} 이 접수 경로에서는 제공되지 않습니다. 아래 대안에서 지원이 되는 경로를 고르실 수 있습니다.`,
+    );
+  }
+
   for (const mode of supportModes) {
     if (supports[SUPPORTS_KEY_BY_MODE[mode] ?? ""] !== true) continue;
     if (mode === "HEARING_SUPPORT") {
@@ -345,7 +438,7 @@ export const HOSPITAL: DomainSpec = registerDomain({
   environmentId: "hospital",
   task: "CHECK_IN",
   candidateNoun: "접수 경로",
-  rules: [unavailable, appointmentMismatch, visitTypeMismatch],
+  rules: [unavailable, appointmentMismatch, visitTypeMismatch, departmentMismatch],
   criteria: CRITERIA,
   tiebreak,
   explain,
