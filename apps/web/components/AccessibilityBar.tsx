@@ -14,43 +14,43 @@ export function AccessibilityBar({
   onToggleContrast,
 }: AccessibilityBarProps) {
   return (
-    <div className="flex justify-center gap-3 w-full">
+    // 🔥 모바일에서는 위아래로 큼직하게 쌓이고, 넓은 화면에서는 반반 나눠 가지도록 수정
+    <div className="flex flex-col sm:flex-row justify-center gap-4 w-full">
       <button
         type="button"
-        // [접근성 2-2] 글자 크기는 3단계이므로 현재 배율을 라벨에 직접 명시
         aria-label={`글자 크기 (지금 ${Math.round(fontScale * 100)}%)`}
         onClick={onToggleFontScale}
-        className="focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2 transition-transform hover:scale-105 active:scale-95"
+        // 🔥 flex-1을 주어 버튼이 화면 너비를 시원하게 꽉 채우도록 변경
+        className="flex-1 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2 transition-transform hover:scale-[1.02] active:scale-95 shadow-sm"
         style={{
-          minHeight: "var(--tap-min)", // [디자인] 터치 영역 44px 이상 엄수
-          padding: "0.5rem 1.5rem",
+          minHeight: "calc(var(--tap-min) + 16px)", // 터치 영역 훨씬 크게 확보
+          padding: "1rem 1.5rem", // 상하 여백 대폭 증가
           borderRadius: "var(--radius)",
           backgroundColor: "var(--color-accent)",
-          color: "var(--color-bg)",
-          fontSize: "calc(1rem * var(--font-scale))", // [디자인] 고정 픽셀(text-sm 등) 배제
-          fontWeight: "bold",
+          color: "#1a1a1a", 
+          fontSize: "calc(1.3rem * var(--font-scale))", // 🔥 1rem -> 1.3rem으로 기본 글씨 크기 30% 증가
+          fontWeight: "900", // 글씨를 가장 두껍게(Black/Extrabold) 변경
         }}
       >
-        큰 글씨 (현재: {fontScale}배)
+        🔍 큰 글씨 (현재: {fontScale}배)
       </button>
 
       <button
         type="button"
-        // [접근성 2-2] 고대비 모드 켜짐/꺼짐 상태를 스크린리더에 전달
         aria-pressed={isHighContrast}
         onClick={onToggleContrast}
-        className="focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2 transition-transform hover:scale-105 active:scale-95"
+        className="flex-1 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2 transition-transform hover:scale-[1.02] active:scale-95 shadow-sm"
         style={{
-          minHeight: "var(--tap-min)",
-          padding: "0.5rem 1.5rem",
+          minHeight: "calc(var(--tap-min) + 16px)",
+          padding: "1rem 1.5rem",
           borderRadius: "var(--radius)",
           backgroundColor: "var(--color-accent)",
-          color: "var(--color-bg)",
-          fontSize: "calc(1rem * var(--font-scale))",
-          fontWeight: "bold",
+          color: "#1a1a1a", 
+          fontSize: "calc(1.3rem * var(--font-scale))", // 🔥 1rem -> 1.3rem으로 껑충 키움
+          fontWeight: "900",
         }}
       >
-        {isHighContrast ? "일반 화면으로 변경" : "고대비 화면으로 변경"}
+        {isHighContrast ? "일반 화면으로 변경" : "🌗 고대비 화면으로 변경"}
       </button>
     </div>
   );

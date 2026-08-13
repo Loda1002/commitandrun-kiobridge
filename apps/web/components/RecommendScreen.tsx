@@ -13,22 +13,19 @@ interface RecommendScreenProps {
   onBackToContext: () => void;
 }
 
-// [디자인] 환경별 점수 막대그래프 색상 (주황, 파랑, 초록)
 const PROGRESS_COLORS: Record<string, string> = {
-  "chicken-store": "#f97316",
-  "hospital": "#3b82f6",
-  "public-office": "#10b981",
+  "chicken-store": "#ea580c",
+  "hospital": "#2563eb",
+  "public-office": "#059669",
 };
 
 export function RecommendScreen({ recView, environmentId, isHighContrast, onChoose, onBackToContext }: RecommendScreenProps) {
-  // [접근성 2-1] h1 포커스 이동
   const headingRef = useRef<HTMLHeadingElement>(null);
   useEffect(() => { headingRef.current?.focus(); }, []);
 
   const copy = environmentCopy(environmentId);
   const barColor = isHighContrast ? "var(--color-accent)" : PROGRESS_COLORS[environmentId] || "var(--color-accent)";
 
-  // [결함 방어] 세션 10/12 재확인 게이트 완벽 보존
   if (recView.reconfirmRequests.length > 0) {
     return (
       <main className="flex flex-col gap-8 w-full">
@@ -56,7 +53,7 @@ export function RecommendScreen({ recView, environmentId, isHighContrast, onChoo
 
       {recView.requiresReconfirmation && (
         <p className={`rounded-xl p-4 font-bold ${isHighContrast ? "border-2 border-yellow-300" : "bg-orange-50 border-2 border-orange-500"}`} style={{ fontSize: "calc(1.1rem * var(--font-scale))" }}>
-          ⚠️ 조건에 딱 맞는 {copy.noun}이 없어 확신이 높지 않습니다. 아래 내용을 한 번 더 확인해 주세요.
+          ⚠️ 조건에 딱 맞는 {copy.noun}가 없어 확신이 높지 않습니다. 아래 내용을 한 번 더 확인해 주세요.
         </p>
       )}
 
@@ -75,10 +72,9 @@ export function RecommendScreen({ recView, environmentId, isHighContrast, onChoo
 
               return (
                 <div key={idx} className="flex items-center gap-4">
-                  <span className="w-28 shrink-0">{c.label || "항목"}</span>
+                  <span className="min-w-28 max-w-40 shrink-0">{c.label || "항목"}</span>
                   <div className="flex-1 flex items-center h-8">
                     <div className="h-full bg-gray-200 rounded-full overflow-hidden border border-gray-300" style={{ width: containerWidth }}>
-                      {/* [디자인] motion-reduce 존중 */}
                       <div className="h-full transition-all duration-700 ease-out motion-reduce:transition-none" style={{ width: fillWidth, backgroundColor: barColor }} />
                     </div>
                   </div>
@@ -90,7 +86,7 @@ export function RecommendScreen({ recView, environmentId, isHighContrast, onChoo
 
           {recView.reasons && recView.reasons.length > 0 && (
             <div className={`mt-8 p-5 rounded-xl ${isHighContrast ? "border border-gray-400" : "bg-gray-100"}`}>
-              <h3 className="font-bold mb-3" style={{ fontSize: "calc(1.3rem * var(--font-scale))" }}>💡 AI 추천 이유</h3>
+              <h3 className="font-bold mb-3" style={{ fontSize: "calc(1.3rem * var(--font-scale))" }}>💡 이렇게 골랐습니다</h3>
               <ul className="flex flex-col gap-2 list-disc pl-5" style={{ fontSize: "calc(1.1rem * var(--font-scale))" }}>
                 {recView.reasons.map((reason, idx) => <li key={idx} className="opacity-90">{reason.text}</li>)}
               </ul>
@@ -98,22 +94,20 @@ export function RecommendScreen({ recView, environmentId, isHighContrast, onChoo
           )}
         </section>
       ) : (
-        <div className="p-8 text-center border-2 border-dashed border-gray-400 rounded-2xl bg-gray-50">
-          <p className="font-bold" style={{ fontSize: "calc(1.2rem * var(--font-scale))" }}>조건에 맞는 {copy.noun}이 없습니다. 직원의 도움을 받아주세요.</p>
+        <div className={`p-8 text-center border-2 border-dashed rounded-2xl ${isHighContrast ? "border-gray-400 bg-transparent text-[var(--color-fg)]" : "border-gray-400 bg-gray-50"}`}>
+          <p className="font-bold" style={{ fontSize: "calc(1.2rem * var(--font-scale))" }}>조건에 맞는 {copy.noun}가 없습니다. 직원의 도움을 받아주세요.</p>
         </div>
       )}
 
-      {/* [결함 방어] 대안 카드 2장 고르기 로직 보존 */}
       {recView.alternatives.length > 0 && (
         <section className={`border-2 rounded-2xl p-6 md:p-8 ${isHighContrast ? "border-gray-400" : "border-gray-300 bg-gray-50"}`}>
           <h3 className="font-bold mb-5" style={{ fontSize: "calc(1.4rem * var(--font-scale))" }}>🔁 다른 것도 보시겠어요?</h3>
           <ul className="flex flex-col gap-4">
             {recView.alternatives.map((alt) => (
-              <li key={alt.candidateId} className={`flex flex-col sm:flex-row sm:items-center gap-4 justify-between border rounded-xl p-4 transition-colors ${isHighContrast ? "border-gray-600" : "border-gray-200 bg-white hover:border-gray-400"}`}>
+              <li key={alt.candidateId} className={`flex flex-col sm:flex-row sm:items-center gap-4 justify-between border rounded-xl p-4 transition-colors ${isHighContrast ? "border-gray-600 bg-transparent" : "border-gray-200 bg-white hover:border-gray-400"}`}>
                 <div className="flex flex-col gap-1">
                   <span className="font-bold" style={{ fontSize: "calc(1.3rem * var(--font-scale))" }}>{alt.name}</span>
                   <span className="opacity-80 font-bold" style={{ fontSize: "calc(1.1rem * var(--font-scale))" }}>
-                    {/* [결함 방어] 가격은 있을 때만 표시 (0원은 공짜 오해 방지) */}
                     {alt.priceKrw > 0 && `${alt.priceKrw.toLocaleString()}원 · `}{Math.round(alt.total * 100)}점
                   </span>
                 </div>
