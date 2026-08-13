@@ -166,7 +166,11 @@ function won(n: number): string {
 const CRITERIA: DomainCriterion[] = [
   {
     key: "serviceTypeMatch",
-    label: "포장 가능",
+    // One label serves both answers, so it has to name the test rather than one
+    // side of it. This bar is met by whichever service type the customer chose,
+    // but "포장 가능" only ever said takeout — someone eating in was shown a
+    // full bar claiming something they had not asked for.
+    label: "이용 방식 일치",
     weight: 0.4,
     met: (c, raw) => {
       const wanted = ctxOf(raw).preferences.serviceType;
@@ -186,7 +190,11 @@ const CRITERIA: DomainCriterion[] = [
   },
   {
     key: "boneTypeMatch",
-    label: "순살 일치",
+    // Same fault as serviceTypeMatch above: "순살 일치" named one of the two
+    // answers, so someone who asked for 뼈 was handed a full bar crediting the
+    // one they turned down. Both labels now match the wording of the question
+    // the customer answered — SERVICE_TYPE is "이용 방식", BONE_TYPE is "형태".
+    label: "형태 일치",
     weight: 0.2,
     met: (c, raw) => {
       const wanted = ctxOf(raw).preferences.boneType;
@@ -196,7 +204,11 @@ const CRITERIA: DomainCriterion[] = [
   },
   {
     key: "priceWithinLimit",
-    label: "예산 여유",
+    // "예산 여유" promises room to spare, and the bar is empty whenever no
+    // budget was given — `met` has nothing to compare against and returns
+    // false. Naming the test lets that empty bar read as unchecked rather than
+    // as bad news; the sentence that says so on screen is pm/16.
+    label: "예산 안에 있음",
     weight: 0.15,
     // Anything over budget was already excluded by `overBudget`, so for a
     // survivor this bar is always full. It stays in the chart as reassurance —
