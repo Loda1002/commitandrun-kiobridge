@@ -104,28 +104,40 @@ export function ResultScreen({ runResult, environmentId, isHighContrast, onReset
         </ul>
       </section>
 
-      <section className={`border-2 rounded-2xl p-6 md:p-8 flex flex-col gap-4 ${isHighContrast ? "border-gray-400 bg-transparent" : "border-gray-300 bg-gray-50"}`}>
-        <h2 className="font-bold border-b pb-3" style={{ fontSize: "calc(1.4rem * var(--font-scale))" }}>
-          🛡️ 공식 시뮬레이터 검증 증거
-        </h2>
-        <p className="font-bold text-red-600" style={{ fontSize: "calc(1.1rem * var(--font-scale))" }}>
-          ⚠️ 2026-08-13 닭강정집 제출본에 대한 기록
-        </p>
-        <ul className="flex flex-col gap-3 font-medium" style={{ fontSize: "calc(1.1rem * var(--font-scale))" }}>
-          <li className={`flex justify-between border-b pb-2 ${isHighContrast ? "border-gray-700" : "border-gray-200"}`}>
-            <span>stopType</span>
-            <strong>NORMAL_BOUNDARY_STOP</strong>
-          </li>
-          <li className={`flex justify-between border-b pb-2 ${isHighContrast ? "border-gray-700" : "border-gray-200"}`}>
-            <span>boundaryReached</span>
-            <strong>true</strong>
-          </li>
-          <li className={`flex justify-between pb-2`}>
-            <span>plannedPaymentActionCount</span>
-            <strong>0</strong>
-          </li>
-        </ul>
-      </section>
+      {/* 🔥 [접기 패널 적용] 공식 시뮬레이터 검증 증거 */}
+      <details className={`border-2 rounded-2xl p-6 md:p-8 group ${isHighContrast ? "border-gray-400 bg-transparent" : "border-gray-300 bg-gray-50"}`}>
+        <summary className="font-bold cursor-pointer list-none flex justify-between items-center focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--color-accent)] rounded-lg" style={{ fontSize: "calc(1.4rem * var(--font-scale))" }}>
+          <span>🛡️ 공식 시뮬레이터 검증 증거 확인</span>
+          <span className="group-open:rotate-180 transition-transform">▼</span>
+        </summary>
+        
+        <div className="mt-6 flex flex-col gap-4 border-t pt-4" style={{ borderColor: "var(--color-fg)" }}>
+          <p className="font-extrabold text-red-600" style={{ fontSize: "calc(1.1rem * var(--font-scale))" }}>
+            ⚠️ 2026-08-13 닭강정집 제출본에 대한 기록
+          </p>
+          <p className="opacity-80 font-medium" style={{ fontSize: "calc(1rem * var(--font-scale))" }}>
+            지금 방금 만드신 결과가 아닙니다. 
+            <a href="/simulation-evidence.json" target="_blank" rel="noopener noreferrer" className={`ml-2 underline font-bold ${isHighContrast ? "text-yellow-300" : "text-blue-600"}`}>
+              [원본 JSON 파일 보기]
+            </a>
+          </p>
+          
+          <ul className="flex flex-col gap-3 font-medium mt-2" style={{ fontSize: "calc(1.1rem * var(--font-scale))" }}>
+            <li className={`flex justify-between border-b pb-2 ${isHighContrast ? "border-gray-700" : "border-gray-200"}`}>
+              <span>stopType</span>
+              <strong>NORMAL_BOUNDARY_STOP</strong>
+            </li>
+            <li className={`flex justify-between border-b pb-2 ${isHighContrast ? "border-gray-700" : "border-gray-200"}`}>
+              <span>boundaryReached</span>
+              <strong>true</strong>
+            </li>
+            <li className={`flex justify-between pb-2`}>
+              <span>plannedPaymentActionCount</span>
+              <strong>0</strong>
+            </li>
+          </ul>
+        </div>
+      </details>
 
       <button type="button" onClick={onReset} className="w-full mt-4 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-4 transition-transform hover:scale-[1.02] active:scale-95 duration-200 motion-reduce:transition-none motion-reduce:transform-none" style={{ minHeight: "calc(var(--tap-min) + 8px)", borderRadius: "var(--radius)", backgroundColor: "transparent", color: "var(--color-fg)", border: "2px solid var(--color-fg)", fontSize: "calc(1.2rem * var(--font-scale))", fontWeight: "bold" }}>
         처음으로 돌아가기
