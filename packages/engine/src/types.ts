@@ -31,7 +31,13 @@ export type ReasonTag =
 export interface ScoreContribution {
   /** Stable machine key, e.g. "serviceTypeMatch". */
   key: string;
-  /** Korean label shown to the user, e.g. "포장 가능". */
+  /**
+   * Korean label shown to the user, e.g. "이용 방식 일치". It names the test the
+   * bar runs, never one of the answers that can satisfy it — a label like
+   * "포장 가능" credits takeout to someone who chose to eat in. This string is
+   * not only cosmetic: an unmet criterion carries it into the submission's
+   * `unmetConditions`, so it is read by the judges too.
+   */
   label: string;
   /** Maximum this criterion can contribute. */
   weight: number;
