@@ -44,6 +44,32 @@ const TEAM_ID = "COMMITANDRUN";
 const NOT_ANSWERED = new Set(["UNKNOWN", "NO_PREFERENCE"]);
 
 /**
+ * Per environment, the option ids that assert nothing about the user.
+ *
+ * `chooseOptionId` may fill a required group the user left open, or one whose
+ * answer this candidate does not come with, only when doing so states nothing
+ * on the user's behalf. For a taste that is any value the candidate leaves as
+ * its only legal one — a dish that only comes spicy leaves no spice to choose.
+ * For a fact it is never true, with one exception: these values, which are the
+ * fixture's own way of saying "not determined". Selecting 미정 (안내 필요) is
+ * the opposite of assigning a department, and selecting 직원 상담 / 직원 확인 is
+ * a request for a person rather than a claim about which counter the user
+ * needs. Both are the way out of the kiosk, and a way out that throws is a
+ * kiosk you are stuck in.
+ *
+ * Environment vocabulary in this file is a compromise, and a knowing one: the
+ * header above says what differs between environments lives in `domain.ts`, and
+ * this belongs on `DomainSpec` next to `answerFor`. It sits here for the same
+ * reason `required.ts` keeps `CONTEXT_PATHS` — that interface is frozen without
+ * the lead's approval — and should move the next time it is opened.
+ */
+const NEUTRAL_OPTION_IDS: Record<string, string[]> = {
+  "chicken-store": [],
+  hospital: ["UNSPECIFIED"],
+  "public-office": ["STAFF", "STAFF_ASSIST"],
+};
+
+/**
  * One option the plan will select, in a form a screen can render.
  *
  * Exists so the approval screen can show what will actually happen rather than
@@ -91,9 +117,11 @@ export function resolveOptionSelections(
 
   const selections: OptionSelection[] = [];
 
+  const neutral = NEUTRAL_OPTION_IDS[fixture.manifest.environmentId] ?? [];
+
   for (const group of fixture.optionGroups) {
     const answer = domain.answerFor(group, sessionContext);
-    const id = chooseOptionId(group, answer, candidate);
+    const id = chooseOptionId(group, answer, candidate, neutral);
     if (id === null) continue;
 
     const answered = answer !== undefined && answer !== null && !NOT_ANSWERED.has(String(answer));
@@ -118,6 +146,30 @@ export function resolveOptionSelections(
   }
 
   return selections;
+}
+
+/**
+ * Whether every option group could be settled for this candidate without
+ * overriding the user — the question `resolveOptionSelections` answers by
+ * throwing.
+ *
+ * Asking it as a boolean is what lets a screen find out before it draws a
+ * recommendation, rather than after the user presses the confirm button. It is
+ * deliberately this function rather than a copy of the rule in `required.ts`:
+ * two implementations of "can this be planned" that can disagree would put the
+ * screen and the plan back out of step, which is the fault being fixed.
+ */
+export function canResolveOptions(
+  fixture: PublicFixture,
+  candidateId: string,
+  sessionContext: SessionContext,
+): boolean {
+  try {
+    resolveOptionSelections(fixture, candidateId, sessionContext);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export function buildExecutionPlan(input: PlanInput): ExecutionPlan {
@@ -262,14 +314,13 @@ function chooseOptionId(
   group: OptionGroup,
   answer: unknown,
   candidate: Candidate,
+  neutral: string[],
 ): string | null {
   const supported = candidate.supportedOptions?.[group.groupId] ?? group.options.map((o) => o.id);
 
   if (answer === undefined || answer === null || NOT_ANSWERED.has(String(answer))) {
     if (!group.required) return null;
-    // Not a guess: the candidate leaves exactly one legal value, so there is
-    // nothing to choose between. Anything wider has to go back to the user.
-    if (supported.length === 1) return supported[0];
+    if (mayFill(group, supported, neutral)) return supported[0];
     throw new Error(
       `buildExecutionPlan: ${group.groupId} is required but the user did not answer it`,
     );
@@ -286,17 +337,55 @@ function chooseOptionId(
   if (!supported.includes(match.id)) {
     // The user picked a value this candidate does not come with — a real case,
     // because scoring does not weigh every option group. Refusing to plan would
-    // strand an order the user already approved, so: an optional group is
-    // dropped rather than overridden, and a required one falls back only when
-    // the candidate leaves a single legal value, which is not a choice at all.
+    // strand an order the user already approved, so an optional group is
+    // dropped rather than overridden; a required one falls back only under the
+    // rule below, and otherwise goes back to the user as a question.
     if (!group.required) return null;
-    if (supported.length === 1) return supported[0];
+    if (mayFill(group, supported, neutral)) return supported[0];
     throw new Error(
       `buildExecutionPlan: ${candidate.candidateId} does not support ${group.groupId}=${match.id}`,
     );
   }
   return match.id;
 }
+
+/**
+ * Whether the plan may select this candidate's only legal value for a required
+ * group the user did not answer that way.
+ *
+ * The fixtures already draw the line this needs: `kind` is `"option"` for a
+ * taste and something specific — `department`, `category`, `auth_method`,
+ * `visit_type` — for a fact. A dish that only comes spicy leaves no spice to
+ * choose, so filling a taste is bookkeeping. A check-in route that only serves
+ * 내과 does not earn the right to overwrite the 정형외과 the user typed: that is
+ * us deciding which department someone needs, which is the line this project
+ * exists not to cross. The one thing a fact group may be filled with is a value
+ * that decides nothing — see `NEUTRAL_OPTION_IDS`.
+ *
+ * Anything this refuses becomes a question instead: `domain.reconfirm` stops
+ * the recommendation before a plan is ever asked for, and the exclusion rules
+ * keep a candidate that cannot honour the answer off the podium in the first
+ * place. The throw behind it is the backstop, not the user-facing path.
+ */
+function mayFill(group: OptionGroup, supported: string[], neutral: string[]): boolean {
+  if (supported.length !== 1) return false;
+  if (FILLABLE_KINDS.has(group.kind ?? "option")) return true;
+  return neutral.includes(supported[0]);
+}
+
+/**
+ * Group kinds whose only legal value may be selected without asking.
+ *
+ * `option` is a taste. `auth_method` is here for a different reason: the user
+ * does not pick one, they tell us everything they are carrying, and the counter
+ * decides which of those it will take. Selecting 신분증 for someone who said
+ * they have a phone and an ID card states nothing they did not say — and it
+ * cannot select one they do not have, because a counter that accepts none of
+ * their methods is excluded before the plan is reached. `answerFor` names only
+ * one of the set and is not given the candidate, so without this a taxpayer
+ * carrying both was refused over the one the counter happened not to take.
+ */
+const FILLABLE_KINDS = new Set(["option", "auth_method"]);
 
 function transitionFor(transitions: Transition[], from: string, action: string): Transition {
   const move = transitions.find((t) => t.from === from && t.action === action);

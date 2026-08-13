@@ -15,9 +15,16 @@
  * Same rule as the rest of src/ — nothing outside this package is imported.
  */
 
-import { domainFor, isAnswered, type DomainSpec } from "./domain.ts";
+import {
+  domainFor,
+  isAnswered,
+  objectParticle,
+  subjectParticle,
+  type DomainSpec,
+} from "./domain.ts";
 // Registers the three official domains, same as select.ts and plan.ts.
 import "./domains/index.ts";
+import { canResolveOptions } from "./plan.ts";
 import type { OptionGroup, PublicFixture, SessionContext } from "./types.ts";
 
 export interface MissingAnswer {
@@ -82,6 +89,7 @@ export function findMissingAnswers(
   const paths = CONTEXT_PATHS[environmentId] ?? {};
 
   const missing: MissingAnswer[] = [];
+  const answered: OptionGroup[] = [];
   for (const group of fixture.optionGroups) {
     if (!group.required) continue;
     // "" is a real JSON Pointer meaning the whole document, used here for a
@@ -90,14 +98,95 @@ export function findMissingAnswers(
     // groupId, and a missing answer nobody mentions is the failure this file
     // exists to prevent.
     const path = paths[group.groupId] ?? "";
-    if (hasAnswer(domain, group, ctx, path)) continue;
+    if (hasAnswer(domain, group, ctx, path)) {
+      answered.push(group);
+      continue;
+    }
     missing.push({
       path,
       groupId: group.groupId,
       message: `${group.label}${objectParticle(group.label)} 골라 주세요.`,
     });
   }
+
+  // Only worth asking once everything has in fact been answered; before that
+  // the questions above are the more useful thing to say.
+  if (missing.length === 0) {
+    missing.push(...findUnservableAnswers(fixture, ctx, answered, paths));
+  }
   return missing;
+}
+
+/**
+ * Answers that are each fine on their own and impossible together.
+ *
+ * A user can tell the hospital 재진 · 예약 있음 · 정형외과 and be asked nothing:
+ * every value is on offer, and every one of them is true of them. There is just
+ * no desk that is all three at once — this fixture books 재진 예약 only for 내과.
+ * Until the department stopped being silently overwritten that combination did
+ * not look like a problem, because `plan.ts` filled in 내과 and the person found
+ * out at the desk. Now it refuses, and a refusal that reaches only the console
+ * is the dead end pm/20 is about, so the question is asked here instead, before
+ * any recommendation is drawn.
+ *
+ * A group is named only when changing that one answer would open something up.
+ * That keeps the report to answers the user can act on: telling someone all
+ * three of their answers are wrong when two of them are the reason they came is
+ * not help. When nothing can be changed one at a time, every answered group is
+ * named — the combination itself is what has to give.
+ *
+ * Availability is read the way `plan.ts` reads it, so the two agree about which
+ * candidates exist at all.
+ */
+function findUnservableAnswers(
+  fixture: PublicFixture,
+  ctx: SessionContext,
+  answered: OptionGroup[],
+  paths: Record<string, string>,
+): MissingAnswer[] {
+  if (answered.length === 0) return [];
+
+  const open = fixture.candidates.filter((c) => c.available);
+  const servable = (context: SessionContext) =>
+    open.some((c) => canResolveOptions(fixture, c.candidateId, context));
+
+  if (servable(ctx)) return [];
+
+  // Which single answer, taken back, would open something up. Taking one back
+  // means the value the context carried before the user answered, which is what
+  // `forgetting` reproduces.
+  const blocking = answered.filter((group) => {
+    const path = paths[group.groupId];
+    return path !== undefined && path !== "" && servable(forgetting(ctx, path));
+  });
+  const named = blocking.length > 0 ? blocking : answered;
+
+  return named.map((group) => ({
+    path: paths[group.groupId] ?? "",
+    groupId: group.groupId,
+    message:
+      `지금 답하신 다른 내용과 함께면 ${group.label}${objectParticle(group.label)} ` +
+      `그대로 진행할 수 있는 곳이 없습니다. ${group.label}${subjectParticle(group.label)} ` +
+      `맞는지 다시 확인해 주세요.`,
+  }));
+}
+
+/** A copy of the context with one pointer removed. Never mutates the original. */
+function forgetting(ctx: SessionContext, pointer: string): SessionContext {
+  const copy = JSON.parse(JSON.stringify(ctx)) as SessionContext;
+  const segments = pointer.split("/").slice(1);
+  const leaf = segments.pop();
+  if (leaf === undefined) return copy;
+
+  let current: unknown = copy;
+  for (const segment of segments) {
+    if (typeof current !== "object" || current === null) return copy;
+    current = (current as Record<string, unknown>)[segment];
+  }
+  if (typeof current === "object" && current !== null) {
+    delete (current as Record<string, unknown>)[leaf];
+  }
+  return copy;
 }
 
 /**
@@ -158,22 +247,4 @@ function readPointer(ctx: SessionContext, pointer: string): unknown {
     current = (current as Record<string, unknown>)[segment];
   }
   return current;
-}
-
-/**
- * 을 or 를 for the group label, so the sentence reads correctly for every group
- * rather than only the ones that happen to end in a vowel — "맵기를 골라
- * 주세요", but "수량을 골라 주세요". A Hangul syllable carries its final
- * consonant in the low 28 of its code point.
- *
- * A label that does not end in Hangul falls back to 를, which is what a Korean
- * speaker writes after a foreign word ending in a vowel sound; there is no such
- * label in the three fixtures today.
- */
-function objectParticle(label: string): string {
-  const trimmed = label.trim();
-  if (trimmed.length === 0) return "를";
-  const last = trimmed.charCodeAt(trimmed.length - 1);
-  if (last < 0xac00 || last > 0xd7a3) return "를";
-  return (last - 0xac00) % 28 === 0 ? "를" : "을";
 }
