@@ -155,7 +155,9 @@ function findUnservableAnswers(
   const answeredIds = new Set(answered.map((g) => g.groupId));
   const obstacles = fixture.candidates
     .filter((c) => c.available)
-    .map((c) => unsettleableGroups(fixture, c.candidateId, ctx).filter((id) => answeredIds.has(id)));
+    .map((c) =>
+      unsettleableGroups(fixture, c.candidateId, ctx).filter((id) => answeredIds.has(id)),
+    );
 
   if (obstacles.some((groupIds) => groupIds.length === 0)) return [];
 

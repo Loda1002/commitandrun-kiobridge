@@ -345,10 +345,12 @@ function explain(
   // with no hearing support was told nothing at all about it — the single
   // largest gap the review named. The support criterion is worth 0.10 against
   // 0.70 for visit type and appointment, so it cannot turn the ranking over on
-  // its own; saying plainly what was not matched, and that the alternatives are
-  // where to look, is the honest way to close that.
+  // its own; saying plainly what was not matched, and where it can be had
+  // instead, is the honest way to close that.
   const unmet = supportModes.filter((m) => supports[SUPPORTS_KEY_BY_MODE[m] ?? ""] !== true);
   for (const mode of unmet) {
+    // A context is JSON and can carry a mode outside the vocabulary; that is
+    // not a support this desk failed to provide, so there is nothing to say.
     const need = SUPPORT_NEED_LABEL[mode];
     if (!need) continue;
     // Where to send them depends on whether any route could have it. A mode

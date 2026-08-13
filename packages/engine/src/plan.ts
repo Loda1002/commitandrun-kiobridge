@@ -167,7 +167,10 @@ export function unsettleableGroups(
   const neutral = NEUTRAL_OPTION_IDS[fixture.manifest.environmentId] ?? [];
 
   return fixture.optionGroups
-    .filter((group) => settle(group, domain.answerFor(group, sessionContext), candidate, neutral).ok === false)
+    .filter(
+      (group) =>
+        !settle(group, domain.answerFor(group, sessionContext), candidate, neutral).ok,
+    )
     .map((group) => group.groupId);
 }
 
