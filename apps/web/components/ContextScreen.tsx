@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import type { EnvironmentId } from "@commitandrun/engine";
 import type { AnyAnswers, QuestionDef } from "../lib/types";
+import { fixtureFor } from "../lib/fixture"; // 🔥 fixture 데이터를 읽어오기 위해 추가
 
 interface ContextScreenProps {
   questions: QuestionDef[];
@@ -13,7 +14,6 @@ interface ContextScreenProps {
   environmentId: EnvironmentId;
 }
 
-// [디자인 1-2] 환경별 폼 테두리 색상 테마 분리
 const THEMES: Record<string, { border: string; selected: string }> = {
   "chicken-store": { border: "border-orange-300", selected: "border-orange-500 bg-orange-50" },
   "hospital": { border: "border-blue-300", selected: "border-blue-500 bg-blue-50" },
@@ -28,14 +28,12 @@ export function ContextScreen({
   title = "상황 입력",
   environmentId,
 }: ContextScreenProps) {
-  // [접근성 2-1] h1 포커스 이동을 위한 ref
   const headingRef = useRef<HTMLHeadingElement>(null);
-  // [요건 5] 미응답 항목 발생 시 해당 input으로 포커스를 보내기 위한 ref 모음
   const inputRefs = useRef<Record<string, HTMLElement | null>>({});
   
   const [answers, setAnswers] = useState<AnyAnswers>(currentAnswers);
   const [touched, setTouched] = useState<Set<string>>(() => initialTouched(currentAnswers));
-  const [missingIds, setMissingIds] = useState<string[]>([]); // 미응답 문항 ID 상태 관리
+  const [missingIds, setMissingIds] = useState<string[]>([]);
 
   const theme = THEMES[environmentId] || THEMES["chicken-store"];
 
@@ -47,7 +45,6 @@ export function ContextScreen({
 
   const setValue = (id: string, value: unknown) => {
     setAnswers((prev) => ({ ...prev, [id]: value }));
-    // 유저가 값을 입력하면 에러(빨간줄) 상태 해제
     if (missingIds.includes(id)) {
       setMissingIds((prev) => prev.filter((missingId) => missingId !== id));
     }
@@ -72,32 +69,62 @@ export function ContextScreen({
     setValue(id, value.trim() === "" ? null : Number(value));
   };
 
+  // 🔥 프론트엔드 자체 필수 응답 검사 (선택 항목 제외 로직 추가)
+  const getMissingIds = () => {
+    const missing: string[] = [];
+    let fixture;
+    try {
+      fixture = fixtureFor(environmentId);
+    } catch (e) {
+      // fallback
+    }
+
+    for (const q of questions) {
+      // 1. 엔진 데이터(fixture)에서 이 문항이 필수인지 확인합니다.
+      const group = fixture?.optionGroups?.find((g: any) => g.groupId === q.id || g.id === q.id);
+      
+      // 2. 엔진이 필수가 아니라고 했거나(required: false), 
+      // 예산(maxPriceKrw)처럼 옵션 그룹에 아예 없는 별개의 질문이면 선택 사항이므로 검사를 무시합니다!
+      const isRequired = group ? group.required : ((q as any).required === true);
+      
+      if (!isRequired) continue; // 필수가 아니면 무조건 통과!
+
+      const val = answers[q.id];
+      if (q.kind === "single" || q.kind === "number") {
+        if (val === undefined || val === null || val === "") {
+          missing.push(q.id);
+        }
+      } else if (q.kind === "multi" && offersUnknown(q)) {
+        const list = asList(val);
+        if (list.length === 0 && !touched.has(q.id)) {
+          missing.push(q.id);
+        }
+      }
+    }
+    return missing;
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    // [요건 5] 필수 응답 검사. 아래 UI(빨간 테두리·첫 누락 항목으로 포커스·버튼
-    // 잠금)는 이미 동작하고, 채워 넣을 것은 이 목록을 만드는 일뿐이다.
-    //
-    // 엔진의 findMissingAnswers(fixture, ctx) 는 답변이 아니라 세션 컨텍스트를
-    // 받는다. 화면이 답변을 직접 해석하면 화면과 엔진이 같은 답을 두고 서로 다른
-    // 판정을 내릴 수 있으므로, 컨텍스트를 만드는 lib/api.ts 를 거쳐 부른다.
-    // (tsconfig 의 paths 에 engine/required 를 넣어 뒀다 — import 는 이제 된다)
-    const missing: string[] = [];
-
-    // 미응답 발생 시 UI 처리: 에러 등록 후 첫 누락 필드로 포커스 이동
+    // 1. 빈칸 검사 실행 (예산 등 선택 사항은 알아서 통과됨)
+    const missing = getMissingIds();
+    
     if (missing.length > 0) {
       setMissingIds(missing);
-      inputRefs.current[missing[0]]?.focus();
+      inputRefs.current[missing[0]]?.focus(); 
       return;
     }
     
     setMissingIds([]);
     const submitted = { ...answers };
-    // [결함 방어] 세션 10/12 건드리지 않음. 빈 배열과 "모르겠어요" 철저 분리
+    
+    // 2. [팀장님 핵심 지시사항] 손 안 댄 것과 "없다고 답함" 분리
     for (const q of questions) {
       if (q.kind !== "multi" || !offersUnknown(q) || touched.has(q.id)) continue;
       submitted[q.id] = ["UNKNOWN"];
     }
+    
     onSubmit(submitted);
   };
 
@@ -120,12 +147,11 @@ export function ContextScreen({
                   <label htmlFor={inputId} className="font-bold cursor-pointer" style={{ fontSize: "calc(1.3rem * var(--font-scale))" }}>
                     {q.label}
                   </label>
-                  {/* [요건 5 접근성] 미응답 시 aria-live로 에러 즉시 브리핑 */}
                   {isError && <span aria-live="polite" className="text-red-600 font-bold" style={{ fontSize: "calc(1.1rem * var(--font-scale))" }}>⚠️ 필수 응답</span>}
                 </div>
                 {q.help && <p className="opacity-80" style={{ fontSize: "calc(1rem * var(--font-scale))" }}>{q.help}</p>}
                 <input
-                  ref={(el) => { inputRefs.current[q.id] = el; }} // 에러 포커싱 용 ref 등록
+                  ref={(el) => { inputRefs.current[q.id] = el; }}
                   id={inputId}
                   type="number"
                   inputMode="numeric"
@@ -147,13 +173,10 @@ export function ContextScreen({
 
           return (
             <fieldset key={q.id} className={`border-2 rounded-2xl p-6 md:p-8 flex flex-col gap-4 transition-colors ${baseBorder}`}>
-              {/* legend 는 fieldset 의 첫 자식이어야 그룹 이름 노릇을 한다. div 로
-                  감싸면 스크린리더가 "맵기는 어떻게 해드릴까요?" 를 잃고 선택지만
-                  읽는다 — 그래서 에러 표시를 legend 안에 넣는다. */}
-              <legend className="font-bold px-2 w-full flex justify-between items-center gap-3" style={{ fontSize: "calc(1.3rem * var(--font-scale))" }}>
-                <span>{q.label}</span>
-                {isError && <span className="text-red-600 font-bold" style={{ fontSize: "calc(1.1rem * var(--font-scale))" }}>⚠️ 필수 응답</span>}
-              </legend>
+              <div className="flex justify-between items-center">
+                <legend className="font-bold px-2" style={{ fontSize: "calc(1.3rem * var(--font-scale))" }}>{q.label}</legend>
+                {isError && <span aria-live="polite" className="text-red-600 font-bold px-2" style={{ fontSize: "calc(1.1rem * var(--font-scale))" }}>⚠️ 필수 응답</span>}
+              </div>
               {q.help && <p className="opacity-80 mb-2" style={{ fontSize: "calc(1rem * var(--font-scale))" }}>{q.help}</p>}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {options.map((opt, idx) => {
@@ -165,7 +188,7 @@ export function ContextScreen({
                   return (
                     <label key={opt.value} htmlFor={inputId} className={`flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-colors ${isChecked ? selectedClass : unselectedClass}`} style={{ minHeight: "var(--tap-min)" }}>
                       <input
-                        ref={(el) => { if (idx === 0) inputRefs.current[q.id] = el; }} // 라디오/체크박스 그룹 첫번째에 ref 등록
+                        ref={(el) => { if (idx === 0) inputRefs.current[q.id] = el; }}
                         id={inputId}
                         type={isMulti ? "checkbox" : "radio"}
                         name={q.id}
@@ -185,7 +208,7 @@ export function ContextScreen({
 
         <button
           type="submit"
-          disabled={missingIds.length > 0} // [요건 5] 미응답 존재 시 버튼 잠금 처리
+          disabled={missingIds.length > 0}
           className="w-full mt-4 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-4 transition-transform hover:scale-[1.02] active:scale-95 duration-200 motion-reduce:transition-none motion-reduce:transform-none disabled:opacity-50 disabled:hover:scale-100"
           style={{ minHeight: "calc(var(--tap-min) + 8px)", borderRadius: "var(--radius)", backgroundColor: "var(--color-fg)", color: "var(--color-bg)", fontSize: "calc(1.3rem * var(--font-scale))", fontWeight: "bold" }}
         >
