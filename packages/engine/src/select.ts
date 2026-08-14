@@ -95,11 +95,27 @@ export function score(survivors: Candidate[], ctx: SessionContext): EngineResult
 
   const ranked = [...survivors].sort((a, b) => compare(a, b, totals, ctx, domain));
   const top = ranked[0];
-  const confidence = top ? (totals.get(top.candidateId) ?? 0) : 0;
-
   const reconfirmRequests = domain.reconfirm(ctx);
   // An unanswered hard constraint outranks any score we could compute.
   const mayRecommend = reconfirmRequests.length === 0;
+
+  /**
+   * How sure we are of the recommendation we are making — so when we make none,
+   * it is 0.
+   *
+   * This used to be the top survivor's score whether or not that survivor was
+   * being recommended, which read as `confidence: 1` next to
+   * `recommendedCandidateId: null`. The submission that says it most loudly is
+   * the one where the user never told us their allergies: the top dish scores a
+   * perfect 1.00 on taste, and we are refusing to offer it precisely because we
+   * cannot say it is safe. A reader with only the fields in front of them
+   * cannot tell that apart from a confident recommendation.
+   *
+   * The three official submissions all recommend something, so `mayRecommend`
+   * is true for them and this is the same number it always was — measured, the
+   * files come out byte-identical.
+   */
+  const confidence = mayRecommend && top ? (totals.get(top.candidateId) ?? 0) : 0;
 
   return {
     recommendedCandidateId: mayRecommend && top ? top.candidateId : null,
