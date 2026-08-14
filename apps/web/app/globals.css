@@ -53,8 +53,8 @@
   4. 앱 전체 기본 스타일 적용
 */
 body {
-  /* 위에서 정의한 변수들을 화면 바탕과 글자색에 적용 */
-  background-color: var(--color-bg);
+  /* 위에서 정의한 변수들을 화면 바탕과 글자색에 적용 (작업 2-2 고대비 대응) */
+  background: var(--color-bg);
   color: var(--color-fg);
   
   /* 
@@ -66,4 +66,18 @@ body {
   
   /* 테마(일반 <-> 고대비) 전환 시 눈이 아프지 않도록 배경과 글자색에 부드러운 전환(0.2초) 효과 추가 */
   transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
+}
+
+/* 
+  5. [접근성] 애니메이션 강제 정지 (작업 2-6)
+  - OS 환경설정에서 '애니메이션 줄이기(prefers-reduced-motion)'를 켰을 때 
+  어지럼증 유발을 막기 위해 모든 애니메이션, 트랜지션, 스크롤 효과를 차단합니다.
+*/
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

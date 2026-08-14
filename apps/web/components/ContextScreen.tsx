@@ -12,6 +12,7 @@ interface ContextScreenProps {
   isHighContrast: boolean;
   title?: string;
   environmentId: EnvironmentId;
+  onReset?: () => void;
 }
 
 const THEMES: Record<string, { border: string; selected: string }> = {
@@ -27,6 +28,7 @@ export function ContextScreen({
   isHighContrast,
   title = "상황 입력",
   environmentId,
+  onReset,
 }: ContextScreenProps) {
   const headingRef = useRef<HTMLHeadingElement>(null);
   const inputRefs = useRef<Record<string, HTMLElement | null>>({});
@@ -72,13 +74,8 @@ export function ContextScreen({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    // [요건 5] 필수 응답 검사. 어느 질문이 필수인지도, 답이 찼는지도 엔진이 정한다
-    // — 화면이 직접 판정하면 화면과 제출본이 같은 답을 두고 다른 말을 하게 된다.
-    // 무엇이 필수인지는 fixture 의 optionGroups[].required 가 정하므로, 환경이
-    // 늘거나 fixture 가 바뀌어도 이 파일은 따라간다. (경위는 pm/22)
     const missing = findMissing(answers, environmentId);
 
-    // 미응답 발생 시 UI 처리: 에러 등록 후 첫 누락 필드로 포커스 이동
     if (missing.length > 0) {
       setMissingIds(missing);
       inputRefs.current[missing[0]]?.focus(); 
@@ -88,7 +85,6 @@ export function ContextScreen({
     setMissingIds([]);
     const submitted = { ...answers };
     
-    // 2. [팀장님 핵심 지시사항] 손 안 댄 것과 "없다고 답함" 분리
     for (const q of questions) {
       if (q.kind !== "multi" || !offersUnknown(q) || touched.has(q.id)) continue;
       submitted[q.id] = ["UNKNOWN"];
@@ -106,7 +102,11 @@ export function ContextScreen({
       <form onSubmit={handleSubmit} className="flex flex-col gap-8 w-full">
         {questions.map((q) => {
           const isError = missingIds.includes(q.id);
-          const baseBorder = isError ? "border-red-500 bg-red-50" : (isHighContrast ? "border-gray-600" : theme.border);
+          
+          // 🔥 [수정] 고대비 모드일 때는 하얀 배경(bg-red-50)을 빼고 살짝 투명한 붉은 톤(bg-red-500/10)만 줍니다!
+          const baseBorder = isError 
+            ? (isHighContrast ? "border-red-400 bg-red-500/10" : "border-red-500 bg-red-50") 
+            : (isHighContrast ? "border-gray-600 bg-transparent" : theme.border);
 
           if (q.kind === "number") {
             const inputId = `question-${q.id}`;
@@ -116,7 +116,7 @@ export function ContextScreen({
                   <label htmlFor={inputId} className="font-bold cursor-pointer" style={{ fontSize: "calc(1.3rem * var(--font-scale))" }}>
                     {q.label}
                   </label>
-                  {isError && <span aria-live="polite" className="text-red-600 font-bold" style={{ fontSize: "calc(1.1rem * var(--font-scale))" }}>⚠️ 필수 응답</span>}
+                  {isError && <span aria-live="polite" className={`font-bold ${isHighContrast ? "text-red-400" : "text-red-600"}`} style={{ fontSize: "calc(1.1rem * var(--font-scale))" }}>⚠️ 필수 응답</span>}
                 </div>
                 {q.help && <p className="opacity-80" style={{ fontSize: "calc(1rem * var(--font-scale))" }}>{q.help}</p>}
                 <input
@@ -142,13 +142,9 @@ export function ContextScreen({
 
           return (
             <fieldset key={q.id} className={`border-2 rounded-2xl p-6 md:p-8 flex flex-col gap-4 transition-colors ${baseBorder}`}>
-              {/* legend 는 fieldset 의 첫 자식이어야 그룹 이름 노릇을 한다. div 로
-                  감싸면 스크린리더가 "맵기는 어떻게 해드릴까요?" 를 잃고 선택지만
-                  읽는다 — 그래서 에러 표시를 legend 안에 넣는다. 한 번 감쌌다가
-                  6개 그룹이 전부 이름을 잃은 적이 있다 (pm/22 2번). */}
               <legend className="font-bold px-2 w-full flex justify-between items-center gap-3" style={{ fontSize: "calc(1.3rem * var(--font-scale))" }}>
                 <span>{q.label}</span>
-                {isError && <span aria-live="polite" className="text-red-600 font-bold" style={{ fontSize: "calc(1.1rem * var(--font-scale))" }}>⚠️ 필수 응답</span>}
+                {isError && <span aria-live="polite" className={`font-bold ${isHighContrast ? "text-red-400" : "text-red-600"}`} style={{ fontSize: "calc(1.1rem * var(--font-scale))" }}>⚠️ 필수 응답</span>}
               </legend>
               {q.help && <p className="opacity-80 mb-2" style={{ fontSize: "calc(1rem * var(--font-scale))" }}>{q.help}</p>}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -156,7 +152,7 @@ export function ContextScreen({
                   const inputId = `${q.id}-${opt.value}`;
                   const isChecked = isMulti ? (opt.value === "NONE" ? touched.has(q.id) && selected.length === 0 : selected.includes(opt.value)) : answers[q.id] === opt.value;
                   const selectedClass = isHighContrast ? "border-[var(--color-accent)] bg-gray-800" : theme.selected;
-                  const unselectedClass = isHighContrast ? "border-gray-700 hover:border-gray-500" : "border-gray-200 hover:border-gray-400";
+                  const unselectedClass = isHighContrast ? "border-gray-700 hover:border-gray-500 bg-transparent" : "border-gray-200 hover:border-gray-400 bg-transparent";
 
                   return (
                     <label key={opt.value} htmlFor={inputId} className={`flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-colors ${isChecked ? selectedClass : unselectedClass}`} style={{ minHeight: "var(--tap-min)" }}>
@@ -179,14 +175,26 @@ export function ContextScreen({
           );
         })}
 
-        <button
-          type="submit"
-          disabled={missingIds.length > 0}
-          className="w-full mt-4 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-4 transition-transform hover:scale-[1.02] active:scale-95 duration-200 motion-reduce:transition-none motion-reduce:transform-none disabled:opacity-50 disabled:hover:scale-100"
-          style={{ minHeight: "calc(var(--tap-min) + 8px)", borderRadius: "var(--radius)", backgroundColor: "var(--color-fg)", color: "var(--color-bg)", fontSize: "calc(1.3rem * var(--font-scale))", fontWeight: "bold" }}
-        >
-          추천 결과 보기
-        </button>
+        <div className="flex flex-col sm:flex-row gap-4 w-full mt-4">
+          {onReset && (
+            <button
+              type="button"
+              onClick={onReset}
+              className="flex-1 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-4 transition-transform hover:scale-[1.02] active:scale-95 duration-200 motion-reduce:transition-none motion-reduce:transform-none"
+              style={{ minHeight: "calc(var(--tap-min) + 8px)", borderRadius: "var(--radius)", backgroundColor: "transparent", color: "var(--color-fg)", border: "2px solid var(--color-fg)", fontSize: "calc(1.3rem * var(--font-scale))", fontWeight: "bold" }}
+            >
+              처음으로 가기
+            </button>
+          )}
+          <button
+            type="submit"
+            disabled={missingIds.length > 0}
+            className="flex-1 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-4 transition-transform hover:scale-[1.02] active:scale-95 duration-200 motion-reduce:transition-none motion-reduce:transform-none disabled:opacity-50 disabled:hover:scale-100"
+            style={{ minHeight: "calc(var(--tap-min) + 8px)", borderRadius: "var(--radius)", backgroundColor: "var(--color-fg)", color: "var(--color-bg)", fontSize: "calc(1.3rem * var(--font-scale))", fontWeight: "bold" }}
+          >
+            추천 결과 보기
+          </button>
+        </div>
       </form>
     </main>
   );

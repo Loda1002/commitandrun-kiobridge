@@ -30,12 +30,18 @@ import { StaffHelp } from "../components/StaffHelp";
 // [접근성 2-3] 진행 상황 라벨
 const STEP_LABELS = ["상황 입력", "추천 결과", "최종 확인", "실행 결과"];
 
+// 🔥 테마 컬러: 닭강정(주황), 병원(파랑), 관공서(초록) - 600 계열로 명도 대비 확보
+const THEME_COLORS: Record<string, string> = {
+  "chicken-store": "#ea580c", 
+  "hospital": "#2563eb",      
+  "public-office": "#059669", 
+};
+
 export default function Home() {
   const [fontScale, setFontScale] = useState(1);
   const [isHighContrast, setIsHighContrast] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
 
-  // [요건 1] 현재 환경(키오스크) 식별자 상태
   const [environmentId, setEnvironmentId] = useState<EnvironmentId>(DEFAULT_ENVIRONMENT_ID);
   const [questions, setQuestions] = useState<QuestionDef[]>([]);
   const [answers, setAnswers] = useState<AnyAnswers>(emptyAnswers(DEFAULT_ENVIRONMENT_ID));
@@ -133,7 +139,7 @@ export default function Home() {
     setSelections([]);
     setRunResult(null);
     setErrorMessage(null);
-    setCurrentStep(0); // 환경 선택(StartScreen)으로 완전 복귀
+    setCurrentStep(0); 
   };
 
   const a11yBar = (
@@ -145,12 +151,16 @@ export default function Home() {
     />
   );
 
+  const currentAccentColor = THEME_COLORS[environmentId] || THEME_COLORS["chicken-store"];
+
   return (
-    <div className="min-h-screen flex flex-col p-4 sm:p-8 max-w-4xl mx-auto gap-8 w-full relative pb-24">
+    <div 
+      className="min-h-screen flex flex-col p-4 sm:p-8 max-w-4xl mx-auto gap-8 w-full relative pb-24"
+      style={{ "--color-accent": currentAccentColor } as React.CSSProperties}
+    >
       {currentStep > 0 && !isLoading && (
         <header className="pb-4 border-b border-gray-300 w-full flex flex-col gap-6">
           {a11yBar}
-          {/* [접근성 2-3] 진행 상황 인디케이터 (aria-current 적용) */}
           <nav aria-label="진행 상황" className="w-full">
             <ol 
               className="flex justify-between items-center rounded-full p-2" 
@@ -197,71 +207,20 @@ export default function Home() {
         </main>
       ) : (
         <>
-          {/* [결함 방어] 세션 10/12 - 엔진 거절 시 죽지 않고 alert 띄우는 로직 보존 */}
           {errorMessage && (
-            <p
-              role="alert"
-              className="rounded-xl p-4 font-bold border-2 border-red-500 bg-red-500/10"
-              style={{ fontSize: "calc(1.1rem * var(--font-scale))" }}
-            >
+            <p role="alert" className="rounded-xl p-4 font-bold border-2 border-red-500 bg-red-500/10" style={{ fontSize: "calc(1.1rem * var(--font-scale))" }}>
               ⚠️ {errorMessage}
             </p>
           )}
 
-          {currentStep === 0 && (
-            <StartScreen onStart={handleStart} accessibilityBar={a11yBar} isHighContrast={isHighContrast} />
-          )}
+          {currentStep === 0 && <StartScreen onStart={handleStart} accessibilityBar={a11yBar} isHighContrast={isHighContrast} />}
+          {currentStep === 1 && <ContextScreen questions={questions} currentAnswers={answers} onSubmit={handleContextSubmit} isHighContrast={isHighContrast} environmentId={environmentId} onReset={handleReset} />}
+          {currentStep === 2 && recView && <RecommendScreen recView={recView} environmentId={environmentId} isHighContrast={isHighContrast} onChoose={handleChoose} onBackToContext={handleBackToContext} />}
+          {currentStep === 3 && chosen && <ConfirmScreen candidate={chosen} selections={selections} environmentId={environmentId} isHighContrast={isHighContrast} onApprove={handleApprove} onBackToContext={handleBackToContext} />}
+          {currentStep === 4 && runResult && <ResultScreen runResult={runResult} environmentId={environmentId} isHighContrast={isHighContrast} onReset={handleReset} />}
 
-          {currentStep === 1 && (
-            <ContextScreen
-              questions={questions}
-              currentAnswers={answers}
-              onSubmit={handleContextSubmit}
-              isHighContrast={isHighContrast}
-              environmentId={environmentId}
-            />
-          )}
-
-          {currentStep === 2 && recView && (
-            <RecommendScreen
-              recView={recView}
-              environmentId={environmentId}
-              isHighContrast={isHighContrast}
-              onChoose={handleChoose}
-              onBackToContext={handleBackToContext}
-            />
-          )}
-
-          {currentStep === 3 && chosen && (
-            <ConfirmScreen
-              candidate={chosen}
-              selections={selections}
-              environmentId={environmentId}
-              isHighContrast={isHighContrast}
-              onApprove={handleApprove}
-              onBackToContext={handleBackToContext}
-            />
-          )}
-
-          {currentStep === 4 && runResult && (
-            <ResultScreen
-              runResult={runResult}
-              environmentId={environmentId}
-              isHighContrast={isHighContrast}
-              onReset={handleReset}
-            />
-          )}
-
-          {/* [결함 방어] 세션 10/12 - 키오스크에 갇히지 않게 StaffHelp 고정 */}
           <div className="mt-auto pt-6 border-t border-gray-300 w-full">
-            <StaffHelp
-              questions={questions}
-              answers={answers}
-              answersSubmitted={recView !== null}
-              candidate={chosen ?? recView?.recommended ?? null}
-              environmentId={environmentId}
-              isHighContrast={isHighContrast}
-            />
+            <StaffHelp questions={questions} answers={answers} answersSubmitted={recView !== null} candidate={chosen ?? recView?.recommended ?? null} environmentId={environmentId} isHighContrast={isHighContrast} />
           </div>
         </>
       )}

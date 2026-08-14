@@ -5,7 +5,6 @@ import type { EnvironmentId } from "@commitandrun/engine";
 import { actionLabel, stateLabel, type RunView } from "../lib/types";
 import { fixtureFor } from "../lib/fixture";
 
-/** What a plan step points at, straight from PlannedAction["target"]. */
 type StepTarget = { kind: string; id: string; groupId?: string };
 
 interface ResultScreenProps {
@@ -22,39 +21,20 @@ export function ResultScreen({ runResult, environmentId, isHighContrast, onReset
     headingRef.current?.focus();
   }, []);
 
-  /**
-   * Names a plan step's target in Korean without a hand-written table: every
-   * word comes out of the fixture the engine planned against.
-   *
-   * `target.kind` is what joins the two. An option group declares the kind it
-   * backs (`OptionGroup.kind`, e.g. "visit_type"), and only the generic
-   * "option" kind carries a `groupId` — the enumerated kinds do not. Matching
-   * on `groupId` alone therefore misses most hospital and public-office steps,
-   * and comparing an absent `groupId` against an absent field matches
-   * everything: that is how every step ended up labelled "방문 유형".
-   */
   const targetLabel = (target: StepTarget): string => {
     const fixture = fixtureFor(environmentId);
-
     if (target.kind === "candidate") {
       const candidate = fixture.candidates.find((c) => c.candidateId === target.id);
       if (candidate) return candidate.name;
     }
-
     if (target.kind === "review") {
       const screen = fixture.screens.find((s) => s.state === target.id);
       if (screen) return screen.title;
     }
-
-    const group = fixture.optionGroups.find((g) =>
-      target.groupId ? g.groupId === target.groupId : g.kind === target.kind,
-    );
+    const group = fixture.optionGroups.find((g) => target.groupId ? g.groupId === target.groupId : g.kind === target.kind);
     const option = group?.options.find((o) => o.id === target.id);
     if (group && option) return `${group.label} · ${option.label}`;
     if (group) return group.label;
-
-    // Nothing in the fixture claims this target. Show it raw rather than
-    // guessing — a wrong Korean label is worse than an untranslated code.
     return target.groupId ? `${target.groupId} · ${target.id}` : target.id;
   };
 
@@ -93,7 +73,6 @@ export function ResultScreen({ runResult, environmentId, isHighContrast, onReset
         <p className="opacity-80 mb-6 font-medium" style={{ fontSize: "calc(1rem * var(--font-scale))" }}>
           우리 서비스가 실행계획을 자체 안전 규칙에 대조해 본 결과입니다. (공식 시뮬레이터가 아닙니다)
         </p>
-
         <ul className="flex flex-col gap-6 font-bold" style={{ fontSize: "calc(1.2rem * var(--font-scale))" }}>
           <li className={`flex justify-between items-center border-b pb-4 ${isHighContrast ? "border-gray-700" : (runResult.validation.valid ? "border-green-200" : "border-red-200")}`}>
             <span>결제 관련 동작</span>
@@ -101,14 +80,12 @@ export function ResultScreen({ runResult, environmentId, isHighContrast, onReset
               계획 {runResult.safety.plannedActionCount}단계 중 {runResult.safety.plannedForbiddenActionCount}건
             </span>
           </li>
-
           <li className={`flex justify-between items-center border-b pb-4 ${isHighContrast ? "border-gray-700" : (runResult.validation.valid ? "border-green-200" : "border-red-200")}`}>
             <span>실제 기기 명령</span>
             <span className={`px-3 py-1 rounded-lg ${isHighContrast ? `border ${runResult.validation.valid ? "border-green-400" : "border-red-400"}` : (runResult.validation.valid ? "bg-green-200" : "bg-red-200")}`} style={{ fontSize: "calc(1.1rem * var(--font-scale))" }}>
               {runResult.safety.actualDeviceCommandSent ? "있음 (주의)" : "없음"}
             </span>
           </li>
-
           <li className={`flex justify-between items-center border-b pb-4 ${isHighContrast ? "border-gray-700" : (runResult.validation.valid ? "border-green-200" : "border-red-200")}`}>
             <span>정지 지점</span>
             <span>
@@ -118,7 +95,6 @@ export function ResultScreen({ runResult, environmentId, isHighContrast, onReset
               </span>
             </span>
           </li>
-
           <li className={`flex justify-between items-center pt-2 ${isHighContrast ? (runResult.validation.valid ? "text-green-400" : "text-red-400") : (runResult.validation.valid ? "text-green-700" : "text-red-700")}`} style={{ fontSize: "calc(1.4rem * var(--font-scale))" }}>
             <span>검증 결과</span>
             <span className={`px-6 py-2 rounded-xl ${isHighContrast ? (runResult.validation.valid ? "bg-green-400 text-black" : "bg-red-400 text-black") : (runResult.validation.valid ? "bg-green-600 text-white" : "bg-red-600 text-white")}`}>
@@ -127,6 +103,41 @@ export function ResultScreen({ runResult, environmentId, isHighContrast, onReset
           </li>
         </ul>
       </section>
+
+      {/* 🔥 [접기 패널 적용] 공식 시뮬레이터 검증 증거 */}
+      <details className={`border-2 rounded-2xl p-6 md:p-8 group ${isHighContrast ? "border-gray-400 bg-transparent" : "border-gray-300 bg-gray-50"}`}>
+        <summary className="font-bold cursor-pointer list-none flex justify-between items-center focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--color-accent)] rounded-lg" style={{ fontSize: "calc(1.4rem * var(--font-scale))" }}>
+          <span>🛡️ 공식 시뮬레이터 검증 증거 확인</span>
+          <span className="group-open:rotate-180 transition-transform">▼</span>
+        </summary>
+        
+        <div className="mt-6 flex flex-col gap-4 border-t pt-4" style={{ borderColor: "var(--color-fg)" }}>
+          <p className="font-extrabold text-red-600" style={{ fontSize: "calc(1.1rem * var(--font-scale))" }}>
+            ⚠️ 2026-08-13 닭강정집 제출본에 대한 기록
+          </p>
+          <p className="opacity-80 font-medium" style={{ fontSize: "calc(1rem * var(--font-scale))" }}>
+            지금 방금 만드신 결과가 아닙니다. 
+            <a href="/simulation-evidence.json" target="_blank" rel="noopener noreferrer" className={`ml-2 underline font-bold ${isHighContrast ? "text-yellow-300" : "text-blue-600"}`}>
+              [원본 JSON 파일 보기]
+            </a>
+          </p>
+          
+          <ul className="flex flex-col gap-3 font-medium mt-2" style={{ fontSize: "calc(1.1rem * var(--font-scale))" }}>
+            <li className={`flex justify-between border-b pb-2 ${isHighContrast ? "border-gray-700" : "border-gray-200"}`}>
+              <span>stopType</span>
+              <strong>NORMAL_BOUNDARY_STOP</strong>
+            </li>
+            <li className={`flex justify-between border-b pb-2 ${isHighContrast ? "border-gray-700" : "border-gray-200"}`}>
+              <span>boundaryReached</span>
+              <strong>true</strong>
+            </li>
+            <li className={`flex justify-between pb-2`}>
+              <span>plannedPaymentActionCount</span>
+              <strong>0</strong>
+            </li>
+          </ul>
+        </div>
+      </details>
 
       <button type="button" onClick={onReset} className="w-full mt-4 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-4 transition-transform hover:scale-[1.02] active:scale-95 duration-200 motion-reduce:transition-none motion-reduce:transform-none" style={{ minHeight: "calc(var(--tap-min) + 8px)", borderRadius: "var(--radius)", backgroundColor: "transparent", color: "var(--color-fg)", border: "2px solid var(--color-fg)", fontSize: "calc(1.2rem * var(--font-scale))", fontWeight: "bold" }}>
         처음으로 돌아가기
