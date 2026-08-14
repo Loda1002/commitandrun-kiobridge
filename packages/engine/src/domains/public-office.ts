@@ -344,7 +344,8 @@ function reconfirm(raw: SessionContext): ReconfirmRequest[] {
  * depends on the candidate, and `answerFor` is not given one. Ordering happens
  * to settle every case in these fixtures because `STAFF_ASSIST` is the only
  * value any counter refuses. A fixture with a second such value would need
- * `DomainSpec.answerFor` to see the candidate — see 작업요약/R3검토.
+ * `DomainSpec.answerFor` to see the candidate, which is a `types.ts` change and
+ * so needs the lead's approval (CLAUDE.md 4절).
  */
 function answerFor(group: OptionGroup, raw: SessionContext): unknown {
   const ctx = ctxOf(raw);
