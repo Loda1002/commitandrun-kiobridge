@@ -15,9 +15,16 @@
  * Same rule as the rest of src/ — nothing outside this package is imported.
  */
 
-import { domainFor, isAnswered, type DomainSpec } from "./domain.ts";
+import {
+  domainFor,
+  isAnswered,
+  objectParticle,
+  subjectParticle,
+  type DomainSpec,
+} from "./domain.ts";
 // Registers the three official domains, same as select.ts and plan.ts.
 import "./domains/index.ts";
+import { unsettleableGroups } from "./plan.ts";
 import type { OptionGroup, PublicFixture, SessionContext } from "./types.ts";
 
 export interface MissingAnswer {
@@ -82,6 +89,7 @@ export function findMissingAnswers(
   const paths = CONTEXT_PATHS[environmentId] ?? {};
 
   const missing: MissingAnswer[] = [];
+  const answered: OptionGroup[] = [];
   for (const group of fixture.optionGroups) {
     if (!group.required) continue;
     // "" is a real JSON Pointer meaning the whole document, used here for a
@@ -90,14 +98,80 @@ export function findMissingAnswers(
     // groupId, and a missing answer nobody mentions is the failure this file
     // exists to prevent.
     const path = paths[group.groupId] ?? "";
-    if (hasAnswer(domain, group, ctx, path)) continue;
+    if (hasAnswer(domain, group, ctx, path)) {
+      answered.push(group);
+      continue;
+    }
     missing.push({
       path,
       groupId: group.groupId,
       message: `${group.label}${objectParticle(group.label)} 골라 주세요.`,
     });
   }
+
+  // Runs whether or not something above is still unanswered. Gating it on an
+  // empty list left the dead end open for the commonest hospital user there is:
+  // someone who needs no accessibility support cannot fill SUPPORT from the
+  // screen, so `apps/web` drops that one entry, and with the conflict check
+  // skipped the button unlocked on an answer set no desk can serve.
+  missing.push(...findUnservableAnswers(fixture, ctx, answered, paths));
   return missing;
+}
+
+/**
+ * Answers that are each fine on their own and impossible together.
+ *
+ * A user can tell the hospital 재진 · 예약 있음 · 정형외과 and be asked nothing:
+ * every value is on offer, and every one of them is true of them. There is just
+ * no desk that is all three at once — this fixture books 재진 예약 only for 내과.
+ * Until the department stopped being silently overwritten that combination did
+ * not look like a problem, because `plan.ts` filled in 내과 and the person found
+ * out at the desk. Now it refuses, and a refusal that reaches only the console
+ * is the dead end pm/20 is about, so the question is asked here instead, before
+ * any recommendation is drawn.
+ *
+ * Only the answers the user actually gave are weighed. A group they have not
+ * answered yet is already reported above, and counting it here as well would
+ * name every group in the fixture — an unanswered fact blocks every candidate,
+ * so it drowns out the one answer that is really in the way.
+ *
+ * A group is named when it is the *only* thing standing between the user and
+ * some desk, because that is the answer changing which would open something up.
+ * When no single answer does that, every answered group is named: the
+ * combination itself is what has to give. Naming all four when 접근성 지원 was
+ * never the obstacle is the failure this rule replaced.
+ *
+ * Availability and the settling rule both come from `plan.ts`, so the screen
+ * and the plan cannot disagree about the same session.
+ */
+function findUnservableAnswers(
+  fixture: PublicFixture,
+  ctx: SessionContext,
+  answered: OptionGroup[],
+  paths: Record<string, string>,
+): MissingAnswer[] {
+  if (answered.length === 0) return [];
+
+  const answeredIds = new Set(answered.map((g) => g.groupId));
+  const obstacles = fixture.candidates
+    .filter((c) => c.available)
+    .map((c) =>
+      unsettleableGroups(fixture, c.candidateId, ctx).filter((id) => answeredIds.has(id)),
+    );
+
+  if (obstacles.some((groupIds) => groupIds.length === 0)) return [];
+
+  const alone = new Set(obstacles.filter((g) => g.length === 1).map((g) => g[0]));
+  const named = alone.size > 0 ? answered.filter((g) => alone.has(g.groupId)) : answered;
+
+  return named.map((group) => ({
+    path: paths[group.groupId] ?? "",
+    groupId: group.groupId,
+    message:
+      `지금 답하신 다른 내용과 함께면 ${group.label}${objectParticle(group.label)} ` +
+      `그대로 진행할 수 있는 곳이 없습니다. ${group.label}${subjectParticle(group.label)} ` +
+      `맞는지 다시 확인해 주세요.`,
+  }));
 }
 
 /**
@@ -158,22 +232,4 @@ function readPointer(ctx: SessionContext, pointer: string): unknown {
     current = (current as Record<string, unknown>)[segment];
   }
   return current;
-}
-
-/**
- * 을 or 를 for the group label, so the sentence reads correctly for every group
- * rather than only the ones that happen to end in a vowel — "맵기를 골라
- * 주세요", but "수량을 골라 주세요". A Hangul syllable carries its final
- * consonant in the low 28 of its code point.
- *
- * A label that does not end in Hangul falls back to 를, which is what a Korean
- * speaker writes after a foreign word ending in a vowel sound; there is no such
- * label in the three fixtures today.
- */
-function objectParticle(label: string): string {
-  const trimmed = label.trim();
-  if (trimmed.length === 0) return "를";
-  const last = trimmed.charCodeAt(trimmed.length - 1);
-  if (last < 0xac00 || last > 0xd7a3) return "를";
-  return (last - 0xac00) % 28 === 0 ? "를" : "을";
 }

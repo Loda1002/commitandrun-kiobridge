@@ -39,6 +39,50 @@ export function isAnswered(value: unknown): boolean {
   return s.length > 0 && !NOT_ANSWERED.has(s);
 }
 
+/* ===========================================================================
+ * Korean particles
+ *
+ * A particle that disagrees with the word before it — "검사이라고", "미정라고",
+ * "수량를" — reads as broken to the person we are trying to help, and the words
+ * these sentences drop in come from the fixture, so a fixed particle is wrong
+ * for half of them. 미정 is the safe route for someone who does not know which
+ * department they need: the reader who most needs the sentence saw the most
+ * broken one.
+ *
+ * A Hangul syllable carries its final consonant in the low 28 of its code
+ * point, so `(code - 0xac00) % 28 === 0` means the syllable ends in a vowel.
+ * Anything that does not end in Hangul takes the vowel form, which is what a
+ * Korean speaker writes after a foreign word ending in a vowel sound; there is
+ * no such label in the three fixtures today.
+ *
+ * These live here rather than in one domain because all three need them, and
+ * `apps/web` needs them too — see pm/21.
+ * =========================================================================== */
+
+/** True when the word ends in a Hangul syllable with no final consonant. */
+function endsInVowel(word: string): boolean {
+  const trimmed = word.trim();
+  if (trimmed.length === 0) return true;
+  const last = trimmed.charCodeAt(trimmed.length - 1);
+  if (last < 0xac00 || last > 0xd7a3) return true;
+  return (last - 0xac00) % 28 === 0;
+}
+
+/** 을 / 를 — "맵기를 골라 주세요", "수량을 골라 주세요". */
+export function objectParticle(word: string): string {
+  return endsInVowel(word) ? "를" : "을";
+}
+
+/** 이 / 가 — "메뉴가 없습니다", "진료과가 없습니다". */
+export function subjectParticle(word: string): string {
+  return endsInVowel(word) ? "가" : "이";
+}
+
+/** 라고 / 이라고 — "검사라고 알려주셔서", "미정이라고 알려주셔서". */
+export function quoteParticle(word: string): string {
+  return endsInVowel(word) ? "라고" : "이라고";
+}
+
 /**
  * One filtering rule. Returns the exclusion when the candidate must go, or null
  * when this rule has nothing to say about it.

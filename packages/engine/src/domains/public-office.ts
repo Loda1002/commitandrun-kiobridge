@@ -170,14 +170,59 @@ const CRITERIA: DomainCriterion[] = [
   },
 ];
 
-/** A real service beats the staff desk when they tie — the desk is the way out. */
-function tiebreak(a: Candidate, b: Candidate): number {
+/**
+ * Step-by-step guidance first, then a real service over the staff desk.
+ *
+ * Same reasoning as the hospital's tiebreak: the accessibility criterion is not
+ * allowed to outweigh what the user actually came to do, but between two
+ * services that matched the answers equally it should decide. Only ties move,
+ * so nothing already submitted changes.
+ */
+function tiebreak(a: Candidate, b: Candidate, raw: SessionContext): number {
+  const byGuidance = Number(!providesGuidance(a, raw)) - Number(!providesGuidance(b, raw));
+  if (byGuidance !== 0) return byGuidance;
   return Number(isStaffRoute(a)) - Number(isStaffRoute(b));
+}
+
+/** True unless step-by-step guidance was asked for and this service lacks it. */
+function providesGuidance(candidate: Candidate, raw: SessionContext): boolean {
+  const preferences = ctxOf(raw).preferences;
+  if (preferences.stepByStep !== true && preferences.simpleLanguage !== true) return true;
+  return ((candidate.supports ?? {}) as Record<string, unknown>).stepByStep === true;
 }
 
 /* ===========================================================================
  * Explaining
  * =========================================================================== */
+
+/**
+ * One sentence per exclusion rule, in the order the rules run.
+ *
+ * The category wording is kept word for word from when it was the only sentence
+ * here, so an input whose exclusions really are all about the category — the
+ * submitted one — reads exactly as it did before.
+ */
+const EXCLUSION_SUMMARY: Array<{ reasonCode: string; sentence: (n: number) => string }> = [
+  {
+    reasonCode: "CANDIDATE_UNAVAILABLE",
+    sentence: (n) => `지금은 안내해 드릴 수 없는 업무 ${n}개는 빼고 골랐습니다.`,
+  },
+  {
+    reasonCode: "REQUESTED_SERVICE_MISMATCH",
+    sentence: (n) => `고르신 분야와 맞지 않는 업무 ${n}개는 빼고 골랐습니다.`,
+  },
+  {
+    reasonCode: "AUTH_METHOD_UNAVAILABLE",
+    sentence: (n) => `오늘 쓰실 수 있는 인증 방법으로는 처리되지 않는 업무 ${n}개는 뺐습니다.`,
+  },
+];
+
+/**
+ * For an exclusion whose code this file has no sentence for. A rule added
+ * without a sentence should read as vague rather than disappear: the count the
+ * user can check on screen has to add up either way.
+ */
+const otherExclusions = (n: number) => `안내해 드리기 어려운 업무 ${n}개는 빼고 골랐습니다.`;
 
 function explain(
   recommended: Candidate,
@@ -207,9 +252,29 @@ function explain(
     push("ACCESSIBILITY", "단계별 안내와 쉬운 문장을 켜셔서 절차를 한 단계씩 나눠 안내합니다.");
   }
 
-  if (excluded.length > 0) {
-    push("USER_PREFERENCE", `고르신 분야와 맞지 않는 업무 ${excluded.length}개는 빼고 골랐습니다.`);
+  if ((ctx.preferences.stepByStep === true || ctx.preferences.simpleLanguage === true) &&
+      supports.stepByStep !== true) {
+    push(
+      "ACCESSIBILITY",
+      "켜 두신 단계별 안내는 이 업무에서는 제공되지 않습니다. " +
+        "아래 대안에서 단계별 안내가 되는 업무를 고르실 수 있습니다.",
+    );
   }
+
+  // One sentence per reason the candidates were actually dropped for, counted
+  // separately. This used to blame every exclusion on the category the user
+  // picked, which happens to be true of the submitted input and false as soon
+  // as anything about it changes — the review saw "고르신 분야와 맞지 않는 업무
+  // 5개" for five exclusions of which two were about authentication. A claim in
+  // `recommendationReasons` that the user can check and find wrong costs more
+  // than the sentence was ever worth.
+  const named = new Set(EXCLUSION_SUMMARY.map((s) => s.reasonCode));
+  for (const { reasonCode, sentence } of EXCLUSION_SUMMARY) {
+    const n = excluded.filter((e) => e.reasonCode === reasonCode).length;
+    if (n > 0) push("USER_PREFERENCE", sentence(n));
+  }
+  const unnamed = excluded.filter((e) => !named.has(e.reasonCode)).length;
+  if (unnamed > 0) push("USER_PREFERENCE", otherExclusions(unnamed));
 
   // Both of these are said every time, whatever the answers were. The first is
   // the boundary the platform draws; the second is the way out.
@@ -261,9 +326,25 @@ function reconfirm(raw: SessionContext): ReconfirmRequest[] {
  *
  * When none of them is offered here, this returns undefined — on this kiosk's
  * terms the user has not chosen yet. That matters most for the staff desk,
- * whose only legal value is `STAFF_ASSIST`: `plan.ts` fills a required group
- * that leaves exactly one value, so the way out stays open for someone whose
- * means of proof this counter cannot take.
+ * whose only legal value is `STAFF_ASSIST`: `plan.ts` may fill a required group
+ * with a value that decides nothing, so the way out stays open for someone
+ * whose means of proof this counter cannot take.
+ *
+ * `STAFF_ASSIST` is taken last of all, and that ordering is load-bearing rather
+ * than cosmetic — do not sort this list back into the user's own order. Every
+ * ordinary counter accepts `MOBILE_AUTH` or `ID_CARD` and none of them accepts
+ * `STAFF_ASSIST`, so picking it while the user is also carrying an ID card
+ * chose the one value the recommended service cannot take, and `plan.ts` threw
+ * after the recommendation was already on screen. On the kiosk the question is
+ * multi-select and `apps/web` keeps the answers in click order, so the same two
+ * answers worked or failed depending on which box was ticked first. Asking for
+ * a person is what is left when nothing else works, which is exactly last.
+ *
+ * This is a shape the group cannot fully express: whether a method is usable
+ * depends on the candidate, and `answerFor` is not given one. Ordering happens
+ * to settle every case in these fixtures because `STAFF_ASSIST` is the only
+ * value any counter refuses. A fixture with a second such value would need
+ * `DomainSpec.answerFor` to see the candidate — see 작업요약/R3검토.
  */
 function answerFor(group: OptionGroup, raw: SessionContext): unknown {
   const ctx = ctxOf(raw);
@@ -272,7 +353,11 @@ function answerFor(group: OptionGroup, raw: SessionContext): unknown {
       return ctx.facts.serviceCategory;
     case "AUTH_METHOD": {
       const available = ctx.capabilities.availableAuthMethods ?? [];
-      return available.find((method) => group.options.some((o) => o.id === method));
+      const offered = available.filter((method) => group.options.some((o) => o.id === method));
+      return (
+        offered.find((method) => method !== "STAFF_ASSIST") ??
+        offered.find((method) => method === "STAFF_ASSIST")
+      );
     }
     default:
       return undefined;
