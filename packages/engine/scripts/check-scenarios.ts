@@ -1365,6 +1365,8 @@ for (const environmentId of registeredEnvironments()) {
   const pastedLabel: string[] = [];
   const namedAnEqual: string[] = [];
   const threw: string[] = [];
+  /** Kept for the winner-is-not-its-own-alternative probe below. */
+  let sample: ReturnType<typeof score> | null = null;
 
   for (const answers of answerSpace.get(environmentId)!) {
     const ctx = contextFor(fixture, environmentId, answers);
@@ -1372,6 +1374,7 @@ for (const environmentId of registeredEnvironments()) {
     if (survivors.length === 0) continue;
     const result = score(survivors, ctx);
     if (result.recommendedCandidateId === null) continue;
+    sample ??= result;
     const winner = result.contributions[result.recommendedCandidateId] ?? [];
 
     for (const altId of result.alternativeCandidateIds) {
@@ -1398,18 +1401,33 @@ for (const environmentId of registeredEnvironments()) {
     }
   }
 
+  // The winner is not one of its own alternatives. Unguarded it compares equal
+  // to itself on every bar and comes back with the sentence for a tie, which is
+  // the one wrong answer that looks like a right one — so the refusal is
+  // measured rather than trusted to the reading of the source.
+  let refusesWinner = false;
+  const winnerId = sample?.recommendedCandidateId;
+  if (sample && winnerId) {
+    try {
+      explainAlternative(sample, winnerId);
+    } catch {
+      refusesWinner = true;
+    }
+  }
+
   const notes = [
     unworded.length > 0 ? `문구 없는 기준 ${unworded.join(",")}` : "",
     threw.length > 0 ? `예외 ${threw.length}건 · 예: ${threw[0]}` : "",
     pastedLabel.length > 0 ? `막대 이름이 문장에 ${pastedLabel.length}건 · 예: ${pastedLabel[0]}` : "",
     namedAnEqual.length > 0 ? `같은 기준을 말함 ${namedAnEqual.length}건 · 예: ${namedAnEqual[0]}` : "",
+    refusesWinner ? "" : "1등 id 를 넘겨도 문장을 낸다",
   ].filter(Boolean);
 
   claim(
     `${environmentId} 대안 이유`,
     unworded.length === 0 && threw.length === 0 && pastedLabel.length === 0
-      && namedAnEqual.length === 0 && pairs > 0 && sentences.size > 1,
-    `쌍 ${pairs} · 서로 다른 문장 ${sentences.size} · 기준 ${labels.length}개 문구 있음` +
+      && namedAnEqual.length === 0 && pairs > 0 && sentences.size > 1 && refusesWinner,
+    `쌍 ${pairs} · 서로 다른 문장 ${sentences.size} · 기준 ${labels.length}개 문구 있음 · 1등 id 거부` +
       (notes.length > 0 ? ` — ${notes.join(" · ")}` : ""),
   );
 }

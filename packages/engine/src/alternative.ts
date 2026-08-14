@@ -38,11 +38,15 @@ import type { EngineResult, ScoreContribution } from "./types.ts";
  * criterion needs an entry; `check-scenarios` walks the registry and fails if
  * one is missing, so a domain that adds a criterion cannot land a silent gap.
  *
- * `serviceTypeMatch` and `priceWithinLimit` are here and unreachable, measured:
- * both are decided by an exclusion rule that already removed everyone who would
- * differ, so every survivor earns the same on them and they never reach a diff.
- * They stay because "no survivor can differ here" is a fact about today's rule
- * order, not a promise.
+ * `serviceTypeMatch` and `priceWithinLimit` never reach a diff today, measured
+ * over all three answer spaces. That is a fact about the fixture and not a
+ * structural one, so neither entry is decoration. Both rules step around a
+ * candidate that does not declare the field — `serviceTypeMismatch` returns
+ * null on a missing `supportedOptions.SERVICE_TYPE`, `overBudget` on a missing
+ * `price` — while the criterion still scores it 0. Drop `SERVICE_TYPE` from one
+ * chicken-store candidate and it survives at 0 beside a winner at 0.4, which is
+ * a diff and a sentence. Every dish declares both today; that is the whole
+ * reason those two are quiet.
  */
 const ASKED_FOR: Record<string, string> = {
   // chicken-store
@@ -94,6 +98,13 @@ export function explainAlternative(result: EngineResult, candidateId: string): s
   const winnerId = result.recommendedCandidateId;
   if (winnerId === null) {
     throw new Error("explainAlternative: 추천이 없어 견줄 1등이 없다");
+  }
+  if (candidateId === winnerId) {
+    // Without this the winner compares equal to itself on every bar and comes
+    // back with "1등과 맞춘 조건이 같습니다" — a sentence about a second
+    // candidate that is not there. Wrong quietly is the worst of the three ways
+    // this call can go, so it is the one that is guarded.
+    throw new Error(`explainAlternative: ${candidateId} 는 대안이 아니라 1등이다`);
   }
   const winner = result.contributions[winnerId];
   const alternative = result.contributions[candidateId];
