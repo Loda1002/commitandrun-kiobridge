@@ -33,7 +33,8 @@
       "@commitandrun/engine/plan": ["../../packages/engine/src/plan.ts"],
       "@commitandrun/engine/profile-store": ["../../packages/engine/src/profile-store.ts"],
       "@commitandrun/engine/required": ["../../packages/engine/src/required.ts"],
-      "@commitandrun/engine/select": ["../../packages/engine/src/select.ts"]
+      "@commitandrun/engine/select": ["../../packages/engine/src/select.ts"],
+      "@commitandrun/engine/domain": ["../../packages/engine/src/domain.ts"]
     }
   },
   "include": [

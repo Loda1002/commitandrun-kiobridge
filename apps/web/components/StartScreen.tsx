@@ -8,6 +8,7 @@ interface StartScreenProps {
   onStart: (environmentId: EnvironmentId) => void;
   accessibilityBar: React.ReactNode;
   isHighContrast: boolean;
+  onDeleteProfile: () => void;
 }
 
 // [디자인 1-1] 환경별 고유 아이콘 및 테마 색상 정의 (시각적 구분 강화)
@@ -17,7 +18,7 @@ const ENV_CONFIG: Record<string, { icon: string; theme: string }> = {
   "public-office": { icon: "🏛️", theme: "border-emerald-300 bg-emerald-50 hover:border-emerald-500 hover:bg-emerald-100" },
 };
 
-export function StartScreen({ onStart, accessibilityBar, isHighContrast }: StartScreenProps) {
+export function StartScreen({ onStart, accessibilityBar, isHighContrast, onDeleteProfile }: StartScreenProps) {
   // [접근성 2-1] 화면 진입 시 스크린리더가 바뀐 화면을 읽을 수 있도록 h1 포커스 이동
   const headingRef = useRef<HTMLHeadingElement>(null);
 
@@ -73,7 +74,18 @@ export function StartScreen({ onStart, accessibilityBar, isHighContrast }: Start
         })}
       </ul>
 
-      <div className="mt-4 border-t border-gray-200 pt-8 w-full">{accessibilityBar}</div>
+      <div className="mt-4 border-t border-gray-200 pt-8 w-full">
+        {accessibilityBar}
+        {/* 🔥 삭제 버튼 추가 */}
+        <button 
+          type="button" 
+          onClick={onDeleteProfile} 
+          className="w-full mt-6 underline opacity-60 hover:opacity-100 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--color-accent)] transition-opacity" 
+          style={{ fontSize: "calc(1.1rem * var(--font-scale))", padding: "0.5rem" }}
+        >
+          저장된 정보 지우기
+        </button>
+      </div>
     </main>
   );
 }

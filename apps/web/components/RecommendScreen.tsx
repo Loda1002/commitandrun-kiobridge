@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import type { EnvironmentId } from "@commitandrun/engine";
 import { environmentCopy } from "../lib/fixture";
 import type { CandidateView, RecommendationView } from "../lib/types";
+import { subjectParticle } from "@commitandrun/engine/domain";
 
 interface RecommendScreenProps {
   recView: RecommendationView;
@@ -56,7 +57,7 @@ export function RecommendScreen({ recView, environmentId, isHighContrast, onChoo
 
       {recView.requiresReconfirmation && (
         <p className={`rounded-xl p-4 font-bold ${isHighContrast ? "border-2 border-yellow-300" : "bg-orange-50 border-2 border-orange-500"}`} style={{ fontSize: "calc(1.1rem * var(--font-scale))" }}>
-          ⚠️ 조건에 딱 맞는 {copy.noun}가 없어 확신이 높지 않습니다. 아래 내용을 한 번 더 확인해 주세요.
+          ⚠️ 조건에 딱 맞는 {copy.noun}{subjectParticle(copy.noun)} 없어 확신이 높지 않습니다. 아래 내용을 한 번 더 확인해 주세요.
         </p>
       )}
 
@@ -105,7 +106,7 @@ export function RecommendScreen({ recView, environmentId, isHighContrast, onChoo
         </section>
       ) : (
         <div className={`p-8 text-center border-2 border-dashed rounded-2xl ${isHighContrast ? "border-gray-400 bg-transparent text-[var(--color-fg)]" : "border-gray-400 bg-gray-50"}`}>
-          <p className="font-bold" style={{ fontSize: "calc(1.2rem * var(--font-scale))" }}>조건에 맞는 {copy.noun}가 없습니다. 직원의 도움을 받아주세요.</p>
+          <p className="font-bold" style={{ fontSize: "calc(1.2rem * var(--font-scale))" }}>조건에 맞는 {copy.noun}{subjectParticle(copy.noun)} 없습니다. 직원의 도움을 받아주세요.</p>
         </div>
       )}
 
