@@ -316,7 +316,18 @@ function explain(
   }
 
   const limit = ctx.hardConstraints.maxPriceKrw;
-  if (limit !== undefined && recommended.price !== undefined && recommended.price <= limit) {
+  if (limit === undefined) {
+    // `priceWithinLimit` above says its empty bar means "not checked", and adds
+    // that the sentence saying so on screen was somebody else's card. This is
+    // that sentence, and it belongs here rather than in the screen for the same
+    // reason the other five do — the submission and the kiosk have to be
+    // reading the same explanation.
+    //
+    // Without it the customer who skipped the budget question gets a bar with
+    // nothing in it and nothing beside it, which reads as a dish that failed on
+    // price. pm/19 2.11(a), and the first screen a judge walks.
+    push("USER_PREFERENCE", "예산을 따로 정하지 않으셔서 가격은 따지지 않았습니다.");
+  } else if (recommended.price !== undefined && recommended.price <= limit) {
     push("USER_PREFERENCE", `예산 ${won(limit)}원 안에서 ${won(recommended.price)}원인 메뉴를 골랐습니다.`);
   }
 

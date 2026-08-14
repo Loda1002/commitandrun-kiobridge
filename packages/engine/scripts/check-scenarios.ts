@@ -1334,6 +1334,69 @@ const RELAXABLE_PATHS = ["/hardConstraints/maxPriceKrw", "/preferences/serviceTy
   }
 }
 
+/* ═════════ ⑦ 예산을 안 정한 손님이 덜 듣지 않는다 ═══════════════════════
+ *
+ * Skipping the budget question left `priceWithinLimit` empty with nothing said
+ * beside it, which reads as a dish that failed on price rather than one nobody
+ * checked. pm/19 2.11(a).
+ *
+ * Measured by comparing the two customers rather than by looking for the
+ * sentence. Writing it into this file would pass against a screen that
+ * hard-coded the same words, and would go on passing if `explain` quietly lost
+ * a different reason — the fault is that one customer is told less than the
+ * other, so that is the thing counted.
+ *
+ * The premise is checked before the claim, the way situation F does it: the bar
+ * has to be empty for the one and full for the other, or the two contexts are
+ * not the pair this is about and the row says so instead of grading nothing.
+ */
+{
+  const fixture = fixtures.get("chicken-store")!;
+  // The bar's own name, read off the domain: `zeroLabels` is what `runCell`
+  // keeps, and matching it to a string typed here would drift the day the label
+  // is reworded — which is a thing that has already happened twice to this
+  // criterion.
+  const priceLabel = getDomain("chicken-store").criteria
+    .find((c) => c.key === "priceWithinLimit")?.label;
+
+  let compared = 0;
+  const toldLess: string[] = [];
+  const badPremise: string[] = [];
+
+  for (const answers of answerSpace.get("chicken-store")!) {
+    const withBudget = runCell(fixture, "chicken-store", answers);
+    const without = runCell(fixture, "chicken-store", { ...answers, maxPriceKrw: null });
+    if (withBudget.recommendedId === null || without.recommendedId === null) continue;
+    compared++;
+
+    // Premise: the bar is full for the customer who set a budget and empty for
+    // the one who did not. Without this the row could be comparing two
+    // customers who are in the same situation, and pass while measuring nothing.
+    const emptyWith = priceLabel !== undefined && withBudget.zeroLabels.includes(priceLabel);
+    const emptyWithout = priceLabel !== undefined && without.zeroLabels.includes(priceLabel);
+    if (emptyWith || !emptyWithout) {
+      badPremise.push(
+        `${JSON.stringify(answers)} — 막대 빔: 예산 있음 ${emptyWith} · 없음 ${emptyWithout}`,
+      );
+      continue;
+    }
+
+    if (without.reasons.length < withBudget.reasons.length) {
+      toldLess.push(
+        `${JSON.stringify(answers)} — 예산 있음 ${withBudget.reasons.length}문장 · 없음 ${without.reasons.length}문장`,
+      );
+    }
+  }
+
+  claim(
+    "닭강정집 예산 미지정",
+    compared > 0 && badPremise.length === 0 && toldLess.length === 0,
+    `${compared}쌍 대조 · 덜 들은 손님 ${toldLess.length} · 전제 어긋남 ${badPremise.length}` +
+      (toldLess.length > 0 ? ` — 예: ${toldLess[0]}` : "") +
+      (badPremise.length > 0 ? ` — 예: ${badPremise[0]}` : ""),
+  );
+}
+
 /* ═══════════════ ⑤ 대안 이유 — the sentence, over the whole space ═════════
  *
  * Three things at once, because they are one property: the sentence is built
