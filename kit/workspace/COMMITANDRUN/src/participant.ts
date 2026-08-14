@@ -118,14 +118,21 @@ const asEngineCandidates = (list: Candidate[]) => list as unknown as EngineCandi
  *
  * 로그인은 요구하지 않습니다. 실제 주민등록번호·전화번호·카드번호는 수집하지
  * 않으며, 파일 안의 값은 전부 합성 데이터입니다.
+ *
+ * `inputFile` 은 같은 환경의 **다른 손님**을 읽을 때만 씁니다. 안전하게 멈추는
+ * 경우(알레르기 미확인·예산 안에 드는 메뉴 없음)는 정상 사례와 나란히 두어야
+ * 증거가 되는데, 환경 하나에 수집 파일 하나뿐이면 그 두 번째를 둘 데가 없습니다.
+ * 생략하면 아래 기본 이름이라 기존 제출본 3건은 한 바이트도 달라지지 않습니다.
  */
 export async function collectProfile(
   environmentId = "chicken-store",
+  inputFile?: string,
 ): Promise<RawUserInput> {
   // 환경마다 묻는 것이 다르므로 수집 결과도 파일이 따로입니다. 닭강정집은 이미
   // 기록된 SHA-256 이 이 파일 이름에 걸려 있어 그대로 둡니다.
   const name =
-    environmentId === "chicken-store" ? "raw-user-input.json" : `${environmentId}-input.json`;
+    inputFile ??
+    (environmentId === "chicken-store" ? "raw-user-input.json" : `${environmentId}-input.json`);
   const file = path.join(import.meta.dirname, "..", "input", name);
   return JSON.parse(readFileSync(file, "utf8")) as RawUserInput;
 }
@@ -410,8 +417,9 @@ export function buildExecutionPlan(
 export async function buildSubmission(
   fixture: PublicFixture,
   teamId: string,
+  inputFile?: string,
 ): Promise<ParticipantSubmission> {
-  const raw = await collectProfile(fixture.manifest.environmentId);
+  const raw = await collectProfile(fixture.manifest.environmentId, inputFile);
   const input = raw as unknown as CollectedInput;
 
   const profile = mapToCanonicalInput(raw);
