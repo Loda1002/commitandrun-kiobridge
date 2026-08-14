@@ -13,6 +13,8 @@ interface RecommendScreenProps {
   onBackToContext: () => void;
 }
 
+// [디자인] 환경별 점수 막대그래프 색상 (주황, 파랑, 초록). 600 계열이라
+// 흰 바탕에서 대비를 넘긴다. 고대비 모드에서는 --color-accent 를 쓴다.
 const PROGRESS_COLORS: Record<string, string> = {
   "chicken-store": "#ea580c",
   "hospital": "#2563eb",
@@ -26,6 +28,7 @@ export function RecommendScreen({ recView, environmentId, isHighContrast, onChoo
   const copy = environmentCopy(environmentId);
   const barColor = isHighContrast ? "var(--color-accent)" : PROGRESS_COLORS[environmentId] || "var(--color-accent)";
 
+  // [결함 방어] 세션 10/12 재확인 게이트 완벽 보존
   if (recView.reconfirmRequests.length > 0) {
     return (
       <main className="flex flex-col gap-8 w-full">
@@ -64,6 +67,12 @@ export function RecommendScreen({ recView, environmentId, isHighContrast, onChoo
             <span className="font-extrabold" style={{ fontSize: "calc(1.8rem * var(--font-scale))", color: barColor }}>{Math.round(recView.recommended.total * 100)}점</span>
           </div>
 
+          {recView.recommended.blockedReason && (
+            <p role="alert" className={`mb-6 rounded-xl p-4 font-bold border-2 ${isHighContrast ? "border-yellow-300 text-yellow-300" : "border-red-400 bg-red-50 text-red-700"}`} style={{ fontSize: "calc(1.1rem * var(--font-scale))" }}>
+              ⚠️ {recView.recommended.blockedReason}
+            </p>
+          )}
+
           <div className="flex flex-col gap-5 font-bold" style={{ fontSize: "calc(1.1rem * var(--font-scale))" }}>
             {recView.recommended.contributions.map((c, idx) => {
               const maxWeight = Math.max(...recView.recommended!.contributions.map((x) => x.weight));
@@ -75,6 +84,7 @@ export function RecommendScreen({ recView, environmentId, isHighContrast, onChoo
                   <span className="min-w-28 max-w-40 shrink-0">{c.label || "항목"}</span>
                   <div className="flex-1 flex items-center h-8">
                     <div className="h-full bg-gray-200 rounded-full overflow-hidden border border-gray-300" style={{ width: containerWidth }}>
+                      {/* [디자인] motion-reduce 존중 */}
                       <div className="h-full transition-all duration-700 ease-out motion-reduce:transition-none" style={{ width: fillWidth, backgroundColor: barColor }} />
                     </div>
                   </div>
@@ -108,12 +118,22 @@ export function RecommendScreen({ recView, environmentId, isHighContrast, onChoo
                 <div className="flex flex-col gap-1">
                   <span className="font-bold" style={{ fontSize: "calc(1.3rem * var(--font-scale))" }}>{alt.name}</span>
                   <span className="opacity-80 font-bold" style={{ fontSize: "calc(1.1rem * var(--font-scale))" }}>
+                    {/* [결함 방어] 가격은 있을 때만 표시 (0원은 공짜 오해 방지) */}
                     {alt.priceKrw > 0 && `${alt.priceKrw.toLocaleString()}원 · `}{Math.round(alt.total * 100)}점
                   </span>
                 </div>
-                <button type="button" onClick={() => onChoose(alt)} className="focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2 transition-transform duration-200 motion-reduce:transition-none motion-reduce:transform-none active:scale-95 px-6" style={{ minHeight: "var(--tap-min)", borderRadius: "var(--radius)", backgroundColor: "transparent", color: "var(--color-fg)", border: "2px solid var(--color-fg)", fontSize: "calc(1.1rem * var(--font-scale))", fontWeight: "bold" }}>
-                  이걸로 할게요
-                </button>
+                {/* [결함 방어] 진행할 수 없는 경로에는 버튼을 내지 않는다. 직원 도움
+                    경로는 일부러 안 걸러지므로 답변과 맞지 않아도 여기 올라온다 —
+                    누르면 계획이 거절해 빨간 배너만 뜨고 할 일이 없어진다. */}
+                {alt.blockedReason ? (
+                  <p className={`sm:max-w-sm font-bold ${isHighContrast ? "text-yellow-300" : "text-red-700"}`} style={{ fontSize: "calc(1rem * var(--font-scale))" }}>
+                    {alt.blockedReason}
+                  </p>
+                ) : (
+                  <button type="button" onClick={() => onChoose(alt)} className="focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2 transition-transform duration-200 motion-reduce:transition-none motion-reduce:transform-none active:scale-95 px-6" style={{ minHeight: "var(--tap-min)", borderRadius: "var(--radius)", backgroundColor: "transparent", color: "var(--color-fg)", border: "2px solid var(--color-fg)", fontSize: "calc(1.1rem * var(--font-scale))", fontWeight: "bold" }}>
+                    이걸로 할게요
+                  </button>
+                )}
               </li>
             ))}
           </ul>
@@ -136,7 +156,7 @@ export function RecommendScreen({ recView, environmentId, isHighContrast, onChoo
         <button type="button" onClick={onBackToContext} className="flex-1 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-4 transition-transform hover:scale-[1.02] active:scale-95 duration-200 motion-reduce:transition-none motion-reduce:transform-none" style={{ minHeight: "calc(var(--tap-min) + 8px)", borderRadius: "var(--radius)", backgroundColor: "transparent", color: "var(--color-fg)", border: "2px solid var(--color-fg)", fontSize: "calc(1.2rem * var(--font-scale))", fontWeight: "bold" }}>
           조건 다시 입력하기
         </button>
-        <button type="button" onClick={() => recView.recommended && onChoose(recView.recommended)} disabled={!recView.recommended} className="flex-1 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-4 transition-transform hover:scale-[1.02] active:scale-95 duration-200 motion-reduce:transition-none motion-reduce:transform-none disabled:opacity-50 disabled:hover:scale-100" style={{ minHeight: "calc(var(--tap-min) + 8px)", borderRadius: "var(--radius)", backgroundColor: "var(--color-accent)", color: "var(--color-bg)", fontSize: "calc(1.3rem * var(--font-scale))", fontWeight: "bold" }}>
+        <button type="button" onClick={() => recView.recommended && onChoose(recView.recommended)} disabled={!recView.recommended || recView.recommended.blockedReason !== null} className="flex-1 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-4 transition-transform hover:scale-[1.02] active:scale-95 duration-200 motion-reduce:transition-none motion-reduce:transform-none disabled:opacity-50 disabled:hover:scale-100" style={{ minHeight: "calc(var(--tap-min) + 8px)", borderRadius: "var(--radius)", backgroundColor: "var(--color-accent)", color: "var(--color-bg)", fontSize: "calc(1.3rem * var(--font-scale))", fontWeight: "bold" }}>
           선택하고 최종 확인하기
         </button>
       </div>

@@ -121,6 +121,18 @@ export interface CandidateView {
   total: number;
   /** Rows of the reasoning bar chart, already ordered heaviest first. */
   contributions: ScoreContribution[];
+  /**
+   * Why this one cannot be taken with the answers as they stand, or null when
+   * it can. A card with a sentence here must not offer a button.
+   *
+   * A candidate can score well and still be unplannable: the staff-help route
+   * is deliberately never filtered out, and it is booked as 예약 없음, so it
+   * survives to the podium for someone who told us they do have an appointment.
+   * Planning it would have to overwrite that answer, which `plan.ts` refuses.
+   * Before it refused, the screen offered the card, the click threw, and the
+   * user got a red banner with nothing to do about it.
+   */
+  blockedReason: string | null;
 }
 
 /** A candidate we removed, and the sentence explaining why. */

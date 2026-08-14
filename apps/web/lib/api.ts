@@ -23,7 +23,11 @@ import type {
   ScoreContribution,
 } from "@commitandrun/engine";
 import { createContextFor } from "@commitandrun/engine/input";
-import { buildExecutionPlan, resolveOptionSelections } from "@commitandrun/engine/plan";
+import {
+  buildExecutionPlan,
+  resolveOptionSelections,
+  unsettleableGroups,
+} from "@commitandrun/engine/plan";
 import { findMissingAnswers } from "@commitandrun/engine/required";
 import {
   buildAlternatives,
@@ -123,13 +127,30 @@ export function emptyAnswers(
   }
 }
 
+/** One question the form may not be submitted with, and what to say about it. */
+export interface MissingQuestion {
+  /** The form's own question id, so a screen can find the field. */
+  id: string;
+  /** The engine's sentence. Shown as-is — the screen has none of its own. */
+  message: string;
+}
+
 /**
- * The screen ids of the required questions still unanswered. Empty means the
- * form may be submitted.
+ * The required questions the form may not be submitted with. Empty means it may.
  *
  * The engine decides this, not the screen. A screen that judged "answered" on
  * its own would eventually disagree with the submission about the same session,
  * and the submission is what gets scored.
+ *
+ * ⚠️ Two different things come back, and the message is the only thing that
+ * tells them apart — carry it through rather than reducing this to a list of
+ * ids. One is a question nobody answered ("맵기를 골라 주세요"). The other is a
+ * set of answers that are each on offer and impossible together: 초진 · 예약
+ * 있음 · 내과 is three real answers and no desk in the fixture is all three, so
+ * the engine names each answer that would open one up if it changed. Flagging
+ * those with the generic "필수 응답" tells someone who did answer them that they
+ * did not, and there is nothing they can do about it — which is the dead end
+ * this whole gate exists to remove.
  *
  * Translating the answer is the whole job here. `findMissingAnswers` reports the
  * fixture's `groupId` (`SPICY_LEVEL`), the form keys off the question id
@@ -144,12 +165,12 @@ export function emptyAnswers(
 export function findMissing(
   answers: AnyAnswers,
   environmentId: EnvironmentId = DEFAULT_ENVIRONMENT_ID,
-): string[] {
+): MissingQuestion[] {
   const fixture = fixtureFor(environmentId);
   const ctx = toSessionContext(answers, environmentId);
   return findMissingAnswers(fixture, ctx)
     .filter((m) => !isUnanswerableHere(environmentId, m.groupId))
-    .map((m) => m.path.split("/").pop() || m.groupId);
+    .map((m) => ({ id: m.path.split("/").pop() || m.groupId, message: m.message }));
 }
 
 /**
@@ -199,7 +220,11 @@ export async function fetchRecommendation(
   const view = (candidateId: string): CandidateView | null => {
     const candidate = byId.get(candidateId);
     const contributions = result.contributions[candidateId];
-    return candidate && contributions ? toCandidateView(candidate, contributions) : null;
+    if (!candidate || !contributions) return null;
+    return {
+      ...toCandidateView(candidate, contributions),
+      blockedReason: blockedReason(fixture, candidateId, ctx),
+    };
   };
 
   const recommendedId = result.recommendedCandidateId;
@@ -288,6 +313,35 @@ export async function runPlan(
   };
 }
 
+/**
+ * Whether this candidate can be planned with the answers as they stand, said in
+ * the words of the questions that are in the way — or null when it can.
+ *
+ * Asked of `plan.ts` rather than worked out here. Two implementations of "can
+ * this be planned" that can disagree would put the screen and the plan back out
+ * of step, which is the fault this whole thing keeps re-introducing.
+ *
+ * An unknown or sold-out candidate throws instead of answering, and that is not
+ * a blocked reason — nothing the user answers would change it. It is also not
+ * reachable from here, because scoring never puts one on the podium.
+ */
+function blockedReason(
+  fixture: PublicFixture,
+  candidateId: string,
+  ctx: ReturnType<typeof toSessionContext>,
+): string | null {
+  const blocked = unsettleableGroups(fixture, candidateId, ctx);
+  if (blocked.length === 0) return null;
+
+  // Phrased so no Korean particle has to follow the label. The labels come out
+  // of the fixture and end in every kind of syllable — "예약 여부", "방문 유형",
+  // "진료과" — and a sentence that glues 로/으로 onto them is wrong half the time.
+  const labels = blocked.map(
+    (groupId) => fixture.optionGroups.find((g) => g.groupId === groupId)?.label ?? groupId,
+  );
+  return `이 경로는 지금 답하신 내용으로 진행할 수 없습니다. 다시 보실 항목: ${labels.join(" · ")}.`;
+}
+
 /* ── form answers → session context ──────────────────────────────────────── */
 
 /**
@@ -359,7 +413,11 @@ function quantityAnswer(optionId: unknown, fixture: PublicFixture): string {
 
 /* ── engine result → view shapes ─────────────────────────────────────────── */
 
-function toCandidateView(candidate: Candidate, contributions: ScoreContribution[]): CandidateView {
+/** The score half of a card. `blockedReason` is filled in by the caller. */
+function toCandidateView(
+  candidate: Candidate,
+  contributions: ScoreContribution[],
+): Omit<CandidateView, "blockedReason"> {
   return {
     candidateId: candidate.candidateId,
     name: candidate.name,
