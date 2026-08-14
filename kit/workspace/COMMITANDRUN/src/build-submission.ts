@@ -11,6 +11,11 @@
  * `--all` writes the three official submissions to their usual names, which is
  * what to run before packaging.
  *
+ * `--input <name>` reads a different collected input from `input/` — a second
+ * customer in the same environment. Used for the safe-stop cases, which have to
+ * land on their own output name so the three official submissions keep the
+ * SHA-256 already on record. Always pass `--out` with it.
+ *
  * Then check it the official way, with the simulation API running:
  *
  *   cd kit && npm run start:api
@@ -66,7 +71,8 @@ for (const environmentId of environments) {
   const out = all ? OFFICIAL_OUT[environmentId] : arg("--out") ?? DEFAULT_OUT;
   const outFile = path.join(WORKSPACE, out);
 
-  const submission = await buildSubmission(fixture, TEAM_ID);
+  // `--all` is the official three, which always read their own default input.
+  const submission = await buildSubmission(fixture, TEAM_ID, all ? undefined : arg("--input"));
   writeFileSync(outFile, `${JSON.stringify(submission, null, 2)}\n`, "utf8");
 
   const { recommendation: rec, executionPlan: plan, userDecision } = submission;

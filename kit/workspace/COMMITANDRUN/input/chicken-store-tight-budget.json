@@ -1,0 +1,57 @@
+{
+  "_note": "COMMITANDRUN 서비스가 수집한 원본 입력. 손님이 정한 예산 안에 드는 메뉴가 한 개도 없는 경우입니다. 엔진이 아무거나 올려 주는 대신 후보 없음으로 멈추는 것을 보이기 위한 입력입니다.",
+  "_dataClassification": "합성 데이터. 실제 이름·전화·주민번호·카드번호는 들어 있지 않습니다.",
+  "_timestamps": "고정값입니다. 엔진은 시계를 읽지 않고 호출자가 시각을 넘기므로, 같은 입력이면 언제 돌려도 같은 제출물이 나옵니다.",
+  "_why": "이 픽스처에서 제일 싼 메뉴가 5,500원입니다. 3,000원은 되물어서 풀리는 문제가 아니라 물건이 없는 것이라, 되묻기가 아니라 후보 0개로 멈춥니다.",
+
+  "collectionChannel": "WEB_FORM",
+  "profileId": "COMMITANDRUN-PROFILE-005",
+  "providerId": "COMMITANDRUN",
+  "collectedAt": "2026-08-05T07:00:00.000Z",
+
+  "accessibility": {
+    "largeText": true,
+    "simpleSteps": true,
+    "visualGuidance": true,
+    "hearingSupport": false,
+    "mobilitySupport": false,
+    "highContrast": true,
+    "staffAssistancePreferred": false
+  },
+  "interaction": {
+    "preferredInput": "TOUCH",
+    "language": "ko-KR",
+    "confirmationRequired": true
+  },
+  "consent": {
+    "personalization": true,
+    "retentionPolicy": "SESSION_ONLY"
+  },
+
+  "session": {
+    "capturedAt": "2026-08-05T07:00:00.000Z",
+    "source": "WEB_FORM",
+    "_confirmedPaths": "손님이 최종 확인 화면에서 눈으로 보고 확인한 값들입니다.",
+    "confirmedPaths": [
+      "/hardConstraints/allergenIds",
+      "/hardConstraints/maxPriceKrw",
+      "/preferences/serviceType",
+      "/preferences/spicyLevel"
+    ],
+    "_answers": "allergenIds 의 빈 배열은 '드시면 안 되는 재료가 없다' 는 답입니다. 답하지 않은 것과 다릅니다.",
+    "answers": {
+      "serviceType": "TAKE_OUT",
+      "spicyLevel": "MILD",
+      "boneType": "BONELESS",
+      "cupOption": "PAPER",
+      "quantity": "1",
+      "allergenIds": [],
+      "maxPriceKrw": 3000
+    }
+  },
+
+  "decision": {
+    "_note": "드릴 수 있는 메뉴가 없어 승인 화면을 띄우지 않았습니다.",
+    "approved": false
+  }
+}

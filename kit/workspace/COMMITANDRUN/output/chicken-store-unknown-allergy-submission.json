@@ -1,0 +1,143 @@
+{
+  "inputContractVersion": "1.0.0",
+  "submissionVersion": "1.0.0",
+  "teamId": "COMMITANDRUN",
+  "environmentId": "chicken-store",
+  "profile": {
+    "profileId": "COMMITANDRUN-PROFILE-004",
+    "dataClassification": "SYNTHETIC_PROFILE",
+    "source": {
+      "collectionChannel": "WEB_FORM",
+      "providerId": "COMMITANDRUN",
+      "collectedAt": "2026-08-05T07:00:00.000Z"
+    },
+    "accessibility": {
+      "largeText": true,
+      "simpleSteps": true,
+      "visualGuidance": true,
+      "hearingSupport": false,
+      "mobilitySupport": false,
+      "highContrast": true,
+      "staffAssistancePreferred": false
+    },
+    "interaction": {
+      "preferredInput": "TOUCH",
+      "language": "ko-KR",
+      "confirmationRequired": true
+    },
+    "consent": {
+      "personalization": true,
+      "retentionPolicy": "SESSION_ONLY"
+    }
+  },
+  "sessionContext": {
+    "intent": {
+      "task": "ORDER_FOOD"
+    },
+    "facts": {},
+    "preferences": {
+      "serviceType": "TAKE_OUT",
+      "spicyLevel": "HOT",
+      "boneType": "BONELESS",
+      "cupOption": "PAPER",
+      "quantity": 1
+    },
+    "hardConstraints": {
+      "allergenIds": [
+        "UNKNOWN"
+      ],
+      "maxPriceKrw": 7000
+    },
+    "capabilities": {},
+    "fieldMetadata": {
+      "/preferences/serviceType": {
+        "source": "WEB_FORM",
+        "confidence": 1,
+        "confirmedByUser": true,
+        "capturedAt": "2026-08-05T07:00:00.000Z"
+      },
+      "/preferences/spicyLevel": {
+        "source": "WEB_FORM",
+        "confidence": 1,
+        "confirmedByUser": true,
+        "capturedAt": "2026-08-05T07:00:00.000Z"
+      },
+      "/preferences/boneType": {
+        "source": "WEB_FORM",
+        "confidence": 1,
+        "confirmedByUser": false,
+        "capturedAt": "2026-08-05T07:00:00.000Z"
+      },
+      "/preferences/cupOption": {
+        "source": "WEB_FORM",
+        "confidence": 1,
+        "confirmedByUser": false,
+        "capturedAt": "2026-08-05T07:00:00.000Z"
+      },
+      "/preferences/quantity": {
+        "source": "WEB_FORM",
+        "confidence": 1,
+        "confirmedByUser": false,
+        "capturedAt": "2026-08-05T07:00:00.000Z"
+      },
+      "/hardConstraints/allergenIds": {
+        "source": "WEB_FORM",
+        "confidence": 0,
+        "confirmedByUser": false,
+        "capturedAt": "2026-08-05T07:00:00.000Z"
+      },
+      "/hardConstraints/maxPriceKrw": {
+        "source": "WEB_FORM",
+        "confidence": 1,
+        "confirmedByUser": false,
+        "capturedAt": "2026-08-05T07:00:00.000Z"
+      }
+    },
+    "extensions": {
+      "COMMITANDRUN.contextSignals": [
+        {
+          "type": "STOCK",
+          "key": "unavailableCandidateIds",
+          "value": [
+            "CHICKEN-008"
+          ],
+          "source": "environment-fixture:chicken-store/candidates.json#available",
+          "observedAt": "2026-08-05T07:00:00.000Z"
+        }
+      ]
+    }
+  },
+  "recommendation": {
+    "recommendedCandidateId": null,
+    "alternativeCandidateIds": [],
+    "excludedCandidates": [
+      {
+        "candidateId": "CHICKEN-008",
+        "reasonCode": "CANDIDATE_UNAVAILABLE",
+        "explanation": "지금 품절이라 고를 수 없습니다."
+      },
+      {
+        "candidateId": "CHICKEN-007",
+        "reasonCode": "SERVICE_TYPE_MISMATCH",
+        "explanation": "매장 이용 전용이라 포장으로는 받을 수 없습니다."
+      }
+    ],
+    "scoreBreakdown": {},
+    "recommendationReasons": [],
+    "unmetConditions": [],
+    "confidence": 1,
+    "requiresReconfirmation": true
+  },
+  "userDecision": {
+    "approved": false,
+    "decision": "REJECT",
+    "note": "추천을 드릴 수 없는 상태라 승인 화면을 띄우지 않았습니다."
+  },
+  "executionPlan": {
+    "planId": "PLAN-COMMITANDRUN-NONE",
+    "validationMode": "SIMULATION_ONLY",
+    "executionEnvironment": "DIGITAL_TWIN",
+    "actualDeviceCommandSent": false,
+    "actions": []
+  }
+}

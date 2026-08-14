@@ -1,0 +1,55 @@
+{
+  "_note": "COMMITANDRUN 서비스가 수집한 원본 입력. 알레르기 질문에 손님이 답하지 못한 채 진행을 누른 경우입니다. 엔진이 추천을 멈추고 되묻는 것을 보이기 위한 입력입니다.",
+  "_dataClassification": "합성 데이터. 실제 이름·전화·주민번호·카드번호는 들어 있지 않습니다.",
+  "_timestamps": "고정값입니다. 엔진은 시계를 읽지 않고 호출자가 시각을 넘기므로, 같은 입력이면 언제 돌려도 같은 제출물이 나옵니다.",
+  "_why": "raw-user-input.json 과 다른 것은 allergenIds 하나뿐입니다. 나머지 답을 전부 채워 두어야 멈춘 이유가 알레르기 하나로 좁혀집니다.",
+
+  "collectionChannel": "WEB_FORM",
+  "profileId": "COMMITANDRUN-PROFILE-004",
+  "providerId": "COMMITANDRUN",
+  "collectedAt": "2026-08-05T07:00:00.000Z",
+
+  "accessibility": {
+    "largeText": true,
+    "simpleSteps": true,
+    "visualGuidance": true,
+    "hearingSupport": false,
+    "mobilitySupport": false,
+    "highContrast": true,
+    "staffAssistancePreferred": false
+  },
+  "interaction": {
+    "preferredInput": "TOUCH",
+    "language": "ko-KR",
+    "confirmationRequired": true
+  },
+  "consent": {
+    "personalization": true,
+    "retentionPolicy": "SESSION_ONLY"
+  },
+
+  "session": {
+    "capturedAt": "2026-08-05T07:00:00.000Z",
+    "source": "WEB_FORM",
+    "_confirmedPaths": "손님이 최종 확인 화면에서 눈으로 보고 확인한 값들입니다. 알레르기는 확인하지 못했으므로 여기 없습니다.",
+    "confirmedPaths": [
+      "/preferences/serviceType",
+      "/preferences/spicyLevel"
+    ],
+    "_answers": "allergenIds 의 'UNKNOWN' 은 '아직 모른다' 입니다. '알레르기 없음' 은 빈 배열입니다. 둘을 같게 다루면 안 됩니다.",
+    "answers": {
+      "serviceType": "TAKE_OUT",
+      "spicyLevel": "HOT",
+      "boneType": "BONELESS",
+      "cupOption": "PAPER",
+      "quantity": "1",
+      "allergenIds": ["UNKNOWN"],
+      "maxPriceKrw": 7000
+    }
+  },
+
+  "decision": {
+    "_note": "추천을 드릴 수 없는 상태라 승인 화면 자체를 띄우지 않았습니다. 손님은 볼 수 없는 것을 승인할 수 없습니다.",
+    "approved": false
+  }
+}
