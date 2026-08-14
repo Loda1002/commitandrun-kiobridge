@@ -18,6 +18,7 @@
  */
 
 import {
+  directionParticle,
   isAnswered,
   quoteParticle,
   registerDomain,
@@ -300,10 +301,28 @@ function unmetSupportCount(candidate: Candidate, raw: SessionContext): number {
  * Explaining
  * =========================================================================== */
 
+/**
+ * The surviving routes that advertise `flag`.
+ *
+ * Only survivors are considered, which is the whole point of taking the list: a
+ * route that was filtered out is one this visit cannot use, and sending someone
+ * who walked in without an appointment to 예약 재진 접수 because it has captions
+ * would be a worse answer than saying nothing.
+ *
+ * The recommendation is not screened out here, because it cannot match: the one
+ * caller passes a flag it was just found to be missing. A filter term that can
+ * never fire is the shape of fault session 20 found in `check-hostile-input`,
+ * so it is stated here rather than written as code that looks like it works.
+ */
+function routesProviding(flag: string, survivors: Candidate[]): Candidate[] {
+  return survivors.filter((c) => ((c.supports ?? {}) as Record<string, unknown>)[flag] === true);
+}
+
 function explain(
   recommended: Candidate,
   raw: SessionContext,
   excluded: ExclusionReason[],
+  survivors?: Candidate[],
 ): RecommendationReason[] {
   const ctx = ctxOf(raw);
   const reasons: RecommendationReason[] = [];
@@ -348,20 +367,64 @@ function explain(
   // its own; saying plainly what was not matched, and where it can be had
   // instead, is the honest way to close that.
   const unmet = supportModes.filter((m) => supports[SUPPORTS_KEY_BY_MODE[m] ?? ""] !== true);
+  // The escape hatch, taken from the data by what it declares rather than by id
+  // — and never the recommendation itself. 31 of the 40 hospital answer
+  // combinations end at the staff route, and every one of them used to be told
+  // it could 넘어가 to the desk it was already standing at. Undefined also when
+  // the caller passed no list, which is the signal to say what we said before.
+  const fallbackRoute = survivors?.find(
+    (c) => c.candidateId !== recommended.candidateId && isFallbackRoute(c),
+  );
+
   for (const mode of unmet) {
     // A context is JSON and can carry a mode outside the vocabulary; that is
     // not a support this desk failed to provide, so there is nothing to say.
     const need = SUPPORT_NEED_LABEL[mode];
     if (!need) continue;
-    // Where to send them depends on whether any route could have it. A mode
-    // with no flag in `supports` is one this desk cannot advertise at all, so
-    // pointing at the alternatives would be a promise none of them can keep —
-    // the staff route is the honest answer, and it is always there.
+    const flag = SUPPORTS_KEY_BY_MODE[mode];
+
+    // A mode with no flag in `supports` is one this desk cannot advertise at
+    // all, so pointing at the other routes would be a promise none of them can
+    // keep — the staff route is the honest answer, and it is always there.
+    if (flag === undefined) {
+      if (survivors === undefined) {
+        push(
+          "ACCESSIBILITY",
+          `${need} 이 접수처에서는 안내해 드릴 수 없습니다. 직원 도움 요청으로 넘어가실 수 있습니다.`,
+        );
+      } else if (fallbackRoute === undefined) {
+        // Either the reader is already on the staff route, or the fixture has
+        // closed it. Both make the second half untrue, and the first half is
+        // still worth saying on its own.
+        push("ACCESSIBILITY", `${need} 이 접수처에서는 안내해 드릴 수 없습니다.`);
+      } else {
+        push(
+          "ACCESSIBILITY",
+          `${need} 이 접수처에서는 안내해 드릴 수 없습니다. ` +
+            `${fallbackRoute.name}${directionParticle(fallbackRoute.name)} 넘어가실 수 있습니다.`,
+        );
+      }
+      continue;
+    }
+
+    // The flag exists, so a route here may well provide it, and we are holding
+    // the list that says which. "아래 대안에서" left the reader to hunt the
+    // comparison table for an answer we already had — this is pm/24 ①.
+    if (survivors === undefined) {
+      push(
+        "ACCESSIBILITY",
+        `${need} 이 접수 경로에서는 제공되지 않습니다. 아래 대안에서 지원이 되는 경로를 고르실 수 있습니다.`,
+      );
+      continue;
+    }
+
+    const providers = routesProviding(flag, survivors);
     push(
       "ACCESSIBILITY",
-      SUPPORTS_KEY_BY_MODE[mode] === undefined
-        ? `${need} 이 접수처에서는 안내해 드릴 수 없습니다. 직원 도움 요청으로 넘어가실 수 있습니다.`
-        : `${need} 이 접수 경로에서는 제공되지 않습니다. 아래 대안에서 지원이 되는 경로를 고르실 수 있습니다.`,
+      providers.length === 0
+        ? `${need} 이 접수 경로에서는 제공되지 않습니다. 지금 이용하실 수 있는 다른 접수 경로에도 없습니다.`
+        : `${need} 이 접수 경로에서는 제공되지 않습니다. ` +
+            `지원이 되는 접수 경로는 ${providers.map((c) => c.name).join(" · ")}입니다.`,
     );
   }
 
@@ -383,8 +446,24 @@ function explain(
     );
   }
 
-  // Always last, and always present: the way out does not depend on the answers.
-  push("SAFETY", "잘 맞지 않으면 직원 도움 요청으로 바로 넘어가실 수 있습니다.");
+  // Always last. The way out does not depend on the answers — but it does
+  // depend on there being one to point at, and on the reader not already
+  // standing at it. 31 of the 40 answer combinations recommend the staff route
+  // itself, and telling those readers they could 넘어가 to it was the same
+  // untruth the accessibility sentence above used to carry.
+  if (survivors === undefined) {
+    push("SAFETY", "잘 맞지 않으면 직원 도움 요청으로 바로 넘어가실 수 있습니다.");
+  } else if (isFallbackRoute(recommended)) {
+    // What `isFallbackRoute` actually knows about it — it claims no visit type,
+    // so it is open to anyone. Nothing here reads "staffed", so nothing says it.
+    push("SAFETY", "어느 경우에나 이용하실 수 있는 경로로 안내드리고 있습니다.");
+  } else if (fallbackRoute !== undefined) {
+    push(
+      "SAFETY",
+      `잘 맞지 않으면 ${fallbackRoute.name}${directionParticle(fallbackRoute.name)} ` +
+        `바로 넘어가실 수 있습니다.`,
+    );
+  }
   return reasons;
 }
 

@@ -298,17 +298,23 @@ function round2(n: number): number {
  * 사용자가 알레르기를 등록했고 실제로 그 사유로 뺀 후보가 있을 때만 붙습니다.
  *
  * "AI가 추천했습니다" · "최적의 선택입니다" 같은 문장은 만들지 않습니다.
+ *
+ * 생존 후보 목록도 함께 넘깁니다. 못 맞춘 지원을 어느 경로에서 받을 수 있는지
+ * **이름으로** 말하려면 다른 후보를 볼 수 있어야 하고, 그 이름은 픽스처에서
+ * 읽어야 합니다 — 문장에 적어 두면 픽스처가 바뀌는 날 거짓말이 됩니다.
  */
 export function explainRecommendation(
   _rec: Recommendation,
   ctx: SessionContext,
   recommended: Candidate,
   excluded: ExclusionReason[],
+  survivors?: Candidate[],
 ): string[] {
   return engineExplainRecommendation(
     recommended as unknown as EngineCandidate,
     asEngineContext(ctx),
     excluded,
+    survivors as unknown as EngineCandidate[] | undefined,
   ).map((reason) => reason.text);
 }
 
@@ -431,7 +437,7 @@ export async function buildSubmission(
   const recommendation = recommend(candidates, sessionContext, profile, excluded);
   const recommended = candidates.find((c) => c.candidateId === recommendation.recommendedCandidateId);
   recommendation.recommendationReasons = recommended
-    ? explainRecommendation(recommendation, sessionContext, recommended, excluded)
+    ? explainRecommendation(recommendation, sessionContext, recommended, excluded, candidates)
     : [];
   recommendation.alternativeCandidateIds = buildAlternatives(candidates, recommendation);
 

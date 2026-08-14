@@ -84,6 +84,24 @@ export function quoteParticle(word: string): string {
 }
 
 /**
+ * 으로 / 로 — "직원 도움 요청으로 넘어가실 수 있습니다".
+ *
+ * The one particle that does not split on "has a final consonant or not": ㄹ
+ * takes 로 like a vowel does ("서울로", not "서울으로"). ㄹ is jongseong 8 in the
+ * syllable's low 28, so it is one more comparison rather than a second table.
+ * Needed because the route name in that sentence is read out of the fixture now
+ * — a name ending in a vowel would otherwise come out as "안내으로".
+ */
+export function directionParticle(word: string): string {
+  const trimmed = word.trim();
+  if (trimmed.length === 0) return "로";
+  const last = trimmed.charCodeAt(trimmed.length - 1);
+  if (last < 0xac00 || last > 0xd7a3) return "로";
+  const jongseong = (last - 0xac00) % 28;
+  return jongseong === 0 || jongseong === 8 ? "로" : "으로";
+}
+
+/**
  * One filtering rule. Returns the exclusion when the candidate must go, or null
  * when this rule has nothing to say about it.
  *
@@ -138,11 +156,21 @@ export interface DomainSpec {
    */
   tiebreak?: (a: Candidate, b: Candidate, ctx: SessionContext) => number;
 
-  /** Why this candidate, in the user's own language. */
+  /**
+   * Why this candidate, in the user's own language.
+   *
+   * `survivors` is optional because not every caller can pass it, and a domain
+   * that receives `undefined` must say exactly what it said before: a sentence
+   * may get more specific when the list is there, never different in substance.
+   * Having it lets a sentence name another route the user could actually take,
+   * read out of the fixture rather than written into the string — a name in a
+   * literal becomes a lie the day the fixture changes.
+   */
   explain: (
     recommended: Candidate,
     ctx: SessionContext,
     excluded: ExclusionReason[],
+    survivors?: Candidate[],
   ) => RecommendationReason[];
 
   /**
