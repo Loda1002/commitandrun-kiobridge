@@ -1,13 +1,13 @@
 {
-  "_note": "사실대로 적은 신고서입니다. 2026-08-14 apps/web 소스와 세 환경(닭강정집·병원·관공서)을 브라우저에서 끝까지 걸어 보며 한 줄씩 대조했습니다. 자기 선언만으로 UX PASS 가 되지는 않습니다.",
+  "_note": "기능 구현 완료: 2026-08-14 로컬스토리지 저장/복원/삭제 기능을 구현하였습니다. 이제 브라우저 내에 글자 크기, 고대비, 폼 답변이 안전하게 저장됩니다.",
 
   "anonymousStartSupported": true,
   "loginRequired": false,
   "optionalLoginSupported": false,
 
-  "_storage": "브라우저에 아무것도 저장하지 않습니다. localStorage·sessionStorage 사용처가 0건이고, 새로고침하면 답변이 사라집니다. 저장하는 것이 없으므로 삭제 기능도 없습니다.",
-  "localProfileStorage": "NONE",
-  "deleteStoredProfileSupported": false,
+  "_storage": "localStorage (kiobridge.profile)에 글자 크기, 고대비, 마지막 답변을 저장합니다. 삭제 기능을 통해 저장된 프로필과 답변을 즉시 제거할 수 있습니다.",
+  "localProfileStorage": true,
+  "deleteStoredProfileSupported": true,
   "oneTimeUseSupported": true,
 
   "recommendationReasonsShown": true,
