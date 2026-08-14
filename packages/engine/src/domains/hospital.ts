@@ -47,11 +47,6 @@ const VISIT_TYPE_LABEL: Record<string, string> = {
   EXAM: "검사",
 };
 
-const APPOINTMENT_LABEL: Record<string, string> = {
-  HAS_APPOINTMENT: "예약 있음",
-  NO_APPOINTMENT: "예약 없음",
-};
-
 const DEPARTMENT_LABEL: Record<string, string> = {
   INTERNAL_MEDICINE: "내과",
   ORTHOPEDICS: "정형외과",
