@@ -25,6 +25,7 @@ import "../src/domains/index.ts";
 import { buildExecutionPlan, resolveOptionSelections, unsettleableGroups } from "../src/plan.ts";
 import { findMissingAnswers } from "../src/required.ts";
 import { createContextFor } from "../src/input.ts";
+import { askedForPhrase, explainAlternative } from "../src/alternative.ts";
 import { relaxationOptions } from "../src/relax.ts";
 import { explainRecommendation, filterCandidates, score } from "../src/select.ts";
 import { ENVIRONMENT_BOUNDARY, FORBIDDEN_ACTIONS } from "../src/types.ts";
@@ -1331,6 +1332,86 @@ const RELAXABLE_PATHS = ["/hardConstraints/maxPriceKrw", "/preferences/serviceTy
       `${seen}조합 호출 · 제안 ${produced}건 · 본 제외 이유 ${[...codes].sort().join(",") || "(없음)"}`,
     );
   }
+}
+
+/* ═══════════════ ⑤ 대안 이유 — the sentence, over the whole space ═════════
+ *
+ * Three things at once, because they are one property: the sentence is built
+ * from the bar values and from nothing else.
+ *
+ *  1. Every criterion the domain registers has wording here. Walked off the
+ *     registry, so a domain that adds a criterion fails this rather than
+ *     shipping a sentence with a hole in it.
+ *  2. No `ScoreContribution.label` appears in any sentence. That is the card's
+ *     warning made into a measurement: seven of the eleven labels are "~ 일치",
+ *     and one pasted into the slot for what a candidate failed to give reads as
+ *     the opposite — `pm/17-RESULT.md` 4절 on `unmetConditions`.
+ *  3. No criterion the two candidates earn the same on is named. "Derived from
+ *     the difference only" is otherwise a claim about the source rather than
+ *     about the output.
+ *
+ * Liveness is part of the verdict. A space that produced no pair, or one
+ * sentence for every pair, would pass 1–3 while measuring nothing.
+ */
+for (const environmentId of registeredEnvironments()) {
+  const fixture = fixtures.get(environmentId)!;
+  const labels = getDomain(environmentId).criteria.map((c) => c.label);
+  const unworded = getDomain(environmentId).criteria
+    .filter((c) => askedForPhrase(c.key) === undefined)
+    .map((c) => c.key);
+
+  let pairs = 0;
+  const sentences = new Set<string>();
+  const pastedLabel: string[] = [];
+  const namedAnEqual: string[] = [];
+  const threw: string[] = [];
+
+  for (const answers of answerSpace.get(environmentId)!) {
+    const ctx = contextFor(fixture, environmentId, answers);
+    const { survivors } = filterCandidates(fixture, ctx);
+    if (survivors.length === 0) continue;
+    const result = score(survivors, ctx);
+    if (result.recommendedCandidateId === null) continue;
+    const winner = result.contributions[result.recommendedCandidateId] ?? [];
+
+    for (const altId of result.alternativeCandidateIds) {
+      pairs++;
+      let sentence: string;
+      try {
+        sentence = explainAlternative(result, altId);
+      } catch (e) {
+        threw.push(`${JSON.stringify(answers)}/${altId} — ${(e as Error).message}`);
+        continue;
+      }
+      sentences.add(sentence);
+
+      for (const label of labels) {
+        if (sentence.includes(label)) pastedLabel.push(`${altId} — ${label}`);
+      }
+      const mine = new Map((result.contributions[altId] ?? []).map((r) => [r.key, r]));
+      for (const row of winner) {
+        const theirs = mine.get(row.key);
+        const phrase = askedForPhrase(row.key);
+        if (theirs?.earned !== row.earned || phrase === undefined) continue;
+        if (sentence.includes(phrase)) namedAnEqual.push(`${altId} — ${row.key}: ${sentence}`);
+      }
+    }
+  }
+
+  const notes = [
+    unworded.length > 0 ? `문구 없는 기준 ${unworded.join(",")}` : "",
+    threw.length > 0 ? `예외 ${threw.length}건 · 예: ${threw[0]}` : "",
+    pastedLabel.length > 0 ? `막대 이름이 문장에 ${pastedLabel.length}건 · 예: ${pastedLabel[0]}` : "",
+    namedAnEqual.length > 0 ? `같은 기준을 말함 ${namedAnEqual.length}건 · 예: ${namedAnEqual[0]}` : "",
+  ].filter(Boolean);
+
+  claim(
+    `${environmentId} 대안 이유`,
+    unworded.length === 0 && threw.length === 0 && pastedLabel.length === 0
+      && namedAnEqual.length === 0 && pairs > 0 && sentences.size > 1,
+    `쌍 ${pairs} · 서로 다른 문장 ${sentences.size} · 기준 ${labels.length}개 문구 있음` +
+      (notes.length > 0 ? ` — ${notes.join(" · ")}` : ""),
+  );
 }
 console.log("");
 
