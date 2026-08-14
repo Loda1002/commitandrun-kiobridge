@@ -73,6 +73,24 @@ function buildBaseProfile(isHighContrast: boolean, fontScale: number): Canonical
   } as CanonicalProfile; // 필요한 속성만 채워서 전달 (엔진은 이 두 속성만 읽음)
 }
 
+/**
+ * 알레르기에 관한 것을 걷어낸 답변.
+ *
+ * 저장할 때와 되살릴 때 **양쪽에** 건다. 되살릴 때만 걸었더니 선언 자체는
+ * localStorage 에 그대로 남아 있었다 — 되돌려주기엔 민감하다고 판단해 놓고
+ * 디스크에는 쓰고 있었던 것이고, 둘 중 나쁜 쪽이 그것이다.
+ * 되살리는 쪽 검사를 남겨 두는 이유는, 이 수정 이전에 이미 저장해 둔 브라우저가
+ * 아직 그 값을 들고 있기 때문이다.
+ */
+const withoutAllergies = (answers: Record<string, unknown>): Record<string, unknown> => {
+  const out = { ...answers };
+  for (const key of Object.keys(out)) {
+    const lowered = key.toLowerCase();
+    if (lowered.includes("allergen") || lowered.includes("allergy")) delete out[key];
+  }
+  return out;
+};
+
 export default function Home() {
   const [fontScale, setFontScale] = useState(1);
   const [isHighContrast, setIsHighContrast] = useState(false);
@@ -106,10 +124,17 @@ export default function Home() {
           const baseProfile = buildBaseProfile(false, 1);
           const profile = applyStoredProfile(baseProfile, stored);
           if (profile) {
-            // 엔진은 largeText 플래그만 주므로 화면 단위(1.5)로 변환
             if (profile.accessibility.largeText) {
-              setFontScale(1.5);
-              document.documentElement.style.setProperty("--font-scale", "1.5");
+              // StoredProfile 은 largeText 를 참/거짓으로만 들고 있어 1.25 와 1.5 를
+              // 구분하지 못한다 — 125% 를 고른 사람이 150% 로 돌아오고 있었다.
+              // 그래서 배율을 같은 키에 나란히 적어 두고 여기서 읽는다.
+              // 그 값이 없는(이 수정 이전에 저장된) 브라우저에서는 **큰 글씨로 치는
+              // 가장 작은 단계**로 돌아간다. 위로 올려 잡으면 사용자가 일부러 고른
+              // 크기를 우리가 바꾸는 것이 된다.
+              const savedScale = (JSON.parse(raw) as { fontScale?: unknown }).fontScale;
+              const scale = typeof savedScale === "number" && savedScale > 1 ? savedScale : 1.25;
+              setFontScale(scale);
+              document.documentElement.style.setProperty("--font-scale", String(scale));
             }
             if (profile.accessibility.highContrast) {
               setIsHighContrast(true);
@@ -128,12 +153,18 @@ export default function Home() {
     try {
       const baseProfile = buildBaseProfile(contrast, scale);
       const stored = toStoredProfile(
-        baseProfile, 
-        currentEnv, 
-        currentAns as Record<string, unknown>, 
+        baseProfile,
+        currentEnv,
+        withoutAllergies(currentAns as Record<string, unknown>),
         new Date().toISOString()
       );
-      localStorage.setItem("kiobridge.profile", JSON.stringify(stored));
+      // 배율은 StoredProfile 안이 아니라 그 **옆에** 싣는다. 엔진 계약을 건드리지
+      // 않으면서 1.25 와 1.5 를 구분하기 위해서다. parseStoredProfile 은 자기가 아는
+      // 필드만 골라 다시 만들므로(profile-store.ts) 이 형제 필드를 그냥 무시한다.
+      localStorage.setItem(
+        "kiobridge.profile",
+        JSON.stringify({ ...stored, fontScale: scale }),
+      );
     } catch (e) {
       console.error("프로필 저장 실패:", e);
     }
@@ -182,14 +213,10 @@ export default function Home() {
         if (stored) {
           const recalled = recallAnswers(stored, picked);
           if (recalled) {
-            // 🔥 핵심: 알레르기 항목은 무조건 다시 묻도록 복원 데이터에서 강제 삭제
-            for (const key of Object.keys(recalled)) {
-              if (key.toLowerCase().includes("allergen") || key.toLowerCase().includes("allergy")) {
-                delete recalled[key];
-              }
-            }
+            // 🔥 핵심: 알레르기 항목은 무조건 다시 묻는다. 지금은 저장할 때도 걷어내지만
+            // (withoutAllergies), 이 수정 전에 저장해 둔 브라우저는 아직 들고 있다.
             // 빈 기본값 위에 알레르기가 제거된 복원값만 덮어씌움
-            initialAns = { ...initialAns, ...recalled } as AnyAnswers;
+            initialAns = { ...initialAns, ...withoutAllergies(recalled) } as AnyAnswers;
           }
         }
       }
