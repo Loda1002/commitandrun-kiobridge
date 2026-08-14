@@ -25,6 +25,7 @@ import "../src/domains/index.ts";
 import { buildExecutionPlan, resolveOptionSelections, unsettleableGroups } from "../src/plan.ts";
 import { findMissingAnswers } from "../src/required.ts";
 import { createContextFor } from "../src/input.ts";
+import { relaxationOptions } from "../src/relax.ts";
 import { explainRecommendation, filterCandidates, score } from "../src/select.ts";
 import { ENVIRONMENT_BOUNDARY, FORBIDDEN_ACTIONS } from "../src/types.ts";
 import type {
@@ -1195,6 +1196,141 @@ for (const { spec, tally } of tallies) {
   }
   // Never suppressed: an invented answer is a failure wherever it turns up.
   for (const note of tally.invented) replacements.push(`${spec.label}: 지어냄 ${note}`);
+}
+
+/* ═══════════ ④ 완화 제안 — the sweep ② deferred, with its own space ═══════
+ *
+ * `sweepAnswerSets` pins `allergenIds: []` and `maxPriceKrw: 7000` on purpose,
+ * and says why where it does it. That pinning is exactly what makes it the
+ * wrong space for this claim: "no relaxation ever revives a dish the user is
+ * allergic to", measured over 432 answer sets that declare no allergy, is a
+ * verdict that cannot go red. That is the fault session 20 found in
+ * `check-hostile-input` and the card warns about again here, so the claim
+ * brings its own space rather than borrowing one that would flatter it.
+ *
+ * Everything in that space comes off the fixture — the allergies its own dishes
+ * carry, the prices they charge, the service types it offers. A fixture that
+ * drops the peanut dish shrinks the space and prints a smaller number, rather
+ * than leaving a claim that reads the same either way.
+ */
+function relaxAnswerSets(fixture: PublicFixture): Record<string, unknown>[] {
+  const allergens = [...new Set(
+    fixture.candidates.flatMap((c) => (c.attributes?.allergenIds as string[] | undefined) ?? []),
+  )].sort();
+  const prices = [...new Set(
+    fixture.candidates.map((c) => c.price).filter((p): p is number => p !== undefined),
+  )].sort((a, b) => a - b);
+  const serviceTypes = (fixture.optionGroups.find((g) => g.groupId === "SERVICE_TYPE")?.options ?? [])
+    .map((o) => o.id);
+  if (allergens.length === 0 || prices.length === 0 || serviceTypes.length === 0) return [];
+
+  // One won under the cheapest dish is the budget that fits nothing, said
+  // without a number of our own standing in for the fixture's.
+  const budgets = [prices[0] - 1, ...prices];
+  // Each declared allergy alone, and all of them together. The subsets between
+  // add answer sets without adding a shape.
+  const declarations: string[][] = [[], ...allergens.map((a) => [a]), allergens];
+
+  const sets: Record<string, unknown>[] = [];
+  for (const serviceType of serviceTypes)
+    for (const allergenIds of declarations)
+      for (const maxPriceKrw of budgets)
+        sets.push({
+          serviceType, allergenIds, maxPriceKrw,
+          spicyLevel: "MILD", boneType: "BONELESS", cupOption: "PAPER", quantity: "1",
+        });
+  return sets;
+}
+
+/** The two fields a relaxation is allowed to point at. Anything else is G4. */
+const RELAXABLE_PATHS = ["/hardConstraints/maxPriceKrw", "/preferences/serviceType"];
+
+{
+  const fixture = fixtures.get("chicken-store")!;
+  const sets = relaxAnswerSets(fixture);
+  const allergensOf = (c: Candidate) => (c.attributes?.allergenIds as string[] | undefined) ?? [];
+
+  let withOptions = 0;
+  let rows = 0;
+  const byReason: Record<string, number> = {};
+  /** A suggestion that would put back a dish carrying an allergy the user named. */
+  const revived: string[] = [];
+  /** A suggestion pointing somewhere we never agreed to negotiate. */
+  const offPath: string[] = [];
+
+  for (const answers of sets) {
+    const declared = answers.allergenIds as string[];
+    const options = relaxationOptions(fixture, contextFor(fixture, "chicken-store", answers));
+    if (options.length > 0) withOptions++;
+    rows += options.length;
+
+    for (const option of options) {
+      byReason[option.reasonCode] = (byReason[option.reasonCode] ?? 0) + 1;
+      if (!RELAXABLE_PATHS.includes(option.path)) offPath.push(`${JSON.stringify(answers)} — ${option.path}`);
+      // The claim itself: not "the allow-list has no allergen entry", which is
+      // read off the source, but "no dish the user cannot eat comes back",
+      // which is read off the survivors the suggestion actually produces.
+      for (const id of option.survivorIds) {
+        const dish = fixture.candidates.find((c) => c.candidateId === id);
+        const hits = dish ? allergensOf(dish).filter((a) => declared.includes(a)) : [];
+        if (hits.length > 0) revived.push(`${JSON.stringify(answers)} — ${id}/${hits.join(",")}`);
+      }
+    }
+  }
+
+  // The card's acceptance value, kept as the customer who produced it:
+  // `input/chicken-store-tight-budget.json` answers 3,000원 on a menu whose
+  // cheapest dish is 5,500원. Pinned separately from the space above because
+  // 3,000 is that customer's number, not one derived from the fixture.
+  const tightBudget = {
+    serviceType: "TAKE_OUT", spicyLevel: "MILD", boneType: "BONELESS",
+    cupOption: "PAPER", quantity: "1", allergenIds: [], maxPriceKrw: 3000,
+  };
+  const first = relaxationOptions(fixture, contextFor(fixture, "chicken-store", tightBudget))[0];
+  const cheapest = Math.min(
+    ...fixture.candidates.map((c) => c.price ?? Infinity),
+  );
+  const pinnedOk = first !== undefined
+    && first.path === "/hardConstraints/maxPriceKrw"
+    && first.value === cheapest
+    && first.survivorCount === 1;
+  const pinned = first
+    ? `3,000원 → ${first.value}원 ${first.survivorCount}개`
+    : "3,000원 → 제안 없음";
+
+  const counted = Object.entries(byReason).map(([code, n]) => `${code} ${n}`).join(" · ") || "(없음)";
+  claim(
+    "닭강정집 완화 제안",
+    revived.length === 0 && offPath.length === 0 && withOptions > 0 && pinnedOk,
+    `${sets.length}조합 · 제안 있는 조합 ${withOptions} · 제안 ${rows}건 (${counted})` +
+      ` · 알레르기 되살림 ${revived.length} · 허용 밖 경로 ${offPath.length} · ${pinned}` +
+      (revived.length > 0 ? ` — 예: ${revived[0]}` : "") +
+      (offPath.length > 0 ? ` — 예: ${offPath[0]}` : ""),
+  );
+
+  // The other two environments, so an empty list is told apart from a function
+  // that never ran. public-office is the one that matters: its exclusions are
+  // all `REQUESTED_SERVICE_MISMATCH`, tagged `USER_PREFERENCE` like every other
+  // rule in the three domains, so a `tag` filter would have offered to treat a
+  // 건강보험 visit as a 주민등록 one. The count of exclusions seen is printed
+  // beside the zero to show the allow-list did the refusing.
+  for (const environmentId of ["hospital", "public-office"] as EnvironmentId[]) {
+    const other = fixtures.get(environmentId)!;
+    let seen = 0;
+    let produced = 0;
+    const codes = new Set<string>();
+    for (const answers of answerSpace.get(environmentId)!) {
+      const ctx = contextFor(other, environmentId, answers);
+      seen++;
+      for (const e of filterCandidates(other, ctx).excluded) codes.add(e.reasonCode);
+      produced += relaxationOptions(other, ctx).length;
+    }
+    claim(
+      `${environmentId} 완화 제안 없음`,
+      seen > 0 && produced === 0 && codes.size > 0,
+      `${seen}조합 호출 · 제안 ${produced}건 · 본 제외 이유 ${[...codes].sort().join(",") || "(없음)"}`,
+    );
+  }
 }
 console.log("");
 
