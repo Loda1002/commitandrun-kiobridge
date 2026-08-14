@@ -214,14 +214,31 @@ for (const [label, maxPriceKrw] of [
     continue;
   }
   const overBudget = r.excluded.filter((e) => e.reasonCode === "PRICE_LIMIT_EXCEEDED").length;
-  // The bar is the safety rule, not the arithmetic: a broken budget may not be
-  // read as a real one and it may not invent a recommendation. Excluding
-  // everything is a refusal, which is allowed; recommending anyway is not.
-  const invented = r.survivors.length === 0 && r.recommendedId !== null;
+  // The bar is the safety rule, not the arithmetic — but it has to be asked of
+  // what the engine did with the value, not of the score alone.
+  //
+  // `survivors.length === 0 && recommended !== null` was the earlier wording and
+  // it can never be true: score() takes its winner out of the survivor list, so
+  // an empty list already means no recommendation. The line passed whatever the
+  // budget did — a seeded engine that ignored -5000 outright and recommended
+  // CHICKEN-001 still printed OK. What follows is asked of the stored value,
+  // which is where a guess would actually show up.
+  const stored = (r.ctx as ChickenStoreSessionContext).hardConstraints.maxPriceKrw;
+  const usable = typeof stored === "number" && Number.isFinite(stored) && stored >= 0;
+  // Absent is a refusal and is fine; the arriving value kept as it came is fine.
+  // Any other number in that slot is the engine deciding what the customer meant.
+  const invented = stored !== undefined && !Object.is(stored, maxPriceKrw);
+  // A limit it did not keep is a limit it may not exclude anybody on.
+  const actedWithout = stored === undefined && overBudget > 0;
+  // And a limit it kept but cannot read may not simply be stepped over. -5000
+  // and NaN are not budgets, so a dish offered while one of them is on the
+  // record was offered against a constraint nobody could have satisfied.
+  const ignoredBroken = stored !== undefined && !usable && r.recommendedId !== null;
   verdict(
     `예산 ${label}`,
-    !invented,
-    `제외 ${overBudget}건 · 생존 ${r.survivors.length} · 추천 ${r.recommendedId ?? "없음"}`,
+    !invented && !actedWithout && !ignoredBroken,
+    `보관값 ${stored === undefined ? "없음" : String(stored)} · 제외 ${overBudget}건` +
+      ` · 생존 ${r.survivors.length} · 추천 ${r.recommendedId ?? "없음"}`,
   );
   if (overBudget > 0 && r.survivors.length === 0) {
     note(`예산이 ${label} 이면 전 메뉴가 "예산 초과" 로 빠진다 — 멈추므로 안전하지만 "예산을 안 준 것과 같게" 는 아니다 (collectProfile 이 숫자만 통과시키므로 문자열은 걸러지고, 숫자인 이 값들은 그대로 비교에 쓰인다)`);
