@@ -480,10 +480,6 @@ function planInvariants(
 const g8Violated = (run: Run) =>
   run.recommendedId !== null && run.missing.length === 0 && run.blocked.length > 0;
 
-/** Counted across cells and sweeps alike, for the one summary line. */
-let g8Unplannable = 0;
-let g8Leaked = 0;
-
 function invariants(fixture: PublicFixture, environmentId: EnvironmentId, run: Run): string[] {
   const bad: string[] = [];
 
@@ -897,11 +893,7 @@ function sweep(
     // unreachable, so a single number cannot say which one moved.
     if (run.recommendedId !== null && run.blocked.length > 0) {
       t.unplannableWinner++;
-      g8Unplannable++;
-      if (g8Violated(run)) {
-        t.g8.push(`${key()} — ${run.blocked.join(",")}`);
-        g8Leaked++;
-      }
+      if (g8Violated(run)) t.g8.push(`${key()} — ${run.blocked.join(",")}`);
     }
 
     if (run.missing.length > 0) {
@@ -1215,10 +1207,22 @@ console.log(`  스윕 ${sweptClaims}건 · OK ${okClaims} · FAIL ${sweptClaims 
 // the screens can produce are different sentences, and only the second is worth
 // putting in front of a judge.
 console.log(`  금지 동작 누적 ${deniedTotal}건 · 계획 ${plansChecked}건 대조 (셀 + 스윕)`);
-// G8 in one line. The left number is not a fault and is printed so nobody reads
-// the right one as "the planner always settles the winner" — it does not, and
-// the gate is the reason that never reaches anyone.
-console.log(`  G8 · 1등이 계획 불가한 조합 누적 ${g8Unplannable}건 · 그중 게이트를 통과한 것 ${g8Leaked}건`);
+// G8 in one line, summed over the whole-space sweeps only.
+//
+// Summing every sweep counted the slices a second time: 병원 접근성 미선택 is a
+// filter over the same 160 answer sets 병원 전체 already swept, so its 16 landed
+// on top of the 64 and the line printed 누적 80 for a space that holds 64.
+// Nothing is lost by leaving the slices out — a filter cannot hold a violation
+// the space it filters does not. Cells are not in the sum either; a violation
+// there fails the cell itself, which is louder than a number at the foot.
+//
+// The left number is not a fault and is printed so nobody reads the right one
+// as "the planner always settles the winner" — it does not, and the gate is the
+// reason that never reaches anyone.
+const g8Whole = tallies.filter(({ spec }) => spec.wholeSpace).map(({ tally }) => tally);
+const g8Unplannable = g8Whole.reduce((n, t) => n + t.unplannableWinner, 0);
+const g8Leaked = g8Whole.reduce((n, t) => n + t.g8.length, 0);
+console.log(`  G8 · 1등이 계획 불가한 조합 ${g8Unplannable}건 (전체 답 공간) · 그중 게이트를 통과한 것 ${g8Leaked}건`);
 // What the plan ordered that the user did not ask for, in full. Every line here
 // is allowed — a taste the dish settles, or a refusal to decide — but they are
 // the sentences a judge would read as us overruling someone, so they are
