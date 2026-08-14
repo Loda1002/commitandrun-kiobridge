@@ -40,14 +40,16 @@ const EVIDENCE_DATE = String(evidence.createdAt).slice(0, 10);
 const EVIDENCE_ENVIRONMENT_NAME =
   ENVIRONMENTS.find((e) => e.id === evidence.environmentId)?.name ?? evidence.environmentId;
 
+// 🔥 여기서 onDeleteProfile 타입을 추가로 받아주어야 합니다!
 interface ResultScreenProps {
   runResult: RunView;
   environmentId: EnvironmentId;
   isHighContrast: boolean;
   onReset: () => void;
+  onDeleteProfile: () => void; 
 }
 
-export function ResultScreen({ runResult, environmentId, isHighContrast, onReset }: ResultScreenProps) {
+export function ResultScreen({ runResult, environmentId, isHighContrast, onReset, onDeleteProfile }: ResultScreenProps) {
   const headingRef = useRef<HTMLHeadingElement>(null);
   
   useEffect(() => {
@@ -188,6 +190,16 @@ export function ResultScreen({ runResult, environmentId, isHighContrast, onReset
 
       <button type="button" onClick={onReset} className="w-full mt-4 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-4 transition-transform hover:scale-[1.02] active:scale-95 duration-200 motion-reduce:transition-none motion-reduce:transform-none" style={{ minHeight: "calc(var(--tap-min) + 8px)", borderRadius: "var(--radius)", backgroundColor: "transparent", color: "var(--color-fg)", border: "2px solid var(--color-fg)", fontSize: "calc(1.2rem * var(--font-scale))", fontWeight: "bold" }}>
         처음으로 돌아가기
+      </button>
+
+      {/* 🔥 삭제 버튼 추가된 부분! */}
+      <button 
+        type="button" 
+        onClick={onDeleteProfile} 
+        className="w-full mt-2 underline opacity-60 hover:opacity-100 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--color-accent)] transition-opacity" 
+        style={{ fontSize: "calc(1.1rem * var(--font-scale))", padding: "0.5rem" }}
+      >
+        저장된 정보 지우기
       </button>
     </main>
   );

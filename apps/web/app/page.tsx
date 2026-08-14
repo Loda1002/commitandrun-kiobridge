@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import type { EnvironmentId } from "@commitandrun/engine";
+import type { EnvironmentId, CanonicalProfile } from "@commitandrun/engine";
 import {
   emptyAnswers,
   fetchQuestions,
@@ -18,6 +18,14 @@ import type {
   RecommendationView,
   RunView,
 } from "../lib/types";
+
+// 🔥 프로필 저장소 함수 임포트
+import { 
+  toStoredProfile, 
+  parseStoredProfile, 
+  applyStoredProfile, 
+  recallAnswers 
+} from "@commitandrun/engine/profile-store";
 
 import { AccessibilityBar } from "../components/AccessibilityBar";
 import { StartScreen } from "../components/StartScreen";
@@ -36,7 +44,7 @@ const STEP_LABELS = ["상황 입력", "추천 결과", "최종 확인", "실행 
  * ⚠️ 고대비 모드에서는 쓰지 않는다. 아래에서 이 값을 `--color-accent` 로 인라인
  * 선언하는데, 인라인 선언은 `globals.css` 의 `:root[data-contrast="high"]` 보다
  * 가까운 조상이라 노란색(#ffe600)을 덮어버린다. 실제로 덮여 있었다 — root 는
- * #ffe600 인데 버튼이 읽는 값은 #ea580c 였다. 고대비를 켜도 강조색만 평상시
+ * #ffe600 인데 버튼이 실제로 읽는 값은 #ea580c 였다. 고대비를 켜도 강조색만 평상시
  * 그대로였다는 뜻이고, 이 화면에서 강조색은 포커스 링과 점수 막대가 쓴다.
  */
 const THEME_COLORS: Record<string, string> = {
@@ -44,6 +52,26 @@ const THEME_COLORS: Record<string, string> = {
   hospital: "#2563eb",
   "public-office": "#059669",
 };
+
+// 🔥 엔진의 CanonicalProfile 규격을 맞추기 위한 기본 프로필 생성기
+function buildBaseProfile(isHighContrast: boolean, fontScale: number): CanonicalProfile {
+  return {
+    accessibility: {
+      largeText: fontScale > 1, // 1배율 이상이면 큰 글씨로 간주
+      simpleSteps: false,
+      visualGuidance: false,
+      hearingSupport: false,
+      mobilitySupport: false,
+      highContrast: isHighContrast,
+      staffAssistancePreferred: false,
+    },
+    interaction: {
+      preferredInput: "TOUCH",
+      language: "ko-KR",
+      confirmationRequired: false,
+    },
+  } as CanonicalProfile; // 필요한 속성만 채워서 전달 (엔진은 이 두 속성만 읽음)
+}
 
 export default function Home() {
   const [fontScale, setFontScale] = useState(1);
@@ -61,14 +89,74 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  // 🔥 스크린리더 안내용 상태
+  const [statusMessage, setStatusMessage] = useState("");
+
   useEffect(() => {
     fetchQuestions(environmentId).then(setQuestions).catch(console.error);
   }, [environmentId]);
+
+  // 🔥 앱 최초 진입 시 로컬스토리지에서 프로필 복원
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("kiobridge.profile");
+      if (raw) {
+        const stored = parseStoredProfile(raw);
+        if (stored) {
+          const baseProfile = buildBaseProfile(false, 1);
+          const profile = applyStoredProfile(baseProfile, stored);
+          if (profile) {
+            // 엔진은 largeText 플래그만 주므로 화면 단위(1.5)로 변환
+            if (profile.accessibility.largeText) {
+              setFontScale(1.5);
+              document.documentElement.style.setProperty("--font-scale", "1.5");
+            }
+            if (profile.accessibility.highContrast) {
+              setIsHighContrast(true);
+              document.documentElement.setAttribute("data-contrast", "high");
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.error("프로필 복원 실패:", e);
+    }
+  }, []);
+
+  // 🔥 프로필 저장 공통 함수
+  const saveProfile = (scale: number, contrast: boolean, currentAns: AnyAnswers, currentEnv: EnvironmentId) => {
+    try {
+      const baseProfile = buildBaseProfile(contrast, scale);
+      const stored = toStoredProfile(
+        baseProfile, 
+        currentEnv, 
+        currentAns as Record<string, unknown>, 
+        new Date().toISOString()
+      );
+      localStorage.setItem("kiobridge.profile", JSON.stringify(stored));
+    } catch (e) {
+      console.error("프로필 저장 실패:", e);
+    }
+  };
+
+  // 🔥 프로필 삭제 공통 함수
+  const handleDeleteProfile = () => {
+    localStorage.removeItem("kiobridge.profile");
+    setFontScale(1);
+    setIsHighContrast(false);
+    document.documentElement.style.setProperty("--font-scale", "1");
+    document.documentElement.removeAttribute("data-contrast");
+    setAnswers(emptyAnswers(environmentId));
+    
+    setStatusMessage("저장된 정보가 모두 삭제되었습니다.");
+    setTimeout(() => setStatusMessage(""), 3000);
+  };
 
   const toggleFontScale = () => {
     const nextScale = fontScale === 1 ? 1.25 : fontScale === 1.25 ? 1.5 : 1;
     setFontScale(nextScale);
     document.documentElement.style.setProperty("--font-scale", nextScale.toString());
+    saveProfile(nextScale, isHighContrast, answers, environmentId);
   };
 
   const toggleContrast = () => {
@@ -79,16 +167,43 @@ export default function Home() {
     } else {
       document.documentElement.removeAttribute("data-contrast");
     }
+    saveProfile(fontScale, nextContrast, answers, environmentId);
   };
 
   const handleStart = (picked: EnvironmentId) => {
     setEnvironmentId(picked);
-    setAnswers(emptyAnswers(picked));
+    let initialAns = emptyAnswers(picked);
+    
+    // 🔥 이전 폼 답변 복원
+    try {
+      const raw = localStorage.getItem("kiobridge.profile");
+      if (raw) {
+        const stored = parseStoredProfile(raw);
+        if (stored) {
+          const recalled = recallAnswers(stored, picked);
+          if (recalled) {
+            // 🔥 핵심: 알레르기 항목은 무조건 다시 묻도록 복원 데이터에서 강제 삭제
+            for (const key of Object.keys(recalled)) {
+              if (key.toLowerCase().includes("allergen") || key.toLowerCase().includes("allergy")) {
+                delete recalled[key];
+              }
+            }
+            // 빈 기본값 위에 알레르기가 제거된 복원값만 덮어씌움
+            initialAns = { ...initialAns, ...recalled } as AnyAnswers;
+          }
+        }
+      }
+    } catch (e) {
+      console.error("답변 복원 실패:", e);
+    }
+    
+    setAnswers(initialAns);
     setCurrentStep(1);
   };
 
   const handleContextSubmit = async (userAnswers: AnyAnswers) => {
     setAnswers(userAnswers);
+    saveProfile(fontScale, isHighContrast, userAnswers, environmentId);
     setIsLoading(true);
     setErrorMessage(null);
     try {
@@ -172,6 +287,11 @@ export default function Home() {
       className="min-h-screen flex flex-col p-4 sm:p-8 max-w-4xl mx-auto gap-8 w-full relative pb-24"
       style={accentStyle}
     >
+      {/* 🔥 스크린리더를 위한 상태 메시지 읽기 영역 */}
+      <div role="status" aria-live="polite" className="sr-only">
+        {statusMessage}
+      </div>
+
       {currentStep > 0 && !isLoading && (
         <header className="pb-4 border-b border-gray-300 w-full flex flex-col gap-6">
           {a11yBar}
@@ -229,11 +349,11 @@ export default function Home() {
             </p>
           )}
 
-          {currentStep === 0 && <StartScreen onStart={handleStart} accessibilityBar={a11yBar} isHighContrast={isHighContrast} />}
+          {currentStep === 0 && <StartScreen onStart={handleStart} accessibilityBar={a11yBar} isHighContrast={isHighContrast} onDeleteProfile={handleDeleteProfile} />}
           {currentStep === 1 && <ContextScreen questions={questions} currentAnswers={answers} onSubmit={handleContextSubmit} isHighContrast={isHighContrast} environmentId={environmentId} onReset={handleReset} />}
           {currentStep === 2 && recView && <RecommendScreen recView={recView} environmentId={environmentId} isHighContrast={isHighContrast} onChoose={handleChoose} onBackToContext={handleBackToContext} />}
           {currentStep === 3 && chosen && <ConfirmScreen candidate={chosen} selections={selections} environmentId={environmentId} isHighContrast={isHighContrast} onApprove={handleApprove} onBackToContext={handleBackToContext} />}
-          {currentStep === 4 && runResult && <ResultScreen runResult={runResult} environmentId={environmentId} isHighContrast={isHighContrast} onReset={handleReset} />}
+          {currentStep === 4 && runResult && <ResultScreen runResult={runResult} environmentId={environmentId} isHighContrast={isHighContrast} onReset={handleReset} onDeleteProfile={handleDeleteProfile} />}
 
           {/* [결함 방어] 세션 10/12 - 키오스크에 갇히지 않게 StaffHelp 고정 */}
           <div className="mt-auto pt-6 border-t border-gray-300 w-full">
