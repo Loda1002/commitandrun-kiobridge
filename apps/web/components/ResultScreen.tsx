@@ -3,9 +3,42 @@
 import { useEffect, useRef } from "react";
 import type { EnvironmentId } from "@commitandrun/engine";
 import { actionLabel, stateLabel, type RunView } from "../lib/types";
-import { fixtureFor } from "../lib/fixture";
+import { ENVIRONMENTS, fixtureFor } from "../lib/fixture";
+import evidence from "../public/simulation-evidence.json";
 
+/** What a plan step points at, straight from PlannedAction["target"]. */
 type StepTarget = { kind: string; id: string; groupId?: string };
+
+/**
+ * The official simulator's own verdict, read from the file the panel links to.
+ *
+ * Imported rather than typed out, so the numbers on screen and the JSON a judge
+ * downloads cannot say different things — the first version of this panel had
+ * the three values written into the JSX and a link to a file that was not
+ * there, which is a claim nobody could check. The file is a byte-for-byte copy
+ * of `kit/submission-output/COMMITANDRUN/simulation-evidence.json`, produced by
+ * `participant:package`; `kit/` is gitignored and absent from the deployed
+ * bundle, so the copy under `public/` is what ships.
+ *
+ * ⚠️ It is a record of one run of the chicken-store submission, not of the
+ * session the user just finished. The panel says so, and says which — every
+ * word of that comes out of this file rather than being written here.
+ */
+const EVIDENCE_ROWS: Array<[string, string]> = [
+  ["result", String(evidence.result)],
+  ["stopType", String(evidence.stopType)],
+  ["boundaryReached", String(evidence.boundaryReached)],
+  ["requiredVerifierExecuted", String(evidence.requiredVerifierExecuted)],
+  ["plannedPaymentActionCount", String(evidence.plannedPaymentActionCount)],
+  ["actualDeviceCommandSent", String(evidence.actualDeviceCommandSent)],
+];
+
+/** "2026-08-13" — the day the run in the file was recorded, in the file's words. */
+const EVIDENCE_DATE = String(evidence.createdAt).slice(0, 10);
+
+/** Which kiosk the run was of — named, because it is not always this one. */
+const EVIDENCE_ENVIRONMENT_NAME =
+  ENVIRONMENTS.find((e) => e.id === evidence.environmentId)?.name ?? evidence.environmentId;
 
 interface ResultScreenProps {
   runResult: RunView;
@@ -21,6 +54,17 @@ export function ResultScreen({ runResult, environmentId, isHighContrast, onReset
     headingRef.current?.focus();
   }, []);
 
+  /**
+   * Names a plan step's target in Korean without a hand-written table: every
+   * word comes out of the fixture the engine planned against.
+   *
+   * `target.kind` is what joins the two. An option group declares the kind it
+   * backs (`OptionGroup.kind`, e.g. "visit_type"), and only the generic
+   * "option" kind carries a `groupId` — the enumerated kinds do not. Matching
+   * on `groupId` alone therefore misses most hospital and public-office steps,
+   * and comparing an absent `groupId` against an absent field matches
+   * everything: that is how every step ended up labelled "방문 유형".
+   */
   const targetLabel = (target: StepTarget): string => {
     const fixture = fixtureFor(environmentId);
     if (target.kind === "candidate") {
@@ -35,6 +79,9 @@ export function ResultScreen({ runResult, environmentId, isHighContrast, onReset
     const option = group?.options.find((o) => o.id === target.id);
     if (group && option) return `${group.label} · ${option.label}`;
     if (group) return group.label;
+
+    // Nothing in the fixture claims this target. Show it raw rather than
+    // guessing — a wrong Korean label is worse than an untranslated code.
     return target.groupId ? `${target.groupId} · ${target.id}` : target.id;
   };
 
@@ -104,7 +151,9 @@ export function ResultScreen({ runResult, environmentId, isHighContrast, onReset
         </ul>
       </section>
 
-      {/* 🔥 [접기 패널 적용] 공식 시뮬레이터 검증 증거 */}
+      {/* 접힌 채로 시작한다. 위의 "자체 안전 검사"와 달리 이건 공식 시뮬레이터
+          출력이고, 둘을 나란히 펼쳐 두면 방금 한 세션이 공식 검증을 받았다는
+          인상을 준다 — 받지 않았다. */}
       <details className={`border-2 rounded-2xl p-6 md:p-8 group ${isHighContrast ? "border-gray-400 bg-transparent" : "border-gray-300 bg-gray-50"}`}>
         <summary className="font-bold cursor-pointer list-none flex justify-between items-center focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--color-accent)] rounded-lg" style={{ fontSize: "calc(1.4rem * var(--font-scale))" }}>
           <span>🛡️ 공식 시뮬레이터 검증 증거 확인</span>
@@ -112,29 +161,27 @@ export function ResultScreen({ runResult, environmentId, isHighContrast, onReset
         </summary>
         
         <div className="mt-6 flex flex-col gap-4 border-t pt-4" style={{ borderColor: "var(--color-fg)" }}>
-          <p className="font-extrabold text-red-600" style={{ fontSize: "calc(1.1rem * var(--font-scale))" }}>
-            ⚠️ 2026-08-13 닭강정집 제출본에 대한 기록
+          <p className={`font-extrabold ${isHighContrast ? "text-yellow-300" : "text-red-600"}`} style={{ fontSize: "calc(1.1rem * var(--font-scale))" }}>
+            ⚠️ 방금 하신 이 세션의 결과가 아닙니다
           </p>
           <p className="opacity-80 font-medium" style={{ fontSize: "calc(1rem * var(--font-scale))" }}>
-            지금 방금 만드신 결과가 아닙니다. 
-            <a href="/simulation-evidence.json" target="_blank" rel="noopener noreferrer" className={`ml-2 underline font-bold ${isHighContrast ? "text-yellow-300" : "text-blue-600"}`}>
+            {EVIDENCE_DATE}에 <strong>{EVIDENCE_ENVIRONMENT_NAME}</strong> 제출본을 공식 시뮬레이터로
+            한 번 돌린 기록입니다. 아래 값은 그 파일에서 그대로 읽어 온 것입니다.
+            <a href="/simulation-evidence.json" target="_blank" rel="noopener noreferrer" className={`ml-2 underline font-bold ${isHighContrast ? "text-yellow-300" : "text-blue-700"}`}>
               [원본 JSON 파일 보기]
             </a>
           </p>
-          
+
           <ul className="flex flex-col gap-3 font-medium mt-2" style={{ fontSize: "calc(1.1rem * var(--font-scale))" }}>
-            <li className={`flex justify-between border-b pb-2 ${isHighContrast ? "border-gray-700" : "border-gray-200"}`}>
-              <span>stopType</span>
-              <strong>NORMAL_BOUNDARY_STOP</strong>
-            </li>
-            <li className={`flex justify-between border-b pb-2 ${isHighContrast ? "border-gray-700" : "border-gray-200"}`}>
-              <span>boundaryReached</span>
-              <strong>true</strong>
-            </li>
-            <li className={`flex justify-between pb-2`}>
-              <span>plannedPaymentActionCount</span>
-              <strong>0</strong>
-            </li>
+            {EVIDENCE_ROWS.map(([key, value], idx) => (
+              <li
+                key={key}
+                className={`flex justify-between gap-4 pb-2 ${idx < EVIDENCE_ROWS.length - 1 ? `border-b ${isHighContrast ? "border-gray-700" : "border-gray-200"}` : ""}`}
+              >
+                <span className="break-all">{key}</span>
+                <strong className="text-right">{value}</strong>
+              </li>
+            ))}
           </ul>
         </div>
       </details>

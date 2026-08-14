@@ -1,0 +1,1003 @@
+{
+  "evidenceVersion": "1.2",
+  "runId": "RUN-chicken-store-20260813151036-buyonx",
+  "sessionId": "SIM-20260813-001",
+  "teamId": "COMMITANDRUN",
+  "environmentId": "chicken-store",
+  "fixtureVersion": "chicken-store@0.2.0",
+  "submissionHash": "sha-fnv1a-69ff8cce",
+  "createdAt": "2026-08-13T15:10:36.308Z",
+  "driverId": "SIMULATION",
+  "driverStatus": "READY",
+  "dataClassification": {
+    "actualExtractedDataUsed": false,
+    "syntheticMockDataUsed": true
+  },
+  "validationMode": "SIMULATION_ONLY",
+  "executionEnvironment": "DIGITAL_TWIN",
+  "actualDeviceCommandSent": false,
+  "participantSubmissionUsed": true,
+  "officialRecommendationGenerated": false,
+  "profileSummary": {
+    "profileId": "COMMITANDRUN-PROFILE-001",
+    "accessibility": {
+      "largeText": true,
+      "simpleSteps": true,
+      "visualGuidance": true,
+      "hearingSupport": false,
+      "mobilitySupport": false,
+      "highContrast": true,
+      "staffAssistancePreferred": false
+    },
+    "language": "ko-KR"
+  },
+  "sessionContextSummary": {
+    "intent": {
+      "task": "ORDER_FOOD"
+    },
+    "hardConstraints": {
+      "allergenIds": [
+        "PEANUT"
+      ],
+      "maxPriceKrw": 7000
+    }
+  },
+  "recommendation": {
+    "recommendedCandidateId": "CHICKEN-001",
+    "alternativeCandidateIds": [
+      "CHICKEN-003",
+      "CHICKEN-006"
+    ],
+    "excludedCandidates": [
+      {
+        "candidateId": "CHICKEN-005",
+        "reasonCode": "ALLERGEN_CONFLICT",
+        "explanation": "등록하신 견과류 알레르기와 겹쳐 제외했습니다."
+      },
+      {
+        "candidateId": "CHICKEN-008",
+        "reasonCode": "CANDIDATE_UNAVAILABLE",
+        "explanation": "지금 품절이라 고를 수 없습니다."
+      },
+      {
+        "candidateId": "CHICKEN-007",
+        "reasonCode": "SERVICE_TYPE_MISMATCH",
+        "explanation": "매장 이용 전용이라 포장으로는 받을 수 없습니다."
+      }
+    ],
+    "scoreBreakdown": {
+      "CHICKEN-001": {
+        "total": 1,
+        "serviceTypeMatch": 0.4,
+        "spicyLevelMatch": 0.25,
+        "boneTypeMatch": 0.2,
+        "priceWithinLimit": 0.15
+      },
+      "CHICKEN-003": {
+        "total": 0.8,
+        "serviceTypeMatch": 0.4,
+        "spicyLevelMatch": 0.25,
+        "boneTypeMatch": 0,
+        "priceWithinLimit": 0.15
+      },
+      "CHICKEN-006": {
+        "total": 0.75,
+        "serviceTypeMatch": 0.4,
+        "spicyLevelMatch": 0,
+        "boneTypeMatch": 0.2,
+        "priceWithinLimit": 0.15
+      }
+    },
+    "recommendationReasons": [
+      "포장으로 받으신다고 하셔서 포장이 되는 메뉴만 남겼습니다.",
+      "매운맛을 고르셔서 매운맛으로 나오는 메뉴를 먼저 보여드렸습니다.",
+      "순살을 고르셔서 뼈 없는 메뉴를 위에 두었습니다.",
+      "등록하신 견과류 알레르기와 겹치는 메뉴는 아예 빼고 골랐습니다.",
+      "매장 재고를 확인해 지금 품절인 메뉴는 빼고 골랐습니다.",
+      "예산 7,000원 안에서 6,000원인 메뉴를 골랐습니다."
+    ],
+    "unmetConditions": [],
+    "confidence": 1,
+    "requiresReconfirmation": false
+  },
+  "userDecision": {
+    "approved": true,
+    "decision": "APPROVE",
+    "confirmedAt": "2026-08-05T07:01:00.000Z",
+    "note": "화면에서 메뉴명·옵션·가격을 확인한 뒤 승인했습니다."
+  },
+  "executionPlan": [
+    {
+      "actionIndex": 0,
+      "action": "select_service",
+      "target": {
+        "kind": "service_type",
+        "id": "TAKE_OUT"
+      },
+      "expectedBeforeState": "SERVICE_TYPE",
+      "expectedAfterState": "MENU_SELECTION"
+    },
+    {
+      "actionIndex": 1,
+      "action": "select_menu",
+      "target": {
+        "kind": "candidate",
+        "id": "CHICKEN-001"
+      },
+      "expectedBeforeState": "MENU_SELECTION",
+      "expectedAfterState": "OPTION_SELECTION"
+    },
+    {
+      "actionIndex": 2,
+      "action": "select_option",
+      "target": {
+        "kind": "option",
+        "groupId": "SPICY_LEVEL",
+        "id": "HOT"
+      },
+      "expectedBeforeState": "OPTION_SELECTION",
+      "expectedAfterState": "OPTION_SELECTION"
+    },
+    {
+      "actionIndex": 3,
+      "action": "select_option",
+      "target": {
+        "kind": "option",
+        "groupId": "BONE_TYPE",
+        "id": "BONELESS"
+      },
+      "expectedBeforeState": "OPTION_SELECTION",
+      "expectedAfterState": "OPTION_SELECTION"
+    },
+    {
+      "actionIndex": 4,
+      "action": "select_option",
+      "target": {
+        "kind": "option",
+        "groupId": "CUP",
+        "id": "PAPER"
+      },
+      "expectedBeforeState": "OPTION_SELECTION",
+      "expectedAfterState": "OPTION_SELECTION"
+    },
+    {
+      "actionIndex": 5,
+      "action": "select_option",
+      "target": {
+        "kind": "option",
+        "groupId": "QUANTITY",
+        "id": "Q1"
+      },
+      "expectedBeforeState": "OPTION_SELECTION",
+      "expectedAfterState": "OPTION_SELECTION"
+    },
+    {
+      "actionIndex": 6,
+      "action": "confirm_option",
+      "target": {
+        "kind": "review",
+        "id": "OPTION_CONFIRM"
+      },
+      "expectedBeforeState": "OPTION_SELECTION",
+      "expectedAfterState": "OPTION_CONFIRM"
+    },
+    {
+      "actionIndex": 7,
+      "action": "confirm_option",
+      "target": {
+        "kind": "review",
+        "id": "MENU_SELECTION_WITH_CART"
+      },
+      "expectedBeforeState": "OPTION_CONFIRM",
+      "expectedAfterState": "MENU_SELECTION_WITH_CART"
+    },
+    {
+      "actionIndex": 8,
+      "action": "open_cart_review",
+      "target": {
+        "kind": "review",
+        "id": "CART_REVIEW"
+      },
+      "expectedBeforeState": "MENU_SELECTION_WITH_CART",
+      "expectedAfterState": "CART_REVIEW"
+    },
+    {
+      "actionIndex": 9,
+      "action": "verify_cart",
+      "target": {
+        "kind": "review",
+        "id": "CART_REVIEW"
+      },
+      "expectedBeforeState": "CART_REVIEW",
+      "expectedAfterState": "CART_REVIEW"
+    }
+  ],
+  "executedActions": [
+    {
+      "actionIndex": 0,
+      "action": "select_service",
+      "target": {
+        "kind": "service_type",
+        "id": "TAKE_OUT"
+      },
+      "expectedBeforeState": "SERVICE_TYPE",
+      "expectedAfterState": "MENU_SELECTION",
+      "resultState": "MENU_SELECTION",
+      "ok": true,
+      "resolvedLabel": "포장하기"
+    },
+    {
+      "actionIndex": 1,
+      "action": "select_menu",
+      "target": {
+        "kind": "candidate",
+        "id": "CHICKEN-001"
+      },
+      "expectedBeforeState": "MENU_SELECTION",
+      "expectedAfterState": "OPTION_SELECTION",
+      "resultState": "OPTION_SELECTION",
+      "ok": true,
+      "resolvedLabel": "매운 순살 닭강정"
+    },
+    {
+      "actionIndex": 2,
+      "action": "select_option",
+      "target": {
+        "kind": "option",
+        "groupId": "SPICY_LEVEL",
+        "id": "HOT"
+      },
+      "expectedBeforeState": "OPTION_SELECTION",
+      "expectedAfterState": "OPTION_SELECTION",
+      "resultState": "OPTION_SELECTION",
+      "ok": true,
+      "resolvedLabel": "매운맛"
+    },
+    {
+      "actionIndex": 3,
+      "action": "select_option",
+      "target": {
+        "kind": "option",
+        "groupId": "BONE_TYPE",
+        "id": "BONELESS"
+      },
+      "expectedBeforeState": "OPTION_SELECTION",
+      "expectedAfterState": "OPTION_SELECTION",
+      "resultState": "OPTION_SELECTION",
+      "ok": true,
+      "resolvedLabel": "순살"
+    },
+    {
+      "actionIndex": 4,
+      "action": "select_option",
+      "target": {
+        "kind": "option",
+        "groupId": "CUP",
+        "id": "PAPER"
+      },
+      "expectedBeforeState": "OPTION_SELECTION",
+      "expectedAfterState": "OPTION_SELECTION",
+      "resultState": "OPTION_SELECTION",
+      "ok": true,
+      "resolvedLabel": "종이컵"
+    },
+    {
+      "actionIndex": 5,
+      "action": "select_option",
+      "target": {
+        "kind": "option",
+        "groupId": "QUANTITY",
+        "id": "Q1"
+      },
+      "expectedBeforeState": "OPTION_SELECTION",
+      "expectedAfterState": "OPTION_SELECTION",
+      "resultState": "OPTION_SELECTION",
+      "ok": true,
+      "resolvedLabel": "1개"
+    },
+    {
+      "actionIndex": 6,
+      "action": "confirm_option",
+      "target": {
+        "kind": "review",
+        "id": "OPTION_CONFIRM"
+      },
+      "expectedBeforeState": "OPTION_SELECTION",
+      "expectedAfterState": "OPTION_CONFIRM",
+      "resultState": "OPTION_CONFIRM",
+      "ok": true,
+      "resolvedLabel": "OPTION_CONFIRM"
+    },
+    {
+      "actionIndex": 7,
+      "action": "confirm_option",
+      "target": {
+        "kind": "review",
+        "id": "MENU_SELECTION_WITH_CART"
+      },
+      "expectedBeforeState": "OPTION_CONFIRM",
+      "expectedAfterState": "MENU_SELECTION_WITH_CART",
+      "resultState": "MENU_SELECTION_WITH_CART",
+      "ok": true,
+      "resolvedLabel": "MENU_SELECTION_WITH_CART"
+    },
+    {
+      "actionIndex": 8,
+      "action": "open_cart_review",
+      "target": {
+        "kind": "review",
+        "id": "CART_REVIEW"
+      },
+      "expectedBeforeState": "MENU_SELECTION_WITH_CART",
+      "expectedAfterState": "CART_REVIEW",
+      "resultState": "CART_REVIEW",
+      "ok": true,
+      "resolvedLabel": "CART_REVIEW"
+    },
+    {
+      "actionIndex": 9,
+      "action": "verify_cart",
+      "target": {
+        "kind": "review",
+        "id": "CART_REVIEW"
+      },
+      "expectedBeforeState": "CART_REVIEW",
+      "expectedAfterState": "CART_REVIEW",
+      "resultState": "CART_REVIEW",
+      "ok": true,
+      "resolvedLabel": "CART_REVIEW"
+    }
+  ],
+  "stateHistory": [
+    "SERVICE_TYPE",
+    "MENU_SELECTION",
+    "OPTION_SELECTION",
+    "OPTION_CONFIRM",
+    "MENU_SELECTION_WITH_CART",
+    "CART_REVIEW"
+  ],
+  "safetyChecks": [
+    {
+      "ruleId": "BLOCK_ACTUAL_DEVICE_COMMAND",
+      "outcome": "PASS",
+      "message": "실제 기기 명령 없음 (actualDeviceCommandSent=false)."
+    },
+    {
+      "ruleId": "REQUIRE_USER_CONFIRMATION",
+      "outcome": "PASS",
+      "message": "사용자 승인 완료."
+    },
+    {
+      "ruleId": "UNAVAILABLE_CANDIDATE_BLOCK",
+      "outcome": "PASS",
+      "message": "추천 후보 이용 가능."
+    },
+    {
+      "ruleId": "ALLERGEN_CONFLICT_BLOCK",
+      "outcome": "PASS",
+      "message": "알레르기 충돌 없음."
+    },
+    {
+      "ruleId": "BLOCK_PAYMENT_ACTION",
+      "outcome": "PASS",
+      "message": "결제/금지 Action 없음."
+    },
+    {
+      "ruleId": "UNKNOWN_STATE_STOP",
+      "outcome": "PASS",
+      "message": "모든 참조 상태가 정의됨."
+    },
+    {
+      "ruleId": "VERIFY_CART_READ_ONLY",
+      "outcome": "PASS",
+      "message": "읽기전용 Action 이 상태를 바꾸지 않음."
+    },
+    {
+      "ruleId": "FINAL_BOUNDARY_STOP",
+      "outcome": "PASS",
+      "message": "최종 확인 경계 준수."
+    },
+    {
+      "ruleId": "SUMMARY",
+      "outcome": "PASS",
+      "message": "정상 경계 도달 + verifier 실행"
+    }
+  ],
+  "validationErrors": [],
+  "validationWarnings": [],
+  "domainCompatibility": {
+    "candidate": {
+      "evaluated": true,
+      "rules": [
+        {
+          "ruleId": "CHICKEN_ALLERGEN_HARD_CONSTRAINT",
+          "result": "PASS",
+          "sourceValue": [
+            "PEANUT"
+          ],
+          "candidateValues": [],
+          "targetValue": [],
+          "severity": "BLOCK",
+          "evaluationScope": "CANDIDATE",
+          "sourcePath": "hardConstraints.allergenIds",
+          "targetSource": "candidateAttributes",
+          "targetKey": "allergenIds",
+          "operator": "DISJOINT",
+          "errorCode": "ALLERGEN_CONFLICT"
+        },
+        {
+          "ruleId": "CHICKEN_PRICE_LIMIT",
+          "result": "PASS",
+          "sourceValue": 7000,
+          "candidateValues": 6000,
+          "targetValue": 6000,
+          "severity": "BLOCK",
+          "evaluationScope": "CANDIDATE",
+          "sourcePath": "hardConstraints.maxPriceKrw",
+          "targetSource": "candidateField",
+          "targetKey": "price",
+          "operator": "MAX",
+          "errorCode": "PRICE_LIMIT_EXCEEDED"
+        },
+        {
+          "ruleId": "CHICKEN_SERVICE_TYPE_PREFERENCE",
+          "result": "PASS",
+          "sourceValue": "TAKE_OUT",
+          "candidateValues": [
+            "DINE_IN",
+            "TAKE_OUT"
+          ],
+          "targetValue": [
+            "DINE_IN",
+            "TAKE_OUT"
+          ],
+          "severity": "WARN",
+          "evaluationScope": "CANDIDATE",
+          "sourcePath": "preferences.serviceType",
+          "targetSource": "candidateSupportedOptions",
+          "targetKey": "SERVICE_TYPE",
+          "operator": "IN",
+          "errorCode": "SERVICE_TYPE_MISMATCH"
+        },
+        {
+          "ruleId": "CHICKEN_SPICY_LEVEL_PREFERENCE",
+          "result": "PASS",
+          "sourceValue": "HOT",
+          "candidateValues": [
+            "HOT"
+          ],
+          "targetValue": [
+            "HOT"
+          ],
+          "severity": "WARN",
+          "evaluationScope": "CANDIDATE",
+          "sourcePath": "preferences.spicyLevel",
+          "targetSource": "candidateSupportedOptions",
+          "targetKey": "SPICY_LEVEL",
+          "operator": "IN",
+          "errorCode": "SPICY_LEVEL_MISMATCH"
+        },
+        {
+          "ruleId": "CHICKEN_BONE_TYPE_PREFERENCE",
+          "result": "PASS",
+          "sourceValue": "BONELESS",
+          "candidateValues": [
+            "BONELESS"
+          ],
+          "targetValue": [
+            "BONELESS"
+          ],
+          "severity": "WARN",
+          "evaluationScope": "CANDIDATE",
+          "sourcePath": "preferences.boneType",
+          "targetSource": "candidateSupportedOptions",
+          "targetKey": "BONE_TYPE",
+          "operator": "IN",
+          "errorCode": "BONE_TYPE_MISMATCH"
+        },
+        {
+          "ruleId": "CHICKEN_CUP_OPTION_PREFERENCE",
+          "result": "PASS",
+          "sourceValue": "PAPER",
+          "candidateValues": [
+            "PAPER",
+            "REGULAR"
+          ],
+          "targetValue": [
+            "PAPER",
+            "REGULAR"
+          ],
+          "severity": "WARN",
+          "evaluationScope": "CANDIDATE",
+          "sourcePath": "preferences.cupOption",
+          "targetSource": "candidateSupportedOptions",
+          "targetKey": "CUP",
+          "operator": "IN",
+          "errorCode": "CUP_OPTION_MISMATCH"
+        }
+      ],
+      "blockingErrorCount": 0,
+      "warningCount": 0
+    },
+    "executionChoice": {
+      "evaluated": true,
+      "rules": [
+        {
+          "ruleId": "CHICKEN_SELECTED_SERVICE_TYPE",
+          "result": "PASS",
+          "sourceValue": "TAKE_OUT",
+          "candidateValues": "TAKE_OUT",
+          "targetValue": "TAKE_OUT",
+          "severity": "WARN",
+          "evaluationScope": "EXECUTION_CHOICE",
+          "sourcePath": "preferences.serviceType",
+          "targetSource": "executionSelectedOption",
+          "targetKey": "SERVICE_TYPE",
+          "operator": "EQUALS_SELECTED",
+          "errorCode": "SELECTED_SERVICE_TYPE_MISMATCH",
+          "actionIndexes": [
+            0
+          ]
+        },
+        {
+          "ruleId": "CHICKEN_SELECTED_SPICY_LEVEL",
+          "result": "PASS",
+          "sourceValue": "HOT",
+          "candidateValues": "HOT",
+          "targetValue": "HOT",
+          "severity": "WARN",
+          "evaluationScope": "EXECUTION_CHOICE",
+          "sourcePath": "preferences.spicyLevel",
+          "targetSource": "executionSelectedOption",
+          "targetKey": "SPICY_LEVEL",
+          "operator": "EQUALS_SELECTED",
+          "errorCode": "SELECTED_SPICY_LEVEL_MISMATCH",
+          "actionIndexes": [
+            2
+          ]
+        },
+        {
+          "ruleId": "CHICKEN_SELECTED_BONE_TYPE",
+          "result": "PASS",
+          "sourceValue": "BONELESS",
+          "candidateValues": "BONELESS",
+          "targetValue": "BONELESS",
+          "severity": "WARN",
+          "evaluationScope": "EXECUTION_CHOICE",
+          "sourcePath": "preferences.boneType",
+          "targetSource": "executionSelectedOption",
+          "targetKey": "BONE_TYPE",
+          "operator": "EQUALS_SELECTED",
+          "errorCode": "SELECTED_BONE_TYPE_MISMATCH",
+          "actionIndexes": [
+            3
+          ]
+        },
+        {
+          "ruleId": "CHICKEN_SELECTED_CUP_OPTION",
+          "result": "PASS",
+          "sourceValue": "PAPER",
+          "candidateValues": "PAPER",
+          "targetValue": "PAPER",
+          "severity": "WARN",
+          "evaluationScope": "EXECUTION_CHOICE",
+          "sourcePath": "preferences.cupOption",
+          "targetSource": "executionSelectedOption",
+          "targetKey": "CUP",
+          "operator": "EQUALS_SELECTED",
+          "errorCode": "SELECTED_CUP_OPTION_MISMATCH",
+          "actionIndexes": [
+            4
+          ]
+        },
+        {
+          "ruleId": "CHICKEN_SELECTED_QUANTITY",
+          "result": "PASS",
+          "sourceValue": 1,
+          "candidateValues": 1,
+          "targetValue": 1,
+          "severity": "BLOCK",
+          "evaluationScope": "EXECUTION_CHOICE",
+          "sourcePath": "preferences.quantity",
+          "targetSource": "executionSelectedValue",
+          "targetKey": "quantity",
+          "operator": "EQUALS_SELECTED",
+          "errorCode": "SELECTED_QUANTITY_MISMATCH",
+          "actionIndexes": []
+        }
+      ],
+      "blockingErrorCount": 0,
+      "warningCount": 0
+    },
+    "evaluated": true,
+    "rules": [
+      {
+        "ruleId": "CHICKEN_ALLERGEN_HARD_CONSTRAINT",
+        "result": "PASS",
+        "sourceValue": [
+          "PEANUT"
+        ],
+        "candidateValues": [],
+        "targetValue": [],
+        "severity": "BLOCK",
+        "evaluationScope": "CANDIDATE",
+        "sourcePath": "hardConstraints.allergenIds",
+        "targetSource": "candidateAttributes",
+        "targetKey": "allergenIds",
+        "operator": "DISJOINT",
+        "errorCode": "ALLERGEN_CONFLICT"
+      },
+      {
+        "ruleId": "CHICKEN_PRICE_LIMIT",
+        "result": "PASS",
+        "sourceValue": 7000,
+        "candidateValues": 6000,
+        "targetValue": 6000,
+        "severity": "BLOCK",
+        "evaluationScope": "CANDIDATE",
+        "sourcePath": "hardConstraints.maxPriceKrw",
+        "targetSource": "candidateField",
+        "targetKey": "price",
+        "operator": "MAX",
+        "errorCode": "PRICE_LIMIT_EXCEEDED"
+      },
+      {
+        "ruleId": "CHICKEN_SERVICE_TYPE_PREFERENCE",
+        "result": "PASS",
+        "sourceValue": "TAKE_OUT",
+        "candidateValues": [
+          "DINE_IN",
+          "TAKE_OUT"
+        ],
+        "targetValue": [
+          "DINE_IN",
+          "TAKE_OUT"
+        ],
+        "severity": "WARN",
+        "evaluationScope": "CANDIDATE",
+        "sourcePath": "preferences.serviceType",
+        "targetSource": "candidateSupportedOptions",
+        "targetKey": "SERVICE_TYPE",
+        "operator": "IN",
+        "errorCode": "SERVICE_TYPE_MISMATCH"
+      },
+      {
+        "ruleId": "CHICKEN_SPICY_LEVEL_PREFERENCE",
+        "result": "PASS",
+        "sourceValue": "HOT",
+        "candidateValues": [
+          "HOT"
+        ],
+        "targetValue": [
+          "HOT"
+        ],
+        "severity": "WARN",
+        "evaluationScope": "CANDIDATE",
+        "sourcePath": "preferences.spicyLevel",
+        "targetSource": "candidateSupportedOptions",
+        "targetKey": "SPICY_LEVEL",
+        "operator": "IN",
+        "errorCode": "SPICY_LEVEL_MISMATCH"
+      },
+      {
+        "ruleId": "CHICKEN_BONE_TYPE_PREFERENCE",
+        "result": "PASS",
+        "sourceValue": "BONELESS",
+        "candidateValues": [
+          "BONELESS"
+        ],
+        "targetValue": [
+          "BONELESS"
+        ],
+        "severity": "WARN",
+        "evaluationScope": "CANDIDATE",
+        "sourcePath": "preferences.boneType",
+        "targetSource": "candidateSupportedOptions",
+        "targetKey": "BONE_TYPE",
+        "operator": "IN",
+        "errorCode": "BONE_TYPE_MISMATCH"
+      },
+      {
+        "ruleId": "CHICKEN_CUP_OPTION_PREFERENCE",
+        "result": "PASS",
+        "sourceValue": "PAPER",
+        "candidateValues": [
+          "PAPER",
+          "REGULAR"
+        ],
+        "targetValue": [
+          "PAPER",
+          "REGULAR"
+        ],
+        "severity": "WARN",
+        "evaluationScope": "CANDIDATE",
+        "sourcePath": "preferences.cupOption",
+        "targetSource": "candidateSupportedOptions",
+        "targetKey": "CUP",
+        "operator": "IN",
+        "errorCode": "CUP_OPTION_MISMATCH"
+      },
+      {
+        "ruleId": "CHICKEN_SELECTED_SERVICE_TYPE",
+        "result": "PASS",
+        "sourceValue": "TAKE_OUT",
+        "candidateValues": "TAKE_OUT",
+        "targetValue": "TAKE_OUT",
+        "severity": "WARN",
+        "evaluationScope": "EXECUTION_CHOICE",
+        "sourcePath": "preferences.serviceType",
+        "targetSource": "executionSelectedOption",
+        "targetKey": "SERVICE_TYPE",
+        "operator": "EQUALS_SELECTED",
+        "errorCode": "SELECTED_SERVICE_TYPE_MISMATCH",
+        "actionIndexes": [
+          0
+        ]
+      },
+      {
+        "ruleId": "CHICKEN_SELECTED_SPICY_LEVEL",
+        "result": "PASS",
+        "sourceValue": "HOT",
+        "candidateValues": "HOT",
+        "targetValue": "HOT",
+        "severity": "WARN",
+        "evaluationScope": "EXECUTION_CHOICE",
+        "sourcePath": "preferences.spicyLevel",
+        "targetSource": "executionSelectedOption",
+        "targetKey": "SPICY_LEVEL",
+        "operator": "EQUALS_SELECTED",
+        "errorCode": "SELECTED_SPICY_LEVEL_MISMATCH",
+        "actionIndexes": [
+          2
+        ]
+      },
+      {
+        "ruleId": "CHICKEN_SELECTED_BONE_TYPE",
+        "result": "PASS",
+        "sourceValue": "BONELESS",
+        "candidateValues": "BONELESS",
+        "targetValue": "BONELESS",
+        "severity": "WARN",
+        "evaluationScope": "EXECUTION_CHOICE",
+        "sourcePath": "preferences.boneType",
+        "targetSource": "executionSelectedOption",
+        "targetKey": "BONE_TYPE",
+        "operator": "EQUALS_SELECTED",
+        "errorCode": "SELECTED_BONE_TYPE_MISMATCH",
+        "actionIndexes": [
+          3
+        ]
+      },
+      {
+        "ruleId": "CHICKEN_SELECTED_CUP_OPTION",
+        "result": "PASS",
+        "sourceValue": "PAPER",
+        "candidateValues": "PAPER",
+        "targetValue": "PAPER",
+        "severity": "WARN",
+        "evaluationScope": "EXECUTION_CHOICE",
+        "sourcePath": "preferences.cupOption",
+        "targetSource": "executionSelectedOption",
+        "targetKey": "CUP",
+        "operator": "EQUALS_SELECTED",
+        "errorCode": "SELECTED_CUP_OPTION_MISMATCH",
+        "actionIndexes": [
+          4
+        ]
+      },
+      {
+        "ruleId": "CHICKEN_SELECTED_QUANTITY",
+        "result": "PASS",
+        "sourceValue": 1,
+        "candidateValues": 1,
+        "targetValue": 1,
+        "severity": "BLOCK",
+        "evaluationScope": "EXECUTION_CHOICE",
+        "sourcePath": "preferences.quantity",
+        "targetSource": "executionSelectedValue",
+        "targetKey": "quantity",
+        "operator": "EQUALS_SELECTED",
+        "errorCode": "SELECTED_QUANTITY_MISMATCH",
+        "actionIndexes": []
+      }
+    ],
+    "blockingErrorCount": 0,
+    "warningCount": 0
+  },
+  "executionChoices": {
+    "candidateId": "CHICKEN-001",
+    "selectedOptions": {
+      "SERVICE_TYPE": "TAKE_OUT",
+      "SPICY_LEVEL": "HOT",
+      "BONE_TYPE": "BONELESS",
+      "CUP": "PAPER",
+      "QUANTITY": "Q1"
+    },
+    "quantity": 1,
+    "actionIndexes": {
+      "SERVICE_TYPE": [
+        0
+      ],
+      "candidate": [
+        1
+      ],
+      "SPICY_LEVEL": [
+        2
+      ],
+      "BONE_TYPE": [
+        3
+      ],
+      "CUP": [
+        4
+      ],
+      "QUANTITY": [
+        5
+      ]
+    }
+  },
+  "resolvedSimulationTrace": [
+    {
+      "actionIndex": 1,
+      "semanticTarget": {
+        "kind": "candidate",
+        "id": "CHICKEN-001"
+      },
+      "resolvedTarget": {
+        "pageIndex": 0,
+        "slotIndex": 0,
+        "template": "FOUR_CARD_GRID",
+        "navigationClassification": "SYNTHETIC_MOCK"
+      }
+    }
+  ],
+  "reviewResolution": {
+    "fields": [
+      {
+        "fieldId": "serviceType",
+        "label": "서비스 방식",
+        "value": "TAKE_OUT",
+        "displayValue": "포장",
+        "source": "selectedOptions.SERVICE_TYPE",
+        "resolved": true,
+        "required": true
+      },
+      {
+        "fieldId": "menuName",
+        "label": "메뉴명",
+        "value": "매운 순살 닭강정",
+        "displayValue": "매운 순살 닭강정",
+        "source": "selectedCandidate.name",
+        "resolved": true,
+        "required": true
+      },
+      {
+        "fieldId": "quantity",
+        "label": "수량",
+        "value": "1",
+        "displayValue": "1",
+        "source": "uiState.quantity",
+        "resolved": true,
+        "required": true
+      },
+      {
+        "fieldId": "spicyLevel",
+        "label": "맵기",
+        "value": "HOT",
+        "displayValue": "매운맛",
+        "source": "selectedOptions.SPICY_LEVEL",
+        "resolved": true,
+        "required": false
+      },
+      {
+        "fieldId": "boneType",
+        "label": "뼈 유무",
+        "value": "BONELESS",
+        "displayValue": "순살",
+        "source": "selectedOptions.BONE_TYPE",
+        "resolved": true,
+        "required": false
+      },
+      {
+        "fieldId": "allergenCheck",
+        "label": "알레르기 확인",
+        "value": "확인됨 (PEANUT 제외)",
+        "displayValue": "확인됨 (PEANUT 제외)",
+        "source": "uiState.allergenCheckLabel",
+        "resolved": true,
+        "required": true
+      },
+      {
+        "fieldId": "unitPrice",
+        "label": "단가",
+        "value": "6000",
+        "displayValue": "6000",
+        "source": "selectedCandidate.price",
+        "resolved": true,
+        "required": true
+      },
+      {
+        "fieldId": "totalPrice",
+        "label": "총액",
+        "value": "6,000원",
+        "displayValue": "6,000원",
+        "source": "uiState.totalPriceLabel",
+        "resolved": true,
+        "required": true
+      },
+      {
+        "fieldId": "targetMatch",
+        "label": "추천·실행 대상 일치",
+        "value": "일치",
+        "displayValue": "일치",
+        "source": "uiState.targetMatchLabel",
+        "resolved": true,
+        "required": true
+      },
+      {
+        "fieldId": "paymentNotice",
+        "label": "결제 안내",
+        "value": "결제 직전 STOP — 실제 결제 없음",
+        "displayValue": "결제 직전 STOP — 실제 결제 없음",
+        "source": "constant",
+        "resolved": true,
+        "required": true
+      }
+    ],
+    "unresolvedRequiredFields": []
+  },
+  "reviewSnapshot": {
+    "서비스 방식": "포장",
+    "메뉴명": "매운 순살 닭강정",
+    "수량": "1",
+    "맵기": "매운맛",
+    "뼈 유무": "순살",
+    "알레르기 확인": "확인됨 (PEANUT 제외)",
+    "단가": "6000",
+    "총액": "6,000원",
+    "추천·실행 대상 일치": "일치",
+    "결제 안내": "결제 직전 STOP — 실제 결제 없음",
+    "cartItems": [
+      {
+        "candidateId": "CHICKEN-001",
+        "name": "매운 순살 닭강정",
+        "price": 6000,
+        "quantity": 1,
+        "options": {
+          "SERVICE_TYPE": "포장하기",
+          "SPICY_LEVEL": "매운맛",
+          "BONE_TYPE": "순살",
+          "CUP": "종이컵",
+          "QUANTITY": "1개"
+        }
+      }
+    ],
+    "total": 6000
+  },
+  "plannedPaymentActionCount": 0,
+  "executedPaymentActionCount": 0,
+  "blockedPaymentActionCount": 0,
+  "lastBusinessState": "CART_REVIEW",
+  "terminalState": "STOP",
+  "stopType": "NORMAL_BOUNDARY_STOP",
+  "stopReason": "VERIFY_CART_VERIFIED",
+  "boundaryReached": true,
+  "requiredVerifierExecuted": true,
+  "submissionValid": true,
+  "extensions": {},
+  "result": "PASS",
+  "resultScope": "SIMULATION_VALIDATION_ONLY",
+  "simulationValidation": {
+    "result": "PASS",
+    "contractValid": true,
+    "safetyValid": true,
+    "stateTransitionValid": true,
+    "boundaryReached": true,
+    "requiredVerifierExecuted": true
+  },
+  "recommendationEvaluation": {
+    "status": "NOT_EVALUATED_PUBLICLY"
+  },
+  "hackathonEvaluation": {
+    "status": "PRIVATE_AND_JUDGE_EVALUATION_REQUIRED"
+  }
+}

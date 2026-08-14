@@ -30,11 +30,19 @@ import { StaffHelp } from "../components/StaffHelp";
 // [접근성 2-3] 진행 상황 라벨
 const STEP_LABELS = ["상황 입력", "추천 결과", "최종 확인", "실행 결과"];
 
-// 🔥 테마 컬러: 닭강정(주황), 병원(파랑), 관공서(초록) - 600 계열로 명도 대비 확보
+/**
+ * 환경별 강조색. 600 계열이라 흰 바탕에서 어두운 글자와 4.5:1 을 넘긴다.
+ *
+ * ⚠️ 고대비 모드에서는 쓰지 않는다. 아래에서 이 값을 `--color-accent` 로 인라인
+ * 선언하는데, 인라인 선언은 `globals.css` 의 `:root[data-contrast="high"]` 보다
+ * 가까운 조상이라 노란색(#ffe600)을 덮어버린다. 실제로 덮여 있었다 — root 는
+ * #ffe600 인데 버튼이 읽는 값은 #ea580c 였다. 고대비를 켜도 강조색만 평상시
+ * 그대로였다는 뜻이고, 이 화면에서 강조색은 포커스 링과 점수 막대가 쓴다.
+ */
 const THEME_COLORS: Record<string, string> = {
-  "chicken-store": "#ea580c", 
-  "hospital": "#2563eb",      
-  "public-office": "#059669", 
+  "chicken-store": "#ea580c",
+  hospital: "#2563eb",
+  "public-office": "#059669",
 };
 
 export default function Home() {
@@ -42,6 +50,7 @@ export default function Home() {
   const [isHighContrast, setIsHighContrast] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
 
+  // [요건 1] 현재 환경(키오스크) 식별자 상태
   const [environmentId, setEnvironmentId] = useState<EnvironmentId>(DEFAULT_ENVIRONMENT_ID);
   const [questions, setQuestions] = useState<QuestionDef[]>([]);
   const [answers, setAnswers] = useState<AnyAnswers>(emptyAnswers(DEFAULT_ENVIRONMENT_ID));
@@ -139,7 +148,7 @@ export default function Home() {
     setSelections([]);
     setRunResult(null);
     setErrorMessage(null);
-    setCurrentStep(0); 
+    setCurrentStep(0); // 환경 선택(StartScreen)으로 완전 복귀
   };
 
   const a11yBar = (
@@ -151,16 +160,22 @@ export default function Home() {
     />
   );
 
-  const currentAccentColor = THEME_COLORS[environmentId] || THEME_COLORS["chicken-store"];
+  // 고대비일 때는 아무것도 넣지 않는다 — 넣으면 그게 곧 노란색을 덮는 선언이 된다.
+  const accentStyle = isHighContrast
+    ? undefined
+    : ({
+        "--color-accent": THEME_COLORS[environmentId] ?? THEME_COLORS["chicken-store"],
+      } as React.CSSProperties);
 
   return (
-    <div 
+    <div
       className="min-h-screen flex flex-col p-4 sm:p-8 max-w-4xl mx-auto gap-8 w-full relative pb-24"
-      style={{ "--color-accent": currentAccentColor } as React.CSSProperties}
+      style={accentStyle}
     >
       {currentStep > 0 && !isLoading && (
         <header className="pb-4 border-b border-gray-300 w-full flex flex-col gap-6">
           {a11yBar}
+          {/* [접근성 2-3] 진행 상황 인디케이터 (aria-current 적용) */}
           <nav aria-label="진행 상황" className="w-full">
             <ol 
               className="flex justify-between items-center rounded-full p-2" 
@@ -207,6 +222,7 @@ export default function Home() {
         </main>
       ) : (
         <>
+          {/* [결함 방어] 세션 10/12 - 엔진 거절 시 죽지 않고 alert 띄우는 로직 보존 */}
           {errorMessage && (
             <p role="alert" className="rounded-xl p-4 font-bold border-2 border-red-500 bg-red-500/10" style={{ fontSize: "calc(1.1rem * var(--font-scale))" }}>
               ⚠️ {errorMessage}
@@ -219,6 +235,7 @@ export default function Home() {
           {currentStep === 3 && chosen && <ConfirmScreen candidate={chosen} selections={selections} environmentId={environmentId} isHighContrast={isHighContrast} onApprove={handleApprove} onBackToContext={handleBackToContext} />}
           {currentStep === 4 && runResult && <ResultScreen runResult={runResult} environmentId={environmentId} isHighContrast={isHighContrast} onReset={handleReset} />}
 
+          {/* [결함 방어] 세션 10/12 - 키오스크에 갇히지 않게 StaffHelp 고정 */}
           <div className="mt-auto pt-6 border-t border-gray-300 w-full">
             <StaffHelp questions={questions} answers={answers} answersSubmitted={recView !== null} candidate={chosen ?? recView?.recommended ?? null} environmentId={environmentId} isHighContrast={isHighContrast} />
           </div>

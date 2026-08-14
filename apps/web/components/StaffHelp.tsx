@@ -5,15 +5,41 @@ import type { EnvironmentId } from "@commitandrun/engine";
 import { ENVIRONMENTS } from "../lib/fixture";
 import type { AnyAnswers, CandidateView, QuestionDef } from "../lib/types";
 
+/**
+ * The way out, available from every screen.
+ *
+ * A kiosk that can only be finished one way is the problem we are fixing, so
+ * there has to be a door that is always in the same place. This one does not
+ * page anyone — we have no staff-call system to page — and it says so, because
+ * a button that promises help it cannot deliver is worse than no button. What
+ * it does do is put everything the user has chosen on one screen, in Korean,
+ * for them to show a person.
+ *
+ * The rows are built from the question list, not from a table of field names,
+ * so this works at all three kiosks and cannot drift from what was actually
+ * asked. Every label shown here is the same string the user read on the form.
+ */
 interface StaffHelpProps {
+  /** The questions this environment asked. Also the source of every label. */
   questions: QuestionDef[];
   answers: AnyAnswers;
+  /**
+   * Whether the form has been submitted at least once.
+   *
+   * An empty multi-select carries two meanings and only this tells them apart:
+   * before submitting it is the starting value ("not asked yet"), after
+   * submitting it is the user saying they have none. Telling staff "없다고
+   * 답하셨습니다" about a question nobody answered is exactly the kind of
+   * invented safety claim this service exists to avoid.
+   */
   answersSubmitted: boolean;
+  /** What the user is looking at right now, if anything. */
   candidate: CandidateView | null;
   environmentId: EnvironmentId;
   isHighContrast: boolean;
 }
 
+/** Unanswered says so rather than going blank — the staff need to know which. */
 const NOT_ANSWERED = "아직 안 고르셨습니다";
 
 export function StaffHelp({
@@ -113,6 +139,7 @@ export function StaffHelp({
           {candidate && (
             <p className="font-bold border-b pb-4" style={{ borderColor: "var(--color-fg)", fontSize: "calc(1.2rem * var(--font-scale))" }}>
               보고 계신 {noun}: {candidate.name}
+              {/* Only the chicken shop prices anything; 0 means "no price", not free. */}
               {candidate.priceKrw > 0 && ` · ${candidate.priceKrw.toLocaleString()}원`}
             </p>
           )}
@@ -144,6 +171,7 @@ export function StaffHelp({
   );
 }
 
+/** One answer, in the same words the user saw when they gave it. */
 function describe(q: QuestionDef, value: unknown, submitted: boolean): string {
   const labelOf = (id: string) => q.options.find((o) => o.value === id)?.label ?? id;
   if (q.kind === "number") {
@@ -151,6 +179,8 @@ function describe(q: QuestionDef, value: unknown, submitted: boolean): string {
   }
   if (q.kind === "multi") {
     const ids = Array.isArray(value) ? (value as string[]) : [];
+    // A question that offered "모르겠어요" is one where not knowing is itself
+    // dangerous, so it gets said out loud rather than shown as a blank row.
     if (ids.includes("UNKNOWN")) return "모르겠다고 답하셨습니다 — 꼭 확인해 주세요";
     if (ids.length === 0) return submitted ? "없다고 답하셨습니다" : NOT_ANSWERED;
     return ids.map(labelOf).join(", ");
