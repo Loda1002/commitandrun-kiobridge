@@ -28,6 +28,11 @@ npm-debug.log*
 yarn-error.log*
 .claude/logs/
 
+# Local Claude Code state — sqlite left behind by plugins unrelated to this
+# project. Nothing here is ours and none of it is reproducible on another
+# machine, so a stray `git add -A` must not sweep it in.
+.claude/data/
+
 # KioBridge Simulation Kit — distributed ZIP, everyone extracts their own copy.
 # Only our team workspace (participant.ts + golden submission JSONs) is tracked.
 kit/*
