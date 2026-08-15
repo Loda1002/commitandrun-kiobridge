@@ -133,6 +133,15 @@ export interface CandidateView {
    * user got a red banner with nothing to do about it.
    */
   blockedReason: string | null;
+  /**
+   * What this alternative gives up compared with the recommended one, or null.
+   *
+   * Always null on the recommended card itself — the sentence only means
+   * something next to something else. The engine (`alternative.ts`) writes it;
+   * the screen never composes one, so the wording cannot drift away from what
+   * the submission JSON would say about the same two candidates.
+   */
+  alternativeExplanation: string | null;
 }
 
 /** A candidate we removed, and the sentence explaining why. */
@@ -156,6 +165,18 @@ export interface RecommendationView {
   /** true when the screen must ask again before letting the user continue. */
   requiresReconfirmation: boolean;
   reconfirmRequests: ReconfirmRequest[];
+  /**
+   * "예산을 5,500원까지 올리시면 메뉴 1개를 고르실 수 있습니다." — one line per
+   * kind of condition that could be loosened, smallest change first.
+   *
+   * Empty whenever something was recommended, and empty in 병원·관공서 even at a
+   * dead end: the engine only suggests loosening conditions a person can freely
+   * change, and neither of those environments has one. Allergies, proof of
+   * identity and eligibility are never in here by construction (`relax.ts`).
+   *
+   * These sit *beside* the staff-help sentence, never instead of it.
+   */
+  relaxationSuggestions: string[];
 }
 
 /** The user's approval. This is the gate — no plan runs without it. */

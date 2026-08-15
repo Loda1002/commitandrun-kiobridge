@@ -22,12 +22,14 @@ import type {
   PublicFixture,
   ScoreContribution,
 } from "@commitandrun/engine";
+import { explainAlternative } from "@commitandrun/engine/alternative";
 import { createContextFor } from "@commitandrun/engine/input";
 import {
   buildExecutionPlan,
   resolveOptionSelections,
   unsettleableGroups,
 } from "@commitandrun/engine/plan";
+import { explainRelaxation, relaxationOptions } from "@commitandrun/engine/relax";
 import { findMissingAnswers } from "@commitandrun/engine/required";
 import {
   buildAlternatives,
@@ -144,18 +146,59 @@ export async function fetchRecommendation(
   const result = score(survivors, ctx);
 
   const byId = new Map(fixture.candidates.map((c) => [c.candidateId, c]));
+  
+  const recommendedId = result.recommendedCandidateId;
+  const recommended = recommendedId === null ? null : byId.get(recommendedId) ?? null;
+
   const view = (candidateId: string): CandidateView | null => {
     const candidate = byId.get(candidateId);
     const contributions = result.contributions[candidateId];
     if (!candidate || !contributions) return null;
+
+    // 1등에는 붙이지 않는다. `explainAlternative` 는 "1등 대신 이것을 고르면 무엇을
+    // 포기하는가" 를 말하므로 1등 자신에게는 뜻이 없다. 빈 문자열은 null 로 눕힌다 —
+    // 화면이 빈 <p> 를 그리면 이유가 없는 대안이 이유를 잃은 것처럼 보인다.
+    let alternativeExplanation: string | null = null;
+    if (recommendedId !== null && candidateId !== recommendedId) {
+      alternativeExplanation = explainAlternative(result, candidateId) || null;
+    }
+
     return {
       ...toCandidateView(candidate, contributions),
       blockedReason: blockedReason(fixture, candidateId, ctx),
+      alternativeExplanation,
     };
   };
 
-  const recommendedId = result.recommendedCandidateId;
-  const recommended = recommendedId === null ? null : byId.get(recommendedId) ?? null;
+  /*
+   * 제약 하나당 가장 적게 바꾸는 제안 한 줄.
+   *
+   * `relaxationOptions` 는 한 제약 안에서 오름차순이라(relax.ts 의 `values` 주석)
+   * 그 제약의 첫 줄이 곧 가장 싸게 빠져나가는 길이다. 전부 늘어놓으면 예산 하나에
+   * 네 줄이 깔린다 — 3,000원을 적은 사람이 막다른 길에서 읽어야 하는 양이
+   * 5,500·6,000·6,500·7,000 네 개가 되고, 정작 골라야 할 탈출구 문장이 묻힌다.
+   *
+   * 그렇다고 통째로 첫 줄 하나만 남기지도 않는다. @lde451 님이 relax.ts 에 "각 제약은
+   * 서로 다른 제안이고 사용자가 고른다" 고 적어 둔 그대로, 예산과 포장/매장은
+   * 비교할 수 있는 값이 아니다. 종류가 늘면 종류마다 한 줄이다.
+   * 지금 픽스처에서는 예산만 발화해 실제로는 한 줄이다 (실측).
+   */
+  const relaxationSuggestions: string[] = [];
+  if (recommendedId === null) {
+    const seen = new Set<string>();
+    for (const option of relaxationOptions(fixture, ctx)) {
+      if (seen.has(option.reasonCode)) continue;
+      seen.add(option.reasonCode);
+      // 여기서 던지는 것은 허용 목록에 없는 reasonCode 뿐이라 사용자 입력으로는
+      // 도달할 수 없다. 그래도 삼키는 이유는, 막다른 길 안내가 통째로 사라지는
+      // 것보다 한 줄이 빠지는 편이 낫기 때문이다.
+      try {
+        relaxationSuggestions.push(explainRelaxation(fixture, ctx, option));
+      } catch (e) {
+        console.error("explainRelaxation 실패:", e);
+      }
+    }
+  }
 
   return {
     recommended: recommendedId === null ? null : view(recommendedId),
@@ -170,6 +213,7 @@ export async function fetchRecommendation(
     confidence: result.confidence,
     requiresReconfirmation: result.requiresReconfirmation,
     reconfirmRequests: result.reconfirmRequests,
+    relaxationSuggestions,
   };
 }
 
@@ -265,10 +309,18 @@ function quantityAnswer(optionId: unknown, fixture: PublicFixture): string {
   return option?.value === undefined ? String(optionId ?? "") : String(option.value);
 }
 
+/*
+ * The part of a card that depends only on the candidate and its score.
+ *
+ * The two fields left out are the ones that depend on *where* the card is:
+ * `blockedReason` needs the context to know whether this route can be planned,
+ * and `alternativeExplanation` only means something next to the recommended
+ * card. Both are filled in by the caller, which is the only place that knows.
+ */
 function toCandidateView(
   candidate: Candidate,
   contributions: ScoreContribution[],
-): Omit<CandidateView, "blockedReason"> {
+): Omit<CandidateView, "blockedReason" | "alternativeExplanation"> {
   return {
     candidateId: candidate.candidateId,
     name: candidate.name,

@@ -51,9 +51,13 @@ const THEME_COLORS: Record<string, string> = {
   "public-office": "#059669",
 };
 
-// 엔진에 정의된 정확한 속성(staffAssistancePreferred 등)에 맞춰 배열을 검사합니다.
+/**
+ * 병원의 supportModes 배열에만 접근성 요청이 들어오므로 해당 필드만 엄격하게 검사합니다.
+ * (관공서의 STAFF_ASSIST 나 STAFF 등 일반 답변이 오탐되어 거짓 정보가 저장되는 것을 방지)
+ */
 function buildBaseProfile(isHighContrast: boolean, fontScale: number, currentAns?: AnyAnswers): CanonicalProfile {
   const modes = Array.isArray(currentAns?.supportModes) ? currentAns.supportModes : [];
+  
   return {
     accessibility: {
       largeText: fontScale > 1 || modes.includes("LARGE_TEXT"),
@@ -108,7 +112,6 @@ export default function Home() {
   const [isRestored, setIsRestored] = useState(false);
   const [restoredSavedAt, setRestoredSavedAt] = useState<string | null>(null);
 
-  // 애니메이션 없이, 6초 뒤에 깔끔하게 지워지는 배너 상태
   const [statusMessage, setStatusMessage] = useState("");
 
   useEffect(() => {
@@ -333,15 +336,16 @@ export default function Home() {
       className="min-h-screen flex flex-col p-4 sm:p-8 max-w-4xl mx-auto gap-8 w-full relative pb-24"
       style={accentStyle}
     >
-      {/* 6초 후 사라지는 고정 배너 (애니메이션 삭제) */}
       {statusMessage && (
-        <div 
-          role="status" 
-          aria-live="polite"
-          className="w-full bg-gray-800 text-white font-bold p-4 rounded-xl text-center shadow-md mb-2"
-          style={{ fontSize: "calc(1.1rem * var(--font-scale))" }}
-        >
-          {statusMessage}
+        <div className="fixed top-6 left-1/2 transform -translate-x-1/2 z-[100] w-[calc(100%-2rem)] max-w-4xl pointer-events-none">
+          <div 
+            role="status" 
+            aria-live="polite"
+            className="w-full bg-gray-800 text-white font-bold p-5 rounded-2xl text-center shadow-2xl"
+            style={{ fontSize: "calc(1.1rem * var(--font-scale))" }}
+          >
+            {statusMessage}
+          </div>
         </div>
       )}
 

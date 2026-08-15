@@ -82,7 +82,7 @@ export function RecommendScreen({ recView, environmentId, isHighContrast, onChoo
 
               return (
                 <div key={idx} className="flex items-center gap-4">
-                  <span className="min-w-28 max-w-40 shrink-0">{c.label || "항목"}</span>
+                  <span className="w-32 sm:w-48 shrink-0 break-keep leading-snug">{c.label || "항목"}</span>
                   <div className="flex-1 flex items-center h-8">
                     <div className="h-full bg-gray-200 rounded-full overflow-hidden border border-gray-300" style={{ width: containerWidth }}>
                       {/* [디자인] motion-reduce 존중 */}
@@ -105,8 +105,25 @@ export function RecommendScreen({ recView, environmentId, isHighContrast, onChoo
           )}
         </section>
       ) : (
-        <div className={`p-8 text-center border-2 border-dashed rounded-2xl ${isHighContrast ? "border-gray-400 bg-transparent text-[var(--color-fg)]" : "border-gray-400 bg-gray-50"}`}>
+        <div className={`p-8 text-center border-2 border-dashed rounded-2xl flex flex-col gap-3 ${isHighContrast ? "border-gray-400 bg-transparent text-[var(--color-fg)]" : "border-gray-400 bg-gray-50"}`}>
           <p className="font-bold" style={{ fontSize: "calc(1.2rem * var(--font-scale))" }}>조건에 맞는 {copy.noun}{subjectParticle(copy.noun)} 없습니다. 직원의 도움을 받아주세요.</p>
+          {/* 조건을 얼마나 풀면 몇 개가 열리는지. 위 문장을 **대신하지 않는다** — 직원에게
+              가는 길은 언제나 남아 있어야 하고, 이 줄들은 그 옆에 붙는 제안이다.
+              문장은 엔진(relax.ts)이 쓴다. 숫자를 화면에서 다시 세면 6,000원에 5개라고
+              약속하고 4개를 내주게 된다.
+
+              색으로 구분하지 않는 이유: 강조색(#ea580c)을 쓰면 이 상자 바탕에서 3.87:1 로
+              떨어진다(실측). 저시력 사용자가 주 사용자라 본문색을 그대로 쓰고, 구분은
+              구분선과 💡 가 한다 — 색을 못 보아도 읽히는 쪽이다. */}
+          {recView.relaxationSuggestions.length > 0 && (
+            <div className="mt-1 pt-3 border-t border-gray-400 flex flex-col gap-2">
+              {recView.relaxationSuggestions.map((suggestion, idx) => (
+                <p key={idx} className="font-bold" style={{ fontSize: "calc(1.2rem * var(--font-scale))" }}>
+                  💡 {suggestion}
+                </p>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -115,25 +132,36 @@ export function RecommendScreen({ recView, environmentId, isHighContrast, onChoo
           <h3 className="font-bold mb-5" style={{ fontSize: "calc(1.4rem * var(--font-scale))" }}>🔁 다른 것도 보시겠어요?</h3>
           <ul className="flex flex-col gap-4">
             {recView.alternatives.map((alt) => (
-              <li key={alt.candidateId} className={`flex flex-col sm:flex-row sm:items-center gap-4 justify-between border rounded-xl p-4 transition-colors ${isHighContrast ? "border-gray-600 bg-transparent" : "border-gray-200 bg-white hover:border-gray-400"}`}>
-                <div className="flex flex-col gap-1">
-                  <span className="font-bold" style={{ fontSize: "calc(1.3rem * var(--font-scale))" }}>{alt.name}</span>
-                  <span className="opacity-80 font-bold" style={{ fontSize: "calc(1.1rem * var(--font-scale))" }}>
-                    {/* [결함 방어] 가격은 있을 때만 표시 (0원은 공짜 오해 방지) */}
-                    {alt.priceKrw > 0 && `${alt.priceKrw.toLocaleString()}원 · `}{Math.round(alt.total * 100)}점
-                  </span>
+              <li key={alt.candidateId} className={`flex flex-col border rounded-xl p-4 transition-colors ${isHighContrast ? "border-gray-600 bg-transparent" : "border-gray-200 bg-white hover:border-gray-400"}`}>
+                <div className="flex flex-col sm:flex-row sm:items-center gap-4 justify-between w-full">
+                  <div className="flex flex-col gap-1">
+                    <span className="font-bold" style={{ fontSize: "calc(1.3rem * var(--font-scale))" }}>{alt.name}</span>
+                    <span className="opacity-80 font-bold" style={{ fontSize: "calc(1.1rem * var(--font-scale))" }}>
+                      {/* [결함 방어] 가격은 있을 때만 표시 (0원은 공짜 오해 방지) */}
+                      {alt.priceKrw > 0 && `${alt.priceKrw.toLocaleString()}원 · `}{Math.round(alt.total * 100)}점
+                    </span>
+                  </div>
+                  {/* [결함 방어] 진행할 수 없는 경로에는 버튼을 내지 않는다. 직원 도움
+                      경로는 일부러 안 걸러지므로 답변과 맞지 않아도 여기 올라온다 —
+                      누르면 계획이 거절해 빨간 배너만 뜨고 할 일이 없어진다. */}
+                  {alt.blockedReason ? (
+                    <p className={`sm:max-w-sm font-bold ${isHighContrast ? "text-yellow-300" : "text-red-700"}`} style={{ fontSize: "calc(1rem * var(--font-scale))" }}>
+                      {alt.blockedReason}
+                    </p>
+                  ) : (
+                    <button type="button" onClick={() => onChoose(alt)} className="focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2 transition-transform duration-200 motion-reduce:transition-none motion-reduce:transform-none active:scale-95 px-6" style={{ minHeight: "var(--tap-min)", borderRadius: "var(--radius)", backgroundColor: "transparent", color: "var(--color-fg)", border: "2px solid var(--color-fg)", fontSize: "calc(1.1rem * var(--font-scale))", fontWeight: "bold" }}>
+                      이걸로 할게요
+                    </button>
+                  )}
                 </div>
-                {/* [결함 방어] 진행할 수 없는 경로에는 버튼을 내지 않는다. 직원 도움
-                    경로는 일부러 안 걸러지므로 답변과 맞지 않아도 여기 올라온다 —
-                    누르면 계획이 거절해 빨간 배너만 뜨고 할 일이 없어진다. */}
-                {alt.blockedReason ? (
-                  <p className={`sm:max-w-sm font-bold ${isHighContrast ? "text-yellow-300" : "text-red-700"}`} style={{ fontSize: "calc(1rem * var(--font-scale))" }}>
-                    {alt.blockedReason}
+                {/* 1등 대신 이것을 고르면 무엇을 포기하는지. 점수만 보이면 관공서에서
+                    100점짜리가 둘 뜰 때 왜 저것을 놔두고 이것을 골랐는지 알 수가 없다.
+                    위 칸(blockedReason 또는 버튼)은 건드리지 않는다 — 진행할 수 없는
+                    경로에 버튼을 내지 않는 판단이 거기 있다. */}
+                {alt.alternativeExplanation && (
+                  <p className="mt-4 pt-3 border-t font-medium" style={{ borderColor: "var(--color-fg)", fontSize: "calc(1.1rem * var(--font-scale))" }}>
+                    {alt.alternativeExplanation}
                   </p>
-                ) : (
-                  <button type="button" onClick={() => onChoose(alt)} className="focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2 transition-transform duration-200 motion-reduce:transition-none motion-reduce:transform-none active:scale-95 px-6" style={{ minHeight: "var(--tap-min)", borderRadius: "var(--radius)", backgroundColor: "transparent", color: "var(--color-fg)", border: "2px solid var(--color-fg)", fontSize: "calc(1.1rem * var(--font-scale))", fontWeight: "bold" }}>
-                    이걸로 할게요
-                  </button>
                 )}
               </li>
             ))}
