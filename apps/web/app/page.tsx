@@ -36,13 +36,25 @@ import { StaffHelp } from "../components/StaffHelp";
 
 const STEP_LABELS = ["상황 입력", "추천 결과", "최종 확인", "실행 결과"];
 
+/**
+ * 환경별 강조색. 600 계열이라 흰 바탕에서 어두운 글자와 4.5:1 을 넘긴다.
+ *
+ * ⚠️ 고대비 모드에서는 쓰지 않는다. 아래에서 이 값을 `--color-accent` 로 인라인
+ * 선언하는데, 인라인 선언은 `globals.css` 의 `:root[data-contrast="high"]` 보다
+ * 가까운 조상이라 노란색(#ffe600)을 덮어버린다. 실제로 덮여 있었다 — root 는
+ * #ffe600 인데 버튼이 실제로 읽는 값은 #ea580c 였다. 고대비를 켜도 강조색만 평상시
+ * 그대로였다는 뜻이고, 이 화면에서 강조색은 포커스 링과 점수 막대가 쓴다.
+ */
 const THEME_COLORS: Record<string, string> = {
   "chicken-store": "#ea580c",
   hospital: "#2563eb",
   "public-office": "#059669",
 };
 
-// 병원의 supportModes 배열에만 접근성 요청이 들어오므로 해당 필드만 엄격하게 검사합니다.
+/**
+ * 병원의 supportModes 배열에만 접근성 요청이 들어오므로 해당 필드만 엄격하게 검사합니다.
+ * (관공서의 STAFF_ASSIST 나 STAFF 등 일반 답변이 오탐되어 거짓 정보가 저장되는 것을 방지)
+ */
 function buildBaseProfile(isHighContrast: boolean, fontScale: number, currentAns?: AnyAnswers): CanonicalProfile {
   const modes = Array.isArray(currentAns?.supportModes) ? currentAns.supportModes : [];
   
@@ -64,6 +76,15 @@ function buildBaseProfile(isHighContrast: boolean, fontScale: number, currentAns
   } as CanonicalProfile;
 }
 
+/**
+ * 알레르기에 관한 것을 걷어낸 답변.
+ *
+ * 저장할 때와 되살릴 때 **양쪽에** 건다. 되살릴 때만 걸었더니 선언 자체는
+ * localStorage 에 그대로 남아 있었다 — 되돌려주기엔 민감하다고 판단해 놓고
+ * 디스크에는 쓰고 있었던 것이고, 둘 중 나쁜 쪽이 그것이다.
+ * 되살리는 쪽 검사를 남겨 두는 이유는, 이 수정 이전에 이미 저장해 둔 브라우저가
+ * 아직 그 값을 들고 있기 때문이다.
+ */
 const withoutAllergies = (answers: Record<string, unknown>): Record<string, unknown> => {
   const out = { ...answers };
   for (const key of Object.keys(out)) {
@@ -119,6 +140,12 @@ export default function Home() {
           const profile = applyStoredProfile(baseProfile, stored);
           if (profile) {
             if (profile.accessibility.largeText) {
+              // StoredProfile 은 largeText 를 참/거짓으로만 들고 있어 1.25 와 1.5 를
+              // 구분하지 못한다 — 125% 를 고른 사람이 150% 로 돌아오고 있었다.
+              // 그래서 배율을 같은 키에 나란히 적어 두고 여기서 읽는다.
+              // 그 값이 없는(이 수정 이전에 저장된) 브라우저에서는 **큰 글씨로 치는
+              // 가장 작은 단계**로 돌아간다. 위로 올려 잡으면 사용자가 일부러 고른
+              // 크기를 우리가 바꾸는 것이 된다.
               const savedScale = (JSON.parse(raw) as { fontScale?: unknown }).fontScale;
               const scale = typeof savedScale === "number" && savedScale > 1 ? savedScale : 1.25;
               setFontScale(scale);
@@ -145,6 +172,9 @@ export default function Home() {
         withoutAllergies(currentAns as Record<string, unknown>),
         new Date().toISOString()
       );
+      // 배율은 StoredProfile 안이 아니라 그 **옆에** 싣는다. 엔진 계약을 건드리지
+      // 않으면서 1.25 와 1.5 를 구분하기 위해서다. parseStoredProfile 은 자기가 아는
+      // 필드만 골라 다시 만들므로(profile-store.ts) 이 형제 필드를 그냥 무시한다.
       localStorage.setItem(
         "kiobridge.profile",
         JSON.stringify({ ...stored, fontScale: scale }),
@@ -205,6 +235,8 @@ export default function Home() {
           if (recalled && Object.keys(recalled).length > 0) {
             setIsRestored(true);
             setRestoredSavedAt(stored.savedAt); 
+            // 알레르기 항목은 무조건 다시 묻는다. 지금은 저장할 때도 걷어내지만
+            // (withoutAllergies), 이 수정 전에 저장해 둔 브라우저는 아직 들고 있다.
             initialAns = { ...initialAns, ...withoutAllergies(recalled) } as AnyAnswers;
           }
         }
