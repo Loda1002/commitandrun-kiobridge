@@ -107,10 +107,18 @@ export function RecommendScreen({ recView, environmentId, isHighContrast, onChoo
       ) : (
         <div className={`p-8 text-center border-2 border-dashed rounded-2xl flex flex-col gap-3 ${isHighContrast ? "border-gray-400 bg-transparent text-[var(--color-fg)]" : "border-gray-400 bg-gray-50"}`}>
           <p className="font-bold" style={{ fontSize: "calc(1.2rem * var(--font-scale))" }}>조건에 맞는 {copy.noun}{subjectParticle(copy.noun)} 없습니다. 직원의 도움을 받아주세요.</p>
-          {recView.relaxationSuggestions && recView.relaxationSuggestions.length > 0 && (
-            <div className="mt-2 flex flex-col gap-2">
+          {/* 조건을 얼마나 풀면 몇 개가 열리는지. 위 문장을 **대신하지 않는다** — 직원에게
+              가는 길은 언제나 남아 있어야 하고, 이 줄들은 그 옆에 붙는 제안이다.
+              문장은 엔진(relax.ts)이 쓴다. 숫자를 화면에서 다시 세면 6,000원에 5개라고
+              약속하고 4개를 내주게 된다.
+
+              색으로 구분하지 않는 이유: 강조색(#ea580c)을 쓰면 이 상자 바탕에서 3.87:1 로
+              떨어진다(실측). 저시력 사용자가 주 사용자라 본문색을 그대로 쓰고, 구분은
+              구분선과 💡 가 한다 — 색을 못 보아도 읽히는 쪽이다. */}
+          {recView.relaxationSuggestions.length > 0 && (
+            <div className="mt-1 pt-3 border-t border-gray-400 flex flex-col gap-2">
               {recView.relaxationSuggestions.map((suggestion, idx) => (
-                <p key={idx} className={`font-bold ${isHighContrast ? "text-[var(--color-accent)]" : "text-[var(--color-accent)]"}`} style={{ fontSize: "calc(1.2rem * var(--font-scale))" }}>
+                <p key={idx} className="font-bold" style={{ fontSize: "calc(1.2rem * var(--font-scale))" }}>
                   💡 {suggestion}
                 </p>
               ))}
@@ -146,8 +154,12 @@ export function RecommendScreen({ recView, environmentId, isHighContrast, onChoo
                     </button>
                   )}
                 </div>
+                {/* 1등 대신 이것을 고르면 무엇을 포기하는지. 점수만 보이면 관공서에서
+                    100점짜리가 둘 뜰 때 왜 저것을 놔두고 이것을 골랐는지 알 수가 없다.
+                    위 칸(blockedReason 또는 버튼)은 건드리지 않는다 — 진행할 수 없는
+                    경로에 버튼을 내지 않는 판단이 거기 있다. */}
                 {alt.alternativeExplanation && (
-                  <p className="mt-4 pt-3 border-t font-medium opacity-90" style={{ borderColor: isHighContrast ? "var(--color-fg)" : "var(--color-fg)", fontSize: "calc(1.1rem * var(--font-scale))" }}>
+                  <p className="mt-4 pt-3 border-t font-medium" style={{ borderColor: "var(--color-fg)", fontSize: "calc(1.1rem * var(--font-scale))" }}>
                     {alt.alternativeExplanation}
                   </p>
                 )}

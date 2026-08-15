@@ -34,7 +34,9 @@
       "@commitandrun/engine/profile-store": ["../../packages/engine/src/profile-store.ts"],
       "@commitandrun/engine/required": ["../../packages/engine/src/required.ts"],
       "@commitandrun/engine/select": ["../../packages/engine/src/select.ts"],
-      "@commitandrun/engine/domain": ["../../packages/engine/src/domain.ts"]
+      "@commitandrun/engine/domain": ["../../packages/engine/src/domain.ts"],
+      "@commitandrun/engine/alternative": ["../../packages/engine/src/alternative.ts"],
+      "@commitandrun/engine/relax": ["../../packages/engine/src/relax.ts"]
     }
   },
   "include": [
