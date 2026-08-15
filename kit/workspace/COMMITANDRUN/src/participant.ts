@@ -52,6 +52,7 @@ import {
   createContextFor as engineCreateContextFor,
   mapToCanonicalInput as engineMapToCanonicalInput,
 } from "../../../../packages/engine/src/input.ts";
+import { domainForContext } from "../../../../packages/engine/src/domain.ts";
 import { buildExecutionPlan as engineBuildExecutionPlan } from "../../../../packages/engine/src/plan.ts";
 import {
   buildAlternatives as engineBuildAlternatives,
@@ -289,6 +290,43 @@ function round2(n: number): number {
   return Math.round(n * 100) / 100;
 }
 
+/** The team-namespaced key the requests travel under. Flat, not nested. */
+const RECONFIRM_KEY = "COMMITANDRUN.reconfirmRequests";
+
+/**
+ * 엔진이 추측하기를 거부한 것을 제출본에 남깁니다.
+ *
+ * `Recommendation` 스키마는 닫혀 있고 `requiresReconfirmation` 은 불리언
+ * 하나뿐이라, 제출본만 읽는 사람은 **우리가 멈췄다는 것**은 알아도 **무엇을
+ * 물으려고 멈췄는지**는 알 수 없습니다. 그 질문들이 안전 경계의 알맹이인데
+ * 파일에 흔적이 없었습니다.
+ *
+ * 대입이 아니라 병합입니다. `input.ts` 는 세 곳에서
+ * `ctx.extensions = { "COMMITANDRUN.contextSignals": signals }` 로 **덮어씁니다**.
+ * 같은 모양을 여기서 따라 하면 되묻기를 실은 그 파일의 품절 신호가 조용히
+ * 사라집니다 — 되묻기가 있는 제출본과 품절 신호가 있는 제출본이 같은 파일이기
+ * 때문입니다. 그리고 아무것도 그것을 알려 주지 않습니다: 파일은 그대로 검증을
+ * 통과하고, `participant:progress` 는 `participant-submission.json` 하나만
+ * 읽는데(`participant-cli.mjs:534`) 그 파일은 되묻기가 0건이라 이 함수가
+ * 애초에 손대지 않습니다.
+ *
+ * 심는 자리는 이 함수 하나입니다. `input.ts` 는 도메인 레지스트리를 부르지
+ * 않는데 이 질문들은 도메인이 만들므로, 구조적으로 거기가 자리가 아닙니다.
+ *
+ * 질문이 없으면 키를 만들지 않습니다. 빈 배열은 "물어볼 것이 없었다" 가 아니라
+ * "물어보지 않았다" 로도 읽히고, 둘은 같은 말이 아닙니다.
+ */
+function recordReconfirmRequests(ctx: SessionContext): void {
+  const engineCtx = asEngineContext(ctx);
+  // 엔진이 `score` 안에서 부르는 바로 그 함수입니다. 여기서 다시 계산하지
+  // 않으므로 제출본과 화면이 서로 다른 질문을 들고 있을 수가 없습니다.
+  const requests = domainForContext(engineCtx).reconfirm(engineCtx);
+  if (requests.length === 0) return;
+
+  const carrier = ctx as { extensions?: Record<string, unknown> };
+  carrier.extensions = { ...carrier.extensions, [RECONFIRM_KEY]: requests };
+}
+
 /**
  * STEP 6 — explainRecommendation
  *
@@ -298,17 +336,23 @@ function round2(n: number): number {
  * 사용자가 알레르기를 등록했고 실제로 그 사유로 뺀 후보가 있을 때만 붙습니다.
  *
  * "AI가 추천했습니다" · "최적의 선택입니다" 같은 문장은 만들지 않습니다.
+ *
+ * 생존 후보 목록도 함께 넘깁니다. 못 맞춘 지원을 어느 경로에서 받을 수 있는지
+ * **이름으로** 말하려면 다른 후보를 볼 수 있어야 하고, 그 이름은 픽스처에서
+ * 읽어야 합니다 — 문장에 적어 두면 픽스처가 바뀌는 날 거짓말이 됩니다.
  */
 export function explainRecommendation(
   _rec: Recommendation,
   ctx: SessionContext,
   recommended: Candidate,
   excluded: ExclusionReason[],
+  survivors?: Candidate[],
 ): string[] {
   return engineExplainRecommendation(
     recommended as unknown as EngineCandidate,
     asEngineContext(ctx),
     excluded,
+    survivors as unknown as EngineCandidate[] | undefined,
   ).map((reason) => reason.text);
 }
 
@@ -429,9 +473,13 @@ export async function buildSubmission(
   const candidates = survivors as unknown as Candidate[];
 
   const recommendation = recommend(candidates, sessionContext, profile, excluded);
+  // Said next to the boolean it explains: `requiresReconfirmation` is the fact,
+  // these are the questions. Nothing downstream reads `extensions`, so this can
+  // sit here rather than being threaded through the steps.
+  recordReconfirmRequests(sessionContext);
   const recommended = candidates.find((c) => c.candidateId === recommendation.recommendedCandidateId);
   recommendation.recommendationReasons = recommended
-    ? explainRecommendation(recommendation, sessionContext, recommended, excluded)
+    ? explainRecommendation(recommendation, sessionContext, recommended, excluded, candidates)
     : [];
   recommendation.alternativeCandidateIds = buildAlternatives(candidates, recommendation);
 

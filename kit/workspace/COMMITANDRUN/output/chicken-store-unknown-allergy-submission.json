@@ -104,6 +104,13 @@
           "source": "environment-fixture:chicken-store/candidates.json#available",
           "observedAt": "2026-08-05T07:00:00.000Z"
         }
+      ],
+      "COMMITANDRUN.reconfirmRequests": [
+        {
+          "path": "/hardConstraints/allergenIds",
+          "question": "드시면 안 되는 재료가 있으신가요? 없으시면 '없어요 (해당 없음)'을 골라 주세요.",
+          "because": "알레르기를 확인하지 못한 상태로는 안전하게 추천해 드릴 수 없습니다."
+        }
       ]
     }
   },

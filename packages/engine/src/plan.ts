@@ -63,6 +63,10 @@ const NOT_ANSWERED = new Set(["UNKNOWN", "NO_PREFERENCE"]);
  * reason `required.ts` keeps `CONTEXT_PATHS` — that interface is frozen without
  * the lead's approval — and should move the next time it is opened.
  */
+// Copies of platform option ids, not names of our own: 미정 (안내 필요) is
+// hospital's DEPARTMENT/UNSPECIFIED, 직원 상담 and 직원 확인 are public-office's
+// CATEGORY/STAFF and AUTH_METHOD/STAFF_ASSIST. Renaming one in the fixture makes
+// this list wrong silently, which is the cost of the compromise above.
 const NEUTRAL_OPTION_IDS: Record<string, string[]> = {
   "chicken-store": [],
   hospital: ["UNSPECIFIED"],

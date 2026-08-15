@@ -17,11 +17,11 @@
 // apps/web's toSessionContext and the submission builder both call — so these
 // are answers that can actually reach the engine, not hand-made states.
 import { readFile } from "node:fs/promises";
-import { getDomain, registeredEnvironments } from "../src/domain.ts";
+import { getDomain, isAnswered, registeredEnvironments } from "../src/domain.ts";
 // Registers the three official domains, same as select.ts and plan.ts.
 import "../src/domains/index.ts";
 import { createContextFor } from "../src/input.ts";
-import { unsettleableGroups } from "../src/plan.ts";
+import { buildExecutionPlan, unsettleableGroups } from "../src/plan.ts";
 import { findMissingAnswers } from "../src/required.ts";
 import { filterCandidates, score } from "../src/select.ts";
 import type {
@@ -250,14 +250,70 @@ for (const [label, maxPriceKrw] of [
 console.log("\n═══ 고를 것이 없는 픽스처 ═══");
 
 {
-  // Built here rather than on disk: the kit's fixtures are platform files.
+  // A menu with nothing on it. Built here rather than on disk: the kit's
+  // fixtures are platform files.
+  //
+  // This used to ask whether survivors, recommendation and alternatives were all
+  // empty. `candidates: []` makes those three true before the engine runs — a
+  // row that could never go red, which is the fault session 20 spent its time
+  // removing from the rest of this file.
+  //
+  // What is not automatic is the shape of the stop. Three things have to hold
+  // and each of them can break on its own:
+  //
+  //  1. The gate reports every required group as answered-but-unreachable
+  //     rather than unanswered. `required.ts` consults the candidates, so with
+  //     none it says 진행할 수 있는 곳이 없습니다 about answers the customer did
+  //     give. A version that only asked "did they answer" reports nothing here
+  //     and the customer is walked to an empty recommendation screen.
+  //  2. The kiosk flags the state. `requiresReconfirmation` is carried by its
+  //     confidence clause here, not by `mayRecommend` — nothing was left to ask,
+  //     so dropping that clause reads false on a session with no answer.
+  //  3. The planner refuses a dish that is no longer on the menu, by name. A
+  //     screen holding an id from before the fixture changed is the realistic
+  //     way to reach this.
   const empty = { ...chicken, candidates: [] } as PublicFixture;
   const r = run(empty, "chicken-store", SOUND["chicken-store"]);
+
+  const domain = getDomain("chicken-store");
+  const required = empty.optionGroups.filter((g) => g.required);
+  const gated = new Set(r.missing.map((m) => m.groupId));
+  const reportedButAnswered = required.filter(
+    (g) => gated.has(g.groupId) && isAnswered(domain.answerFor(g, r.ctx)),
+  );
+
+  let refused = "";
+  try {
+    buildExecutionPlan({
+      environmentId: "chicken-store",
+      fixture: empty,
+      candidateId: chicken.candidates[0]!.candidateId,
+      sessionContext: r.ctx,
+      approved: true,
+    });
+  } catch (e) {
+    refused = (e as Error).message;
+  }
+
   verdict(
     "후보 목록이 빈 배열",
-    r.survivors.length === 0 && r.recommendedId === null && r.result.alternativeCandidateIds.length === 0,
-    `생존 ${r.survivors.length} · 추천 ${r.recommendedId ?? "없음"} · 대안 ${r.result.alternativeCandidateIds.length}`,
+    r.survivors.length === 0 &&
+      r.recommendedId === null &&
+      r.result.alternativeCandidateIds.length === 0 &&
+      reportedButAnswered.length === required.length &&
+      r.result.confidence === 0 &&
+      r.result.requiresReconfirmation &&
+      refused !== "",
+    `생존 ${r.survivors.length} · 추천 ${r.recommendedId ?? "없음"} · 대안 ` +
+      `${r.result.alternativeCandidateIds.length} · 답했지만 갈 곳 없음 ` +
+      `${reportedButAnswered.length}/${required.length} · confidence ${r.result.confidence}` +
+      ` · 되묻기 필요 ${r.result.requiresReconfirmation} · 계획 ${refused === "" ? "세워짐" : "거부"}`,
   );
+  // The one thing the customer is not given, printed because no verdict above
+  // asks for it: an empty menu excludes nobody, so the screen that says there is
+  // nothing has no per-dish reason to show underneath. pm/17-RESULT.md 5절 is
+  // the same gap seen from the sound fixture's side.
+  note(`빈 메뉴: 제외 ${r.excluded.length}건 — 아무것도 없다는 화면에 붙일 이유 문장이 없다`);
 }
 
 {

@@ -102,7 +102,7 @@ const okWeights = Object.values(result.contributions).every(
 // --- reasons and alternatives -----------------------------------------------
 
 const recommended = survivors.find((c) => c.candidateId === result.recommendedCandidateId)!;
-const reasons = explainRecommendation(recommended, ctx, excluded);
+const reasons = explainRecommendation(recommended, ctx, excluded, survivors);
 const goldenReasons = golden.recommendation.recommendationReasons as string[];
 
 console.log("");

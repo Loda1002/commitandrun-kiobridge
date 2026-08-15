@@ -17,6 +17,7 @@
  */
 
 import {
+  directionParticle,
   isAnswered,
   registerDomain,
   type DomainCriterion,
@@ -224,10 +225,26 @@ const EXCLUSION_SUMMARY: Array<{ reasonCode: string; sentence: (n: number) => st
  */
 const otherExclusions = (n: number) => `안내해 드리기 어려운 업무 ${n}개는 빼고 골랐습니다.`;
 
+/**
+ * The surviving services that guide step by step.
+ *
+ * Only survivors, because a service filtered out for the category the user did
+ * not pick, or for a proof they cannot produce, is one they cannot walk up to
+ * today — naming it would be sending them somewhere the engine already refused.
+ * The recommendation cannot appear in the list: the one caller reaches this
+ * after finding that it does not guide step by step.
+ */
+function servicesGuidingStepByStep(survivors: Candidate[]): Candidate[] {
+  return survivors.filter(
+    (c) => ((c.supports ?? {}) as Record<string, unknown>).stepByStep === true,
+  );
+}
+
 function explain(
   recommended: Candidate,
   raw: SessionContext,
   excluded: ExclusionReason[],
+  survivors?: Candidate[],
 ): RecommendationReason[] {
   const ctx = ctxOf(raw);
   const reasons: RecommendationReason[] = [];
@@ -254,11 +271,29 @@ function explain(
 
   if ((ctx.preferences.stepByStep === true || ctx.preferences.simpleLanguage === true) &&
       supports.stepByStep !== true) {
-    push(
-      "ACCESSIBILITY",
-      "켜 두신 단계별 안내는 이 업무에서는 제공되지 않습니다. " +
-        "아래 대안에서 단계별 안내가 되는 업무를 고르실 수 있습니다.",
-    );
+    // "아래 대안에서" made the reader hunt the comparison for something already
+    // known here: which of the services still on the table guides step by step.
+    // The name is read out of the fixture, never written into the sentence.
+    const providers = survivors === undefined ? undefined : servicesGuidingStepByStep(survivors);
+    if (providers === undefined) {
+      push(
+        "ACCESSIBILITY",
+        "켜 두신 단계별 안내는 이 업무에서는 제공되지 않습니다. " +
+          "아래 대안에서 단계별 안내가 되는 업무를 고르실 수 있습니다.",
+      );
+    } else if (providers.length === 0) {
+      push(
+        "ACCESSIBILITY",
+        "켜 두신 단계별 안내는 이 업무에서는 제공되지 않습니다. " +
+          "지금 안내해 드릴 수 있는 다른 업무에도 없습니다.",
+      );
+    } else {
+      push(
+        "ACCESSIBILITY",
+        "켜 두신 단계별 안내는 이 업무에서는 제공되지 않습니다. " +
+          `단계별 안내가 되는 업무는 ${providers.map((c) => c.name).join(" · ")}입니다.`,
+      );
+    }
   }
 
   // One sentence per reason the candidates were actually dropped for, counted
@@ -276,10 +311,25 @@ function explain(
   const unnamed = excluded.filter((e) => !named.has(e.reasonCode)).length;
   if (unnamed > 0) push("USER_PREFERENCE", otherExclusions(unnamed));
 
-  // Both of these are said every time, whatever the answers were. The first is
-  // the boundary the platform draws; the second is the way out.
+  // The boundary the platform draws is said every time, whatever the answers
+  // were. The way out is said whenever there is one to point at that the reader
+  // is not already standing on — same correction as hospital.ts, same reason: a
+  // route named in a literal keeps being named after it stops being reachable.
   push("SAFETY", "자격이 되는지는 판단하지 않았습니다. 필요한 서류와 인증수단만 안내드립니다.");
-  push("SAFETY", "원하시면 직원 상담 요청으로 바로 넘어가실 수 있습니다.");
+  const staffRoute = survivors?.find(
+    (c) => c.candidateId !== recommended.candidateId && isStaffRoute(c),
+  );
+  if (survivors === undefined) {
+    push("SAFETY", "원하시면 직원 상담 요청으로 바로 넘어가실 수 있습니다.");
+  } else if (isStaffRoute(recommended)) {
+    push("SAFETY", "직원과 상담하시는 경로로 안내드리고 있습니다.");
+  } else if (staffRoute !== undefined) {
+    push(
+      "SAFETY",
+      `원하시면 ${staffRoute.name}${directionParticle(staffRoute.name)} ` +
+        `바로 넘어가실 수 있습니다.`,
+    );
+  }
   return reasons;
 }
 

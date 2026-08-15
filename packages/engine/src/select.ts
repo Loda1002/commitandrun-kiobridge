@@ -11,9 +11,10 @@
  * submission the other teams do not have, so the explanations matter as much as
  * the numbers.
  *
- * The exported signatures are unchanged from when this file was chicken-store
- * only: the web app, the submission builder and the check scripts all call
- * these, and the environment is derivable from what they already pass.
+ * The exported signatures are the ones this file had when it was chicken-store
+ * only, plus one optional argument on `explainRecommendation`: the web app, the
+ * submission builder and the check scripts all still call these as they did,
+ * and the environment is derivable from what they already pass.
  *
  * Same rule as the rest of src/ — nothing outside this package is imported, so
  * this file also runs in the deployed web app where the kit does not exist.
@@ -163,13 +164,21 @@ function round2(n: number): number {
  * Delegated to the domain, which owns the wording. Every sentence is
  * "[근거] + [무엇을 했는지]" and is only emitted when it is actually true of this
  * recommendation. "AI가 추천했습니다" is not an explanation and is never produced.
+ *
+ * `survivors` is what `filterCandidates` returned, and it is optional: the three
+ * arguments before it are the whole signature this file has ever had, and every
+ * existing caller keeps working unchanged. A domain that gets it can name a
+ * route the user could actually take instead of pointing vaguely at "the
+ * alternatives"; one that does not gets the sentence it got before. Pass it
+ * whenever you have it — the two spellings of the same sentence are a cost.
  */
 export function explainRecommendation(
   recommended: Candidate,
   ctx: SessionContext,
   excluded: ExclusionReason[],
+  survivors?: Candidate[],
 ): RecommendationReason[] {
-  return domainForContext(ctx).explain(recommended, ctx, excluded);
+  return domainForContext(ctx).explain(recommended, ctx, excluded, survivors);
 }
 
 /**

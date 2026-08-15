@@ -25,10 +25,13 @@ import "../src/domains/index.ts";
 import { buildExecutionPlan, resolveOptionSelections, unsettleableGroups } from "../src/plan.ts";
 import { findMissingAnswers } from "../src/required.ts";
 import { createContextFor } from "../src/input.ts";
-import { filterCandidates, score } from "../src/select.ts";
+import { askedForPhrase, explainAlternative } from "../src/alternative.ts";
+import { relaxationOptions } from "../src/relax.ts";
+import { explainRecommendation, filterCandidates, score } from "../src/select.ts";
 import { ENVIRONMENT_BOUNDARY, FORBIDDEN_ACTIONS } from "../src/types.ts";
 import type {
-  EnvironmentId, ExclusionReason, PlannedAction, PublicFixture, SessionContext,
+  Candidate, EnvironmentId, ExclusionReason, PlannedAction, PublicFixture,
+  RecommendationReason, SessionContext,
 } from "../src/types.ts";
 
 const read = async (p: string) => JSON.parse(await readFile(p, "utf8"));
@@ -137,8 +140,27 @@ const claim = (label: string, ok: boolean, detail: string) => {
  * deliberately-unanswered ones, which are "" — the same empty the screen sends
  * when nobody touched the control.
  */
-type Situation = "A" | "B" | "C" | "D" | "E";
+type Situation = "A" | "B" | "C" | "D" | "E" | "F";
 type AnswerSet = { note: string; answers: Record<string, unknown> };
+
+/**
+ * The `supports` flag situation F asks about, per environment.
+ *
+ * F grades the sentence pm/24 ① rewrote: when the winner cannot give a support
+ * the user asked for, the reason has to name a route that can, by the name the
+ * fixture gives it. Which flag carries that support is the one piece of domain
+ * vocabulary this file cannot derive, so it is declared — and declared here
+ * rather than read from the domain, for the reason `MAY_REPLACE_AN_ANSWER`
+ * gives: a check that reads the engine's own table follows the engine wherever
+ * it goes, including somewhere wrong.
+ *
+ * chicken-store has no entry because it has no supports at all. That absence is
+ * not assumed, it is checked — see `unreachableCell`.
+ */
+const F_SUPPORT_FLAG: Partial<Record<EnvironmentId, string>> = {
+  hospital: "hearingSupport",
+  "public-office": "stepByStep",
+};
 
 const SCENARIOS: Record<EnvironmentId, Record<Situation, AnswerSet | null>> = {
   "chicken-store": {
@@ -177,6 +199,9 @@ const SCENARIOS: Record<EnvironmentId, Record<Situation, AnswerSet | null>> = {
         cupOption: "PAPER", quantity: "1", allergenIds: [], maxPriceKrw: 3000,
       },
     },
+    // A menu is not a desk: nothing here advertises a support, so there is no
+    // unmet one to name. Checked rather than assumed — see `unreachableCell`.
+    F: null,
   },
   hospital: {
     A: {
@@ -210,6 +235,17 @@ const SCENARIOS: Record<EnvironmentId, Record<Situation, AnswerSet | null>> = {
     // The staff route declares no visit type, so every mismatch rule steps
     // around it and it is never unavailable. E is checked by sweep instead.
     E: null,
+    F: {
+      // Not the same shape as C. There the mode has no flag anywhere in the
+      // fixture and the honest answer is the staff desk; here the flag exists,
+      // 비예약 초진 안내 wins without it, and 직원 도움 요청 has it — so there is
+      // a name to say, which is the whole of the sentence ① rewrote.
+      note: "청각 지원 요청 · 비예약 초진 — 1등이 그 지원을 못 준다",
+      answers: {
+        visitType: "FIRST_VISIT", appointmentStatus: "NO_APPOINTMENT",
+        departmentId: "UNSPECIFIED", supportModes: ["HEARING_SUPPORT"], guardianPresent: false,
+      },
+    },
   },
   "public-office": {
     A: {
@@ -245,6 +281,18 @@ const SCENARIOS: Record<EnvironmentId, Record<Situation, AnswerSet | null>> = {
     },
     // PUBLIC-006 is exempt from both mismatch rules, same shape as HOS-006.
     E: null,
+    F: {
+      // The same answers as C, graded on a different claim: C says the unmet
+      // criterion shows up as an empty bar, F says the sentence next to it names
+      // where the guidance can be had. Sharing the answer set is deliberate —
+      // two spellings of "the one service that cannot guide step by step" would
+      // drift, and the fixture only has one.
+      note: "건강보험 + 단계별 안내 — 그 업무가 안내를 못 준다",
+      answers: {
+        serviceCategory: "INSURANCE", availableAuthMethods: ["MOBILE_AUTH"],
+        stepByStep: true, simpleLanguage: null,
+      },
+    },
   },
 };
 
@@ -259,7 +307,18 @@ interface Run {
   excluded: ExclusionReason[];
   /** Candidates that survived filtering, by id. */
   survivorIds: string[];
+  /** The same survivors as objects, for claims that read the fixture's own fields. */
+  survivors: Candidate[];
   recommendedId: string | null;
+  /**
+   * The sentences the user would be shown. Empty when there is no
+   * recommendation, because `explain` is only ever asked about one.
+   *
+   * Built with the survivor list, the way `participant.ts` builds it, so a cell
+   * grades the wording the submission carries rather than a second spelling of
+   * it — the divergence pm/24 ① left open at `apps/web` is one too many already.
+   */
+  reasons: RecommendationReason[];
   reconfirmCount: number;
   confidence: number;
   earnedSum: number;
@@ -304,6 +363,11 @@ function runCell(fixture: PublicFixture, environmentId: EnvironmentId, answers: 
   const rows = recommendedId ? result.contributions[recommendedId] ?? [] : [];
   const earnedSum = Math.round(rows.reduce((sum, r) => sum + r.earned, 0) * 100) / 100;
 
+  const recommended = survivors.find((c) => c.candidateId === recommendedId);
+  const reasons = recommended
+    ? explainRecommendation(recommended, ctx, excluded, survivors)
+    : [];
+
   // Ask which groups block the plan rather than catching the throw: the answer
   // is a value, and try/catch would turn every unrelated bug into a passing
   // "expected failure".
@@ -338,7 +402,7 @@ function runCell(fixture: PublicFixture, environmentId: EnvironmentId, answers: 
 
   return {
     ctx, rawMissing, missing, excluded,
-    survivorIds: survivors.map((c) => c.candidateId), recommendedId,
+    survivorIds: survivors.map((c) => c.candidateId), survivors, recommendedId, reasons,
     reconfirmCount: result.reconfirmRequests.length,
     confidence: result.confidence, earnedSum,
     zeroLabels: rows.filter((r) => r.earned === 0).map((r) => r.label),
@@ -401,10 +465,28 @@ function planInvariants(
   return bad;
 }
 
+/**
+ * pm/24 G8 — a recommendation the planner cannot settle, offered anyway.
+ *
+ * Not "the winner's `unsettleableGroups` is always empty": measured, that is
+ * false. 64 of the hospital's 160 answer sets rank a winner no plan can be
+ * built for — 재진 · 예약 있음 · 정형외과 has no desk, so only the staff route
+ * survives and it cannot honour an appointment. Writing the claim the way the
+ * card words it would be a line that can never be green, which is the same
+ * fault as one that can never be red.
+ *
+ * What must hold is that none of those reach a user: the gate stops every one.
+ * So the violation is the pair — a non-empty `blocked` on an answer set the
+ * screen would have let through.
+ */
+const g8Violated = (run: Run) =>
+  run.recommendedId !== null && run.missing.length === 0 && run.blocked.length > 0;
+
 function invariants(fixture: PublicFixture, environmentId: EnvironmentId, run: Run): string[] {
   const bad: string[] = [];
 
   if (run.recommendedId === null && run.plan !== null) bad.push("추천이 없는데 계획이 있다");
+  if (g8Violated(run)) bad.push(`G8 위반: 1등 ${run.recommendedId} 를 계획할 수 없다 (${run.blocked.join(",")})`);
   if (run.plan) bad.push(...planInvariants(fixture, environmentId, run.plan));
 
   // A confidence the bars cannot account for is a number arguing with its own
@@ -418,7 +500,59 @@ function invariants(fixture: PublicFixture, environmentId: EnvironmentId, run: R
 
 /* ═══════════════════ per-situation expectations (card 1번) ════════════════ */
 
-function judge(situation: Situation, run: Run): { ok: boolean; why: string } {
+/**
+ * F — the winner could not give a support that was asked for, so the reason has
+ * to name a route that can.
+ *
+ * Written so that every way of not testing anything is a FAIL rather than a
+ * pass. The premise is checked before the claim: if the fixture stops producing
+ * a winner that lacks the flag, or stops having anywhere else to send them, the
+ * cell says so and goes red instead of quietly grading an empty set — the shape
+ * of fault session 20 found in `check-hostile-input` and the one the card warns
+ * about again here.
+ *
+ * The expected names are read out of the fixture and looked for in the
+ * sentence. Writing 직원 도움 요청 into this file would pass just as happily
+ * against a sentence that had it hard-coded, which is what ① removed.
+ */
+function judgeUnmetSupportNamed(
+  environmentId: EnvironmentId,
+  run: Run,
+): { ok: boolean; why: string } {
+  const flag = F_SUPPORT_FLAG[environmentId];
+  if (flag === undefined) return { ok: false, why: "F 대상 지원 플래그가 선언되지 않았다" };
+
+  const winner = run.survivors.find((c) => c.candidateId === run.recommendedId);
+  if (!winner) return { ok: false, why: `추천이 없다 (1등 ${run.recommendedId})` };
+
+  const provides = (c: Candidate) => ((c.supports ?? {}) as Record<string, unknown>)[flag] === true;
+  if (provides(winner)) {
+    return { ok: false, why: `1등 ${winner.candidateId} 가 ${flag} 를 제공한다 — 이 칸이 재는 상황이 아니다` };
+  }
+
+  const providers = run.survivors.filter((c) => c.candidateId !== winner.candidateId && provides(c));
+  if (providers.length === 0) {
+    return { ok: false, why: `${flag} 를 주는 생존 후보가 없다 — 이름 붙일 대상이 없다` };
+  }
+
+  const accessibility = run.reasons.filter((r) => r.tag === "ACCESSIBILITY").map((r) => r.text);
+  const text = accessibility.join(" ");
+  const unnamed = providers.filter((c) => !text.includes(c.name));
+  // The wording ① replaced. Named explicitly so a revert cannot pass by
+  // accident on some other sentence happening to carry the route name.
+  const vague = accessibility.some((t) => t.includes("아래 대안에서"));
+
+  return {
+    ok: unnamed.length === 0 && !vague && accessibility.length > 0,
+    why:
+      `1등 ${winner.candidateId} (${flag} 없음) · 이름 불린 경로 ` +
+      `${providers.map((c) => c.name).join(" · ")}` +
+      (unnamed.length > 0 ? ` — 문장에 없음: ${unnamed.map((c) => c.name).join(",")}` : "") +
+      (vague ? ` — "아래 대안에서" 가 남아 있다` : ""),
+  };
+}
+
+function judge(situation: Situation, environmentId: EnvironmentId, run: Run): { ok: boolean; why: string } {
   switch (situation) {
     case "A":
       return {
@@ -455,7 +589,56 @@ function judge(situation: Situation, run: Run): { ok: boolean; why: string } {
         ok: run.survivorIds.length === 0 && run.recommendedId === null && run.plan === null,
         why: `후보 0 · 추천 없음 · 계획 없음`,
       };
+    case "F":
+      return judgeUnmetSupportNamed(environmentId, run);
   }
+}
+
+/**
+ * A cell whose situation this environment cannot reach, and what stands in for
+ * it.
+ *
+ * "도달 불가" is a claim and not an excuse, so each branch names a measurement
+ * that can fail. A row that printed 해당 없음 would be one the matrix can never
+ * go red on, which is the whole reason this file exists.
+ */
+function unreachableCell(
+  situation: Situation,
+  environmentId: EnvironmentId,
+  fixture: PublicFixture,
+): { ok: boolean; why: string } {
+  if (situation === "F") {
+    // The barrier pm/24 G7 rests on. Nothing in this fixture advertises a
+    // support, so no accessibility sentence can fire here and the chicken shop
+    // stays out of that path entirely — which is what keeps the frozen
+    // submission out of reach of every accessibility change we make. The day a
+    // candidate gains a `supports` block, that stops being true and this goes
+    // red rather than the fact being discovered from a changed hash.
+    const declaring = fixture.candidates.filter(
+      (c) => c.supports !== undefined && Object.keys(c.supports).length > 0,
+    );
+    return {
+      ok: declaring.length === 0,
+      why:
+        `지원 개념 없음 · supports 를 선언한 후보 ${declaring.length}/${fixture.candidates.length}` +
+        (declaring.length > 0 ? ` (${declaring.map((c) => c.candidateId).join(",")})` : " — G7 방벽"),
+    };
+  }
+
+  // E. Not "a candidate always survives" — that was the weaker claim, and the
+  // 64 hospital combinations where the staff route survives and the gate still
+  // stops the user are its counter-example. The way out is only a way out if
+  // every answer set that reaches it can be planned, so the cell rests on the
+  // gate/plan agreement rather than on the survivor count. 과잉차단 0 and 샌 것
+  // 0 together are what say the gated set and the unplannable set are the same
+  // set, which is the whole claim.
+  const t = wholeEnvironment(environmentId);
+  return {
+    ok: t.zeroCandidates === 0 && t.escape.length > 0 && soundSweep(t),
+    why:
+      `설계상 도달 불가 · ${t.total}조합 후보0 = ${t.zeroCandidates} · ${agreement(t)}` +
+      ` · 탈출구 ${t.escape.join(",") || "(없음)"}`,
+  };
 }
 
 /** Reason codes and how many candidates each one took, for the D line. */
@@ -467,7 +650,7 @@ const byReason = (excluded: ExclusionReason[]) => {
 
 const SITUATION_LABEL: Record<Situation, string> = {
   A: "A 정상 추천", B: "B 추가 확인", C: "C 선호 불일치",
-  D: "D 제약조건 충돌", E: "E 적합 후보 없음",
+  D: "D 제약조건 충돌", E: "E 적합 후보 없음", F: "F 미충족 지원 안내",
 };
 
 /* ═══════════════════════════════ sweeps ═══════════════════════════════════
@@ -653,6 +836,13 @@ interface Tally {
   planned: number;
   /** Let through and then unplannable — a button that does nothing. */
   leaked: string[];
+  /**
+   * Answer sets that ranked a winner the planner cannot settle, gate or no gate.
+   * Not a failure on its own: the whole hospital fixture produces 64 of them.
+   */
+  unplannableWinner: number;
+  /** The ones the gate did not stop. Those are G8 violations, and one fails. */
+  g8: string[];
   /** Stopped although a plan could have been built — a user turned away for nothing. */
   overGated: string[];
   /** Candidates alive in every single answer set: the fixture's way out. */
@@ -678,8 +868,8 @@ function sweep(
 ): Tally {
   const t: Tally = {
     total: answerSets.length, zeroCandidates: 0, gated: 0, planned: 0,
-    leaked: [], overGated: [], escape: [], verbatim: 0, replacements: 0,
-    settled: {}, invented: [], broken: [], threw: [],
+    leaked: [], unplannableWinner: 0, g8: [], overGated: [], escape: [],
+    verbatim: 0, replacements: 0, settled: {}, invented: [], broken: [], threw: [],
   };
   let alwaysAlive: Set<string> | null = null;
 
@@ -698,6 +888,15 @@ function sweep(
     // point — asking only about the ones that got through would measure the gate
     // against itself.
     const plannable = run.recommendedId !== null && run.blocked.length === 0;
+
+    // G8, counted apart from `leaked`, which merges this with "the gate let a
+    // set through and the domain still refused to recommend". Those are
+    // different faults and only the first is about ranking something
+    // unreachable, so a single number cannot say which one moved.
+    if (run.recommendedId !== null && run.blocked.length > 0) {
+      t.unplannableWinner++;
+      if (g8Violated(run)) t.g8.push(`${key()} — ${run.blocked.join(",")}`);
+    }
 
     if (run.missing.length > 0) {
       t.gated++;
@@ -747,14 +946,21 @@ const soundSweep = (t: Tally) =>
   t.total > 0 &&
   t.overGated.length === 0 &&
   t.leaked.length === 0 &&
+  t.g8.length === 0 &&
   t.invented.length === 0 &&
   t.broken.length === 0 &&
   t.threw.length === 0;
 
-/** How the gate and the plan lined up, in one phrase. */
+/**
+ * How the gate and the plan lined up, in one phrase.
+ *
+ * `1등 계획불가` is printed even where it is large, because it is: 64 of the
+ * hospital's 160. The number that has to be zero is the one after it.
+ */
 const agreement = (t: Tally) =>
   `게이트 ${t.gated} · 통과 ${t.total - t.gated} → 계획 ${t.planned}` +
-  ` · 과잉차단 ${t.overGated.length} · 샌 것 ${t.leaked.length}`;
+  ` · 과잉차단 ${t.overGated.length} · 샌 것 ${t.leaked.length}` +
+  ` · 1등 계획불가 ${t.unplannableWinner} (G8 위반 ${t.g8.length})`;
 
 /**
  * What each sweep claims, and which slice of its environment's answer sets it
@@ -919,24 +1125,12 @@ for (const environmentId of registeredEnvironments()) {
   const fixture = fixtures.get(environmentId)!;
   console.log(`═══ ${environmentId} ═══`);
 
-  for (const situation of ["A", "B", "C", "D", "E"] as Situation[]) {
+  for (const situation of ["A", "B", "C", "D", "E", "F"] as Situation[]) {
     const scenario = SCENARIOS[environmentId][situation];
 
     if (scenario === null) {
-      // Not "a candidate always survives" — that was the weaker claim, and the
-      // 64 hospital combinations where the staff route survives and the gate
-      // still stops the user are its counter-example. The way out is only a way
-      // out if every answer set that reaches it can be planned, so the cell
-      // rests on the gate/plan agreement rather than on the survivor count.
-      // 과잉차단 0 and 샌 것 0 together are what say the gated set and the
-      // unplannable set are the same set, which is the whole claim.
-      const t = wholeEnvironment(environmentId);
-      cell(
-        SITUATION_LABEL[situation],
-        t.zeroCandidates === 0 && t.escape.length > 0 && soundSweep(t),
-        `설계상 도달 불가 · ${t.total}조합 후보0 = ${t.zeroCandidates} · ${agreement(t)}` +
-          ` · 탈출구 ${t.escape.join(",") || "(없음)"}`,
-      );
+      const stand = unreachableCell(situation, environmentId, fixture);
+      cell(SITUATION_LABEL[situation], stand.ok, stand.why);
       continue;
     }
 
@@ -949,7 +1143,7 @@ for (const environmentId of registeredEnvironments()) {
       continue;
     }
 
-    const verdict = judge(situation, run);
+    const verdict = judge(situation, environmentId, run);
     const broken = invariants(fixture, environmentId, run);
     if (run.missing.length > 0) gateBlocked.push(`${environmentId}/${situation}`);
 
@@ -990,6 +1184,9 @@ for (const { spec, tally } of tallies) {
   // claim except the chicken shop's is silent about them otherwise.
   const notes = [...new Set(tally.broken)];
   if (tally.threw.length > 0) notes.push(`계획 예외 ${tally.threw.length}건 · 예: ${tally.threw[0]}`);
+  // Quoted, not just counted: a G8 violation is one answer set that has to be
+  // reproducible from the report alone.
+  if (tally.g8.length > 0) notes.push(`G8 위반 ${tally.g8.length}건 · 예: ${tally.g8[0]}`);
   claim(spec.label, verdict.ok, notes.length > 0 ? `${verdict.why} — ${notes.join(" · ")}` : verdict.why);
   // Only from the sweeps that are not a slice of another one, or the same
   // replacement is reported twice under two names.
@@ -1000,6 +1197,302 @@ for (const { spec, tally } of tallies) {
   }
   // Never suppressed: an invented answer is a failure wherever it turns up.
   for (const note of tally.invented) replacements.push(`${spec.label}: 지어냄 ${note}`);
+}
+
+/* ═══════════ ④ 완화 제안 — the sweep ② deferred, with its own space ═══════
+ *
+ * `sweepAnswerSets` pins `allergenIds: []` and `maxPriceKrw: 7000` on purpose,
+ * and says why where it does it. That pinning is exactly what makes it the
+ * wrong space for this claim: "no relaxation ever revives a dish the user is
+ * allergic to", measured over 432 answer sets that declare no allergy, is a
+ * verdict that cannot go red. That is the fault session 20 found in
+ * `check-hostile-input` and the card warns about again here, so the claim
+ * brings its own space rather than borrowing one that would flatter it.
+ *
+ * Everything in that space comes off the fixture — the allergies its own dishes
+ * carry, the prices they charge, the service types it offers. A fixture that
+ * drops the peanut dish shrinks the space and prints a smaller number, rather
+ * than leaving a claim that reads the same either way.
+ */
+function relaxAnswerSets(fixture: PublicFixture): Record<string, unknown>[] {
+  const allergens = [...new Set(
+    fixture.candidates.flatMap((c) => (c.attributes?.allergenIds as string[] | undefined) ?? []),
+  )].sort();
+  const prices = [...new Set(
+    fixture.candidates.map((c) => c.price).filter((p): p is number => p !== undefined),
+  )].sort((a, b) => a - b);
+  const serviceTypes = (fixture.optionGroups.find((g) => g.groupId === "SERVICE_TYPE")?.options ?? [])
+    .map((o) => o.id);
+  if (allergens.length === 0 || prices.length === 0 || serviceTypes.length === 0) return [];
+
+  // One won under the cheapest dish is the budget that fits nothing, said
+  // without a number of our own standing in for the fixture's.
+  const budgets = [prices[0] - 1, ...prices];
+  // Each declared allergy alone, and all of them together. The subsets between
+  // add answer sets without adding a shape.
+  const declarations: string[][] = [[], ...allergens.map((a) => [a]), allergens];
+
+  const sets: Record<string, unknown>[] = [];
+  for (const serviceType of serviceTypes)
+    for (const allergenIds of declarations)
+      for (const maxPriceKrw of budgets)
+        sets.push({
+          serviceType, allergenIds, maxPriceKrw,
+          spicyLevel: "MILD", boneType: "BONELESS", cupOption: "PAPER", quantity: "1",
+        });
+  return sets;
+}
+
+/** The two fields a relaxation is allowed to point at. Anything else is G4. */
+const RELAXABLE_PATHS = ["/hardConstraints/maxPriceKrw", "/preferences/serviceType"];
+
+{
+  const fixture = fixtures.get("chicken-store")!;
+  const sets = relaxAnswerSets(fixture);
+  const allergensOf = (c: Candidate) => (c.attributes?.allergenIds as string[] | undefined) ?? [];
+
+  let withOptions = 0;
+  let rows = 0;
+  const byReason: Record<string, number> = {};
+  /** A suggestion that would put back a dish carrying an allergy the user named. */
+  const revived: string[] = [];
+  /** A suggestion pointing somewhere we never agreed to negotiate. */
+  const offPath: string[] = [];
+
+  for (const answers of sets) {
+    const declared = answers.allergenIds as string[];
+    const options = relaxationOptions(fixture, contextFor(fixture, "chicken-store", answers));
+    if (options.length > 0) withOptions++;
+    rows += options.length;
+
+    for (const option of options) {
+      byReason[option.reasonCode] = (byReason[option.reasonCode] ?? 0) + 1;
+      if (!RELAXABLE_PATHS.includes(option.path)) offPath.push(`${JSON.stringify(answers)} — ${option.path}`);
+      // The claim itself: not "the allow-list has no allergen entry", which is
+      // read off the source, but "no dish the user cannot eat comes back",
+      // which is read off the survivors the suggestion actually produces.
+      for (const id of option.survivorIds) {
+        const dish = fixture.candidates.find((c) => c.candidateId === id);
+        const hits = dish ? allergensOf(dish).filter((a) => declared.includes(a)) : [];
+        if (hits.length > 0) revived.push(`${JSON.stringify(answers)} — ${id}/${hits.join(",")}`);
+      }
+    }
+  }
+
+  // The card's acceptance value, kept as the customer who produced it:
+  // `input/chicken-store-tight-budget.json` answers 3,000원 on a menu whose
+  // cheapest dish is 5,500원. Pinned separately from the space above because
+  // 3,000 is that customer's number, not one derived from the fixture.
+  const tightBudget = {
+    serviceType: "TAKE_OUT", spicyLevel: "MILD", boneType: "BONELESS",
+    cupOption: "PAPER", quantity: "1", allergenIds: [], maxPriceKrw: 3000,
+  };
+  const first = relaxationOptions(fixture, contextFor(fixture, "chicken-store", tightBudget))[0];
+  const cheapest = Math.min(
+    ...fixture.candidates.map((c) => c.price ?? Infinity),
+  );
+  const pinnedOk = first !== undefined
+    && first.path === "/hardConstraints/maxPriceKrw"
+    && first.value === cheapest
+    && first.survivorCount === 1;
+  const pinned = first
+    ? `3,000원 → ${first.value}원 ${first.survivorCount}개`
+    : "3,000원 → 제안 없음";
+
+  const counted = Object.entries(byReason).map(([code, n]) => `${code} ${n}`).join(" · ") || "(없음)";
+  claim(
+    "닭강정집 완화 제안",
+    revived.length === 0 && offPath.length === 0 && withOptions > 0 && pinnedOk,
+    `${sets.length}조합 · 제안 있는 조합 ${withOptions} · 제안 ${rows}건 (${counted})` +
+      ` · 알레르기 되살림 ${revived.length} · 허용 밖 경로 ${offPath.length} · ${pinned}` +
+      (revived.length > 0 ? ` — 예: ${revived[0]}` : "") +
+      (offPath.length > 0 ? ` — 예: ${offPath[0]}` : ""),
+  );
+
+  // The other two environments, so an empty list is told apart from a function
+  // that never ran. public-office is the one that matters: its exclusions are
+  // all `REQUESTED_SERVICE_MISMATCH`, tagged `USER_PREFERENCE` like every other
+  // rule in the three domains, so a `tag` filter would have offered to treat a
+  // 건강보험 visit as a 주민등록 one. The count of exclusions seen is printed
+  // beside the zero to show the allow-list did the refusing.
+  for (const environmentId of ["hospital", "public-office"] as EnvironmentId[]) {
+    const other = fixtures.get(environmentId)!;
+    let seen = 0;
+    let produced = 0;
+    const codes = new Set<string>();
+    for (const answers of answerSpace.get(environmentId)!) {
+      const ctx = contextFor(other, environmentId, answers);
+      seen++;
+      for (const e of filterCandidates(other, ctx).excluded) codes.add(e.reasonCode);
+      produced += relaxationOptions(other, ctx).length;
+    }
+    claim(
+      `${environmentId} 완화 제안 없음`,
+      seen > 0 && produced === 0 && codes.size > 0,
+      `${seen}조합 호출 · 제안 ${produced}건 · 본 제외 이유 ${[...codes].sort().join(",") || "(없음)"}`,
+    );
+  }
+}
+
+/* ═════════ ⑦ 예산을 안 정한 손님이 덜 듣지 않는다 ═══════════════════════
+ *
+ * Skipping the budget question left `priceWithinLimit` empty with nothing said
+ * beside it, which reads as a dish that failed on price rather than one nobody
+ * checked. pm/19 2.11(a).
+ *
+ * Measured by comparing the two customers rather than by looking for the
+ * sentence. Writing it into this file would pass against a screen that
+ * hard-coded the same words, and would go on passing if `explain` quietly lost
+ * a different reason — the fault is that one customer is told less than the
+ * other, so that is the thing counted.
+ *
+ * The premise is checked before the claim, the way situation F does it: the bar
+ * has to be empty for the one and full for the other, or the two contexts are
+ * not the pair this is about and the row says so instead of grading nothing.
+ */
+{
+  const fixture = fixtures.get("chicken-store")!;
+  // The bar's own name, read off the domain: `zeroLabels` is what `runCell`
+  // keeps, and matching it to a string typed here would drift the day the label
+  // is reworded — which is a thing that has already happened twice to this
+  // criterion.
+  const priceLabel = getDomain("chicken-store").criteria
+    .find((c) => c.key === "priceWithinLimit")?.label;
+
+  let compared = 0;
+  const toldLess: string[] = [];
+  const badPremise: string[] = [];
+
+  for (const answers of answerSpace.get("chicken-store")!) {
+    const withBudget = runCell(fixture, "chicken-store", answers);
+    const without = runCell(fixture, "chicken-store", { ...answers, maxPriceKrw: null });
+    if (withBudget.recommendedId === null || without.recommendedId === null) continue;
+    compared++;
+
+    // Premise: the bar is full for the customer who set a budget and empty for
+    // the one who did not. Without this the row could be comparing two
+    // customers who are in the same situation, and pass while measuring nothing.
+    const emptyWith = priceLabel !== undefined && withBudget.zeroLabels.includes(priceLabel);
+    const emptyWithout = priceLabel !== undefined && without.zeroLabels.includes(priceLabel);
+    if (emptyWith || !emptyWithout) {
+      badPremise.push(
+        `${JSON.stringify(answers)} — 막대 빔: 예산 있음 ${emptyWith} · 없음 ${emptyWithout}`,
+      );
+      continue;
+    }
+
+    if (without.reasons.length < withBudget.reasons.length) {
+      toldLess.push(
+        `${JSON.stringify(answers)} — 예산 있음 ${withBudget.reasons.length}문장 · 없음 ${without.reasons.length}문장`,
+      );
+    }
+  }
+
+  claim(
+    "닭강정집 예산 미지정",
+    compared > 0 && badPremise.length === 0 && toldLess.length === 0,
+    `${compared}쌍 대조 · 덜 들은 손님 ${toldLess.length} · 전제 어긋남 ${badPremise.length}` +
+      (toldLess.length > 0 ? ` — 예: ${toldLess[0]}` : "") +
+      (badPremise.length > 0 ? ` — 예: ${badPremise[0]}` : ""),
+  );
+}
+
+/* ═══════════════ ⑤ 대안 이유 — the sentence, over the whole space ═════════
+ *
+ * Three things at once, because they are one property: the sentence is built
+ * from the bar values and from nothing else.
+ *
+ *  1. Every criterion the domain registers has wording here. Walked off the
+ *     registry, so a domain that adds a criterion fails this rather than
+ *     shipping a sentence with a hole in it.
+ *  2. No `ScoreContribution.label` appears in any sentence. That is the card's
+ *     warning made into a measurement: seven of the eleven labels are "~ 일치",
+ *     and one pasted into the slot for what a candidate failed to give reads as
+ *     the opposite — `pm/17-RESULT.md` 4절 on `unmetConditions`.
+ *  3. No criterion the two candidates earn the same on is named. "Derived from
+ *     the difference only" is otherwise a claim about the source rather than
+ *     about the output.
+ *
+ * Liveness is part of the verdict. A space that produced no pair, or one
+ * sentence for every pair, would pass 1–3 while measuring nothing.
+ */
+for (const environmentId of registeredEnvironments()) {
+  const fixture = fixtures.get(environmentId)!;
+  const labels = getDomain(environmentId).criteria.map((c) => c.label);
+  const unworded = getDomain(environmentId).criteria
+    .filter((c) => askedForPhrase(c.key) === undefined)
+    .map((c) => c.key);
+
+  let pairs = 0;
+  const sentences = new Set<string>();
+  const pastedLabel: string[] = [];
+  const namedAnEqual: string[] = [];
+  const threw: string[] = [];
+  /** Kept for the winner-is-not-its-own-alternative probe below. */
+  let sample: ReturnType<typeof score> | null = null;
+
+  for (const answers of answerSpace.get(environmentId)!) {
+    const ctx = contextFor(fixture, environmentId, answers);
+    const { survivors } = filterCandidates(fixture, ctx);
+    if (survivors.length === 0) continue;
+    const result = score(survivors, ctx);
+    if (result.recommendedCandidateId === null) continue;
+    sample ??= result;
+    const winner = result.contributions[result.recommendedCandidateId] ?? [];
+
+    for (const altId of result.alternativeCandidateIds) {
+      pairs++;
+      let sentence: string;
+      try {
+        sentence = explainAlternative(result, altId);
+      } catch (e) {
+        threw.push(`${JSON.stringify(answers)}/${altId} — ${(e as Error).message}`);
+        continue;
+      }
+      sentences.add(sentence);
+
+      for (const label of labels) {
+        if (sentence.includes(label)) pastedLabel.push(`${altId} — ${label}`);
+      }
+      const mine = new Map((result.contributions[altId] ?? []).map((r) => [r.key, r]));
+      for (const row of winner) {
+        const theirs = mine.get(row.key);
+        const phrase = askedForPhrase(row.key);
+        if (theirs?.earned !== row.earned || phrase === undefined) continue;
+        if (sentence.includes(phrase)) namedAnEqual.push(`${altId} — ${row.key}: ${sentence}`);
+      }
+    }
+  }
+
+  // The winner is not one of its own alternatives. Unguarded it compares equal
+  // to itself on every bar and comes back with the sentence for a tie, which is
+  // the one wrong answer that looks like a right one — so the refusal is
+  // measured rather than trusted to the reading of the source.
+  let refusesWinner = false;
+  const winnerId = sample?.recommendedCandidateId;
+  if (sample && winnerId) {
+    try {
+      explainAlternative(sample, winnerId);
+    } catch {
+      refusesWinner = true;
+    }
+  }
+
+  const notes = [
+    unworded.length > 0 ? `문구 없는 기준 ${unworded.join(",")}` : "",
+    threw.length > 0 ? `예외 ${threw.length}건 · 예: ${threw[0]}` : "",
+    pastedLabel.length > 0 ? `막대 이름이 문장에 ${pastedLabel.length}건 · 예: ${pastedLabel[0]}` : "",
+    namedAnEqual.length > 0 ? `같은 기준을 말함 ${namedAnEqual.length}건 · 예: ${namedAnEqual[0]}` : "",
+    refusesWinner ? "" : "1등 id 를 넘겨도 문장을 낸다",
+  ].filter(Boolean);
+
+  claim(
+    `${environmentId} 대안 이유`,
+    unworded.length === 0 && threw.length === 0 && pastedLabel.length === 0
+      && namedAnEqual.length === 0 && pairs > 0 && sentences.size > 1 && refusesWinner,
+    `쌍 ${pairs} · 서로 다른 문장 ${sentences.size} · 기준 ${labels.length}개 문구 있음 · 1등 id 거부` +
+      (notes.length > 0 ? ` — ${notes.join(" · ")}` : ""),
+  );
 }
 console.log("");
 
@@ -1012,6 +1505,22 @@ console.log(`  스윕 ${sweptClaims}건 · OK ${okClaims} · FAIL ${sweptClaims 
 // the screens can produce are different sentences, and only the second is worth
 // putting in front of a judge.
 console.log(`  금지 동작 누적 ${deniedTotal}건 · 계획 ${plansChecked}건 대조 (셀 + 스윕)`);
+// G8 in one line, summed over the whole-space sweeps only.
+//
+// Summing every sweep counted the slices a second time: 병원 접근성 미선택 is a
+// filter over the same 160 answer sets 병원 전체 already swept, so its 16 landed
+// on top of the 64 and the line printed 누적 80 for a space that holds 64.
+// Nothing is lost by leaving the slices out — a filter cannot hold a violation
+// the space it filters does not. Cells are not in the sum either; a violation
+// there fails the cell itself, which is louder than a number at the foot.
+//
+// The left number is not a fault and is printed so nobody reads the right one
+// as "the planner always settles the winner" — it does not, and the gate is the
+// reason that never reaches anyone.
+const g8Whole = tallies.filter(({ spec }) => spec.wholeSpace).map(({ tally }) => tally);
+const g8Unplannable = g8Whole.reduce((n, t) => n + t.unplannableWinner, 0);
+const g8Leaked = g8Whole.reduce((n, t) => n + t.g8.length, 0);
+console.log(`  G8 · 1등이 계획 불가한 조합 ${g8Unplannable}건 (전체 답 공간) · 그중 게이트를 통과한 것 ${g8Leaked}건`);
 // What the plan ordered that the user did not ask for, in full. Every line here
 // is allowed — a taste the dish settles, or a refusal to decide — but they are
 // the sentences a judge would read as us overruling someone, so they are
