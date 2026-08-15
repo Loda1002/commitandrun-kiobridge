@@ -37,10 +37,9 @@ import {
 } from "@commitandrun/engine/select";
 
 
-// 👇👇👇 [START: 9, 10번 지시사항 임포트 추가] 👇👇👇
 import { explainAlternative } from "../../../packages/engine/src/alternative";
 import { relaxationOptions, explainRelaxation } from "../../../packages/engine/src/relax";
-// 👆👆👆 [END: 9, 10번 지시사항 임포트 추가] 👆👆👆
+
 
 import { DEFAULT_ENVIRONMENT_ID, fixtureFor } from "./fixture";
 import {
@@ -159,39 +158,33 @@ export async function fetchRecommendation(
     const contributions = result.contributions[candidateId];
     if (!candidate || !contributions) return null;
 
-    // 👇👇👇 [START: 9번 지시사항 로직 추가] 대안 이유를 가져옵니다. 문제가 생기면 이 블록을 지우세요 👇👇👇
-    let altExpl: string | undefined = undefined;
+    let alternativeExplanation: string | undefined = undefined;
     if (recommendedId !== null && candidateId !== recommendedId) {
       try {
-        altExpl = explainAlternative(result, candidateId);
+        alternativeExplanation = explainAlternative(result, candidateId);
       } catch (e) {
         console.error("explainAlternative 실패:", e);
       }
     }
-    // 👆👆👆 [END: 9번 지시사항 로직 추가] 👆👆👆
 
     return {
       ...toCandidateView(candidate, contributions),
       blockedReason: blockedReason(fixture, candidateId, ctx),
-      // 👇👇👇 [START: 9번 지시사항 뷰 연결 추가] 문제가 생기면 이 1줄을 지우세요 👇👇👇
-      alternativeExplanation: altExpl,
-      // 👆👆👆 [END: 9번 지시사항 뷰 연결 추가] 👆👆👆
+      alternativeExplanation,
     };
   };
 
-  // 👇👇👇 [START: 10번 지시사항 로직 추가] 완화 제안을 가져옵니다. 문제가 생기면 이 블록을 지우세요 👇👇👇
-  let relaxationSuggestion: string | null = null;
+  const relaxationSuggestions: string[] = [];
   if (recommendedId === null) {
-    const options = relaxationOptions(fixture, ctx);
-    if (options.length > 0) {
+    // 제약 조건별로 제안이 다를 수 있으므로 발생한 모든 제안 문구를 수집하여 뷰에 전달합니다.
+    for (const option of relaxationOptions(fixture, ctx)) {
       try {
-        relaxationSuggestion = explainRelaxation(fixture, ctx, options[0]);
+        relaxationSuggestions.push(explainRelaxation(fixture, ctx, option));
       } catch (e) {
         console.error("explainRelaxation 실패:", e);
       }
     }
   }
-  // 👆👆👆 [END: 10번 지시사항 로직 추가] 👆👆👆
 
   return {
     recommended: recommendedId === null ? null : view(recommendedId),
@@ -206,9 +199,7 @@ export async function fetchRecommendation(
     confidence: result.confidence,
     requiresReconfirmation: result.requiresReconfirmation,
     reconfirmRequests: result.reconfirmRequests,
-    // 👇👇👇 [START: 10번 지시사항 뷰 연결 추가] 문제가 생기면 이 1줄을 지우세요 👇👇👇
-    relaxationSuggestion,
-    // 👆👆👆 [END: 10번 지시사항 뷰 연결 추가] 👆👆👆
+    relaxationSuggestions,
   };
 }
 

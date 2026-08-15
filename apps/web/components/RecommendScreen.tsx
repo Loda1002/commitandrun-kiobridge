@@ -82,7 +82,7 @@ export function RecommendScreen({ recView, environmentId, isHighContrast, onChoo
 
               return (
                 <div key={idx} className="flex items-center gap-4">
-                  <span className="min-w-28 max-w-40 shrink-0">{c.label || "항목"}</span>
+                  <span className="w-32 sm:w-48 shrink-0 break-keep leading-snug">{c.label || "항목"}</span>
                   <div className="flex-1 flex items-center h-8">
                     <div className="h-full bg-gray-200 rounded-full overflow-hidden border border-gray-300" style={{ width: containerWidth }}>
                       {/* [디자인] motion-reduce 존중 */}
@@ -107,13 +107,15 @@ export function RecommendScreen({ recView, environmentId, isHighContrast, onChoo
       ) : (
         <div className={`p-8 text-center border-2 border-dashed rounded-2xl flex flex-col gap-3 ${isHighContrast ? "border-gray-400 bg-transparent text-[var(--color-fg)]" : "border-gray-400 bg-gray-50"}`}>
           <p className="font-bold" style={{ fontSize: "calc(1.2rem * var(--font-scale))" }}>조건에 맞는 {copy.noun}{subjectParticle(copy.noun)} 없습니다. 직원의 도움을 받아주세요.</p>
-          {/* 👇👇👇 [START: 10번 지시사항 추가] 문제가 생기면 이 블록을 지우세요 👇👇👇 */}
-          {recView.relaxationSuggestion && (
-            <p className={`font-bold mt-2 ${isHighContrast ? "text-[var(--color-accent)]" : "text-[var(--color-accent)]"}`} style={{ fontSize: "calc(1.2rem * var(--font-scale))" }}>
-              💡 {recView.relaxationSuggestion}
-            </p>
+          {recView.relaxationSuggestions && recView.relaxationSuggestions.length > 0 && (
+            <div className="mt-2 flex flex-col gap-2">
+              {recView.relaxationSuggestions.map((suggestion, idx) => (
+                <p key={idx} className={`font-bold ${isHighContrast ? "text-[var(--color-accent)]" : "text-[var(--color-accent)]"}`} style={{ fontSize: "calc(1.2rem * var(--font-scale))" }}>
+                  💡 {suggestion}
+                </p>
+              ))}
+            </div>
           )}
-          {/* 👆👆👆 [END: 10번 지시사항 추가] 👆👆👆 */}
         </div>
       )}
 
@@ -144,13 +146,11 @@ export function RecommendScreen({ recView, environmentId, isHighContrast, onChoo
                     </button>
                   )}
                 </div>
-                {/* 👇👇👇 [START: 9번 지시사항 추가] 문제가 생기면 이 블록을 지우세요 👇👇👇 */}
                 {alt.alternativeExplanation && (
                   <p className="mt-4 pt-3 border-t font-medium opacity-90" style={{ borderColor: isHighContrast ? "var(--color-fg)" : "var(--color-fg)", fontSize: "calc(1.1rem * var(--font-scale))" }}>
                     {alt.alternativeExplanation}
                   </p>
                 )}
-                {/* 👆👆👆 [END: 9번 지시사항 추가] 👆👆👆 */}
               </li>
             ))}
           </ul>

@@ -62,7 +62,7 @@ export const MOCK_QUESTIONS: QuestionDef[] = [
     id: "allergenIds",
     short: "못 드시는 것",
     label: "못 드시는 것이 있으세요?",
-    help: "해당하는 것을 모두 골라 주세요. 고르신 재료가 든 메뉴는 아예 빼고 추천합니다.",
+    help: "해당하는 것을 모두 골라 주세요.",
     kind: "multi",
     options: [
       { value: "PEANUT", label: "땅콩·견과류" },
