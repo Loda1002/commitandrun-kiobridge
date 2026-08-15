@@ -23,14 +23,6 @@ import type { Answers, QuestionDef } from "./types";
 
 /* ── the context screen's questions ──────────────────────────────────────── */
 
-/**
- * Derived from kit/environments/chicken-store/option-groups.json plus the two
- * hard constraints (allergens, budget) the engine filters on.
- *
- * UNKNOWN is last in every list so it reads as "none of the above", and it is
- * never the pre-selected value — a pre-selected UNKNOWN would be us answering
- * for the user.
- */
 export const MOCK_QUESTIONS: QuestionDef[] = [
   {
     id: "serviceType",
@@ -115,7 +107,6 @@ export const MOCK_QUESTIONS: QuestionDef[] = [
   },
 ];
 
-/** A filled-in answer set, handy as a form default. */
 export const MOCK_ANSWERS: Answers = {
   serviceType: "TAKE_OUT",
   spicyLevel: "HOT",
@@ -128,22 +119,6 @@ export const MOCK_ANSWERS: Answers = {
 
 /* ── hospital ────────────────────────────────────────────────────────────── */
 
-/**
- * Derived from kit/environments/hospital/option-groups.json.
- *
- * ⚠️ There is no question here about symptoms, and there must never be one.
- * Working out which department someone needs is inference the platform forbids
- * (`diagnose`, `triage`, `assign_department_final`), and the ban is about the
- * reasoning, not just the action name. The user picks the department; if they
- * have not decided, "아직 못 정했어요" is a real answer the fixture ships a route
- * for (`UNSPECIFIED` → HOS-003/006, the guidance paths).
- *
- * That is also why the department question carries no "모르겠어요": it would sit
- * next to "아직 못 정했어요" saying the same thing in different words, to an
- * audience we are specifically trying not to confuse. Skipping the question
- * entirely still leaves it unanswered, and the engine still stops and asks —
- * the safety property does not depend on the option being there.
- */
 export const HOSPITAL_QUESTIONS: QuestionDef[] = [
   {
     id: "visitType",
@@ -187,7 +162,7 @@ export const HOSPITAL_QUESTIONS: QuestionDef[] = [
     id: "supportModes",
     short: "필요한 도움",
     label: "도움이 필요한 것이 있으세요?",
-    help: "해당하는 것을 모두 골라 주세요. 없으시면 비워 두셔도 됩니다.",
+    help: "해당하는 것을 모두 골라 주세요.",
     kind: "multi",
     options: [
       { value: "LARGE_TEXT", label: "글씨를 크게 보고 싶어요" },
@@ -218,15 +193,6 @@ export const HOSPITAL_DEFAULT_ANSWERS: Record<string, unknown> = {
 
 /* ── public-office ───────────────────────────────────────────────────────── */
 
-/**
- * Derived from kit/environments/public-office/option-groups.json.
- *
- * ⚠️ The authentication question asks which KINDS of proof the user has on
- * them, never for the proof itself. `collect_ssn` is a forbidden action, so
- * there is no field here for an identification number and there must not be
- * one. Nothing here decides whether the user qualifies for anything either —
- * that is `auto_eligibility_decision`, also forbidden.
- */
 export const PUBLIC_OFFICE_QUESTIONS: QuestionDef[] = [
   {
     id: "serviceCategory",

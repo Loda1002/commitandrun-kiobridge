@@ -6,24 +6,8 @@ import { actionLabel, stateLabel, type RunView } from "../lib/types";
 import { ENVIRONMENTS, fixtureFor } from "../lib/fixture";
 import evidence from "../public/simulation-evidence.json";
 
-/** What a plan step points at, straight from PlannedAction["target"]. */
 type StepTarget = { kind: string; id: string; groupId?: string };
 
-/**
- * The official simulator's own verdict, read from the file the panel links to.
- *
- * Imported rather than typed out, so the numbers on screen and the JSON a judge
- * downloads cannot say different things — the first version of this panel had
- * the three values written into the JSX and a link to a file that was not
- * there, which is a claim nobody could check. The file is a byte-for-byte copy
- * of `kit/submission-output/COMMITANDRUN/simulation-evidence.json`, produced by
- * `participant:package`; `kit/` is gitignored and absent from the deployed
- * bundle, so the copy under `public/` is what ships.
- *
- * ⚠️ It is a record of one run of the chicken-store submission, not of the
- * session the user just finished. The panel says so, and says which — every
- * word of that comes out of this file rather than being written here.
- */
 const EVIDENCE_ROWS: Array<[string, string]> = [
   ["result", String(evidence.result)],
   ["stopType", String(evidence.stopType)],
@@ -33,14 +17,11 @@ const EVIDENCE_ROWS: Array<[string, string]> = [
   ["actualDeviceCommandSent", String(evidence.actualDeviceCommandSent)],
 ];
 
-/** "2026-08-13" — the day the run in the file was recorded, in the file's words. */
 const EVIDENCE_DATE = String(evidence.createdAt).slice(0, 10);
 
-/** Which kiosk the run was of — named, because it is not always this one. */
 const EVIDENCE_ENVIRONMENT_NAME =
   ENVIRONMENTS.find((e) => e.id === evidence.environmentId)?.name ?? evidence.environmentId;
 
-// 🔥 여기서 onDeleteProfile 타입을 추가로 받아주어야 합니다!
 interface ResultScreenProps {
   runResult: RunView;
   environmentId: EnvironmentId;
@@ -56,17 +37,6 @@ export function ResultScreen({ runResult, environmentId, isHighContrast, onReset
     headingRef.current?.focus();
   }, []);
 
-  /**
-   * Names a plan step's target in Korean without a hand-written table: every
-   * word comes out of the fixture the engine planned against.
-   *
-   * `target.kind` is what joins the two. An option group declares the kind it
-   * backs (`OptionGroup.kind`, e.g. "visit_type"), and only the generic
-   * "option" kind carries a `groupId` — the enumerated kinds do not. Matching
-   * on `groupId` alone therefore misses most hospital and public-office steps,
-   * and comparing an absent `groupId` against an absent field matches
-   * everything: that is how every step ended up labelled "방문 유형".
-   */
   const targetLabel = (target: StepTarget): string => {
     const fixture = fixtureFor(environmentId);
     if (target.kind === "candidate") {
@@ -82,8 +52,6 @@ export function ResultScreen({ runResult, environmentId, isHighContrast, onReset
     if (group && option) return `${group.label} · ${option.label}`;
     if (group) return group.label;
 
-    // Nothing in the fixture claims this target. Show it raw rather than
-    // guessing — a wrong Korean label is worse than an untranslated code.
     return target.groupId ? `${target.groupId} · ${target.id}` : target.id;
   };
 
@@ -153,9 +121,6 @@ export function ResultScreen({ runResult, environmentId, isHighContrast, onReset
         </ul>
       </section>
 
-      {/* 접힌 채로 시작한다. 위의 "자체 안전 검사"와 달리 이건 공식 시뮬레이터
-          출력이고, 둘을 나란히 펼쳐 두면 방금 한 세션이 공식 검증을 받았다는
-          인상을 준다 — 받지 않았다. */}
       <details className={`border-2 rounded-2xl p-6 md:p-8 group ${isHighContrast ? "border-gray-400 bg-transparent" : "border-gray-300 bg-gray-50"}`}>
         <summary className="font-bold cursor-pointer list-none flex justify-between items-center focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--color-accent)] rounded-lg" style={{ fontSize: "calc(1.4rem * var(--font-scale))" }}>
           <span>🛡️ 공식 시뮬레이터 검증 증거 확인</span>
@@ -192,12 +157,11 @@ export function ResultScreen({ runResult, environmentId, isHighContrast, onReset
         처음으로 돌아가기
       </button>
 
-      {/* 🔥 삭제 버튼 추가된 부분! */}
       <button 
         type="button" 
         onClick={onDeleteProfile} 
-        className="w-full mt-2 underline opacity-60 hover:opacity-100 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--color-accent)] transition-opacity" 
-        style={{ fontSize: "calc(1.1rem * var(--font-scale))", padding: "0.5rem" }}
+        className="w-full mt-2 underline font-medium hover:text-[var(--color-accent)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--color-accent)]" 
+        style={{ minHeight: "var(--tap-min)", fontSize: "calc(1.1rem * var(--font-scale))", padding: "0.5rem" }}
       >
         저장된 정보 지우기
       </button>

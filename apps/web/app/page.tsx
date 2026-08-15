@@ -19,7 +19,6 @@ import type {
   RunView,
 } from "../lib/types";
 
-// 🔥 프로필 저장소 함수 임포트
 import { 
   toStoredProfile, 
   parseStoredProfile, 
@@ -35,7 +34,6 @@ import { ConfirmScreen } from "../components/ConfirmScreen";
 import { ResultScreen } from "../components/ResultScreen";
 import { StaffHelp } from "../components/StaffHelp";
 
-// [접근성 2-3] 진행 상황 라벨
 const STEP_LABELS = ["상황 입력", "추천 결과", "최종 확인", "실행 결과"];
 
 /**
@@ -53,24 +51,25 @@ const THEME_COLORS: Record<string, string> = {
   "public-office": "#059669",
 };
 
-// 🔥 엔진의 CanonicalProfile 규격을 맞추기 위한 기본 프로필 생성기
-function buildBaseProfile(isHighContrast: boolean, fontScale: number): CanonicalProfile {
+// 엔진에 정의된 정확한 속성(staffAssistancePreferred 등)에 맞춰 배열을 검사합니다.
+function buildBaseProfile(isHighContrast: boolean, fontScale: number, currentAns?: AnyAnswers): CanonicalProfile {
+  const modes = Array.isArray(currentAns?.supportModes) ? currentAns.supportModes : [];
   return {
     accessibility: {
-      largeText: fontScale > 1, // 1배율 이상이면 큰 글씨로 간주
+      largeText: fontScale > 1 || modes.includes("LARGE_TEXT"),
       simpleSteps: false,
       visualGuidance: false,
-      hearingSupport: false,
+      hearingSupport: modes.includes("HEARING_SUPPORT"),
       mobilitySupport: false,
       highContrast: isHighContrast,
-      staffAssistancePreferred: false,
+      staffAssistancePreferred: modes.includes("STAFF_HELP"),
     },
     interaction: {
       preferredInput: "TOUCH",
       language: "ko-KR",
       confirmationRequired: false,
     },
-  } as CanonicalProfile; // 필요한 속성만 채워서 전달 (엔진은 이 두 속성만 읽음)
+  } as CanonicalProfile;
 }
 
 /**
@@ -96,7 +95,6 @@ export default function Home() {
   const [isHighContrast, setIsHighContrast] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
 
-  // [요건 1] 현재 환경(키오스크) 식별자 상태
   const [environmentId, setEnvironmentId] = useState<EnvironmentId>(DEFAULT_ENVIRONMENT_ID);
   const [questions, setQuestions] = useState<QuestionDef[]>([]);
   const [answers, setAnswers] = useState<AnyAnswers>(emptyAnswers(DEFAULT_ENVIRONMENT_ID));
@@ -107,20 +105,34 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // 🔥 스크린리더 안내용 상태
+  const [isRestored, setIsRestored] = useState(false);
+  const [restoredSavedAt, setRestoredSavedAt] = useState<string | null>(null);
+
+  // 애니메이션 없이, 6초 뒤에 깔끔하게 지워지는 배너 상태
   const [statusMessage, setStatusMessage] = useState("");
+
+  useEffect(() => {
+    if (statusMessage) {
+      const timer = setTimeout(() => {
+        setStatusMessage("");
+      }, 6000);
+      return () => clearTimeout(timer);
+    }
+  }, [statusMessage]);
 
   useEffect(() => {
     fetchQuestions(environmentId).then(setQuestions).catch(console.error);
   }, [environmentId]);
 
-  // 🔥 앱 최초 진입 시 로컬스토리지에서 프로필 복원
   useEffect(() => {
     try {
       const raw = localStorage.getItem("kiobridge.profile");
       if (raw) {
         const stored = parseStoredProfile(raw);
         if (stored) {
+          setStatusMessage("저장된 화면 설정과 글씨 크기를 불러왔습니다.");
+          setRestoredSavedAt(stored.savedAt);
+          
           const baseProfile = buildBaseProfile(false, 1);
           const profile = applyStoredProfile(baseProfile, stored);
           if (profile) {
@@ -148,10 +160,9 @@ export default function Home() {
     }
   }, []);
 
-  // 🔥 프로필 저장 공통 함수
   const saveProfile = (scale: number, contrast: boolean, currentAns: AnyAnswers, currentEnv: EnvironmentId) => {
     try {
-      const baseProfile = buildBaseProfile(contrast, scale);
+      const baseProfile = buildBaseProfile(contrast, scale, currentAns);
       const stored = toStoredProfile(
         baseProfile,
         currentEnv,
@@ -170,17 +181,22 @@ export default function Home() {
     }
   };
 
-  // 🔥 프로필 삭제 공통 함수
   const handleDeleteProfile = () => {
-    localStorage.removeItem("kiobridge.profile");
+    const hasProfile = localStorage.getItem("kiobridge.profile") !== null;
+    if (hasProfile) {
+      localStorage.removeItem("kiobridge.profile");
+      setStatusMessage("저장된 정보를 지웠습니다. 글자 크기와 화면 설정도 기본값으로 돌아갑니다.");
+    } else {
+      setStatusMessage("지울 정보가 없습니다. 이 기기에 저장된 것이 없습니다.");
+    }
+    
     setFontScale(1);
     setIsHighContrast(false);
     document.documentElement.style.setProperty("--font-scale", "1");
     document.documentElement.removeAttribute("data-contrast");
     setAnswers(emptyAnswers(environmentId));
-    
-    setStatusMessage("저장된 정보가 모두 삭제되었습니다.");
-    setTimeout(() => setStatusMessage(""), 3000);
+    setIsRestored(false);
+    setRestoredSavedAt(null);
   };
 
   const toggleFontScale = () => {
@@ -204,18 +220,20 @@ export default function Home() {
   const handleStart = (picked: EnvironmentId) => {
     setEnvironmentId(picked);
     let initialAns = emptyAnswers(picked);
+    setIsRestored(false);
+    setRestoredSavedAt(null); 
     
-    // 🔥 이전 폼 답변 복원
     try {
       const raw = localStorage.getItem("kiobridge.profile");
       if (raw) {
         const stored = parseStoredProfile(raw);
         if (stored) {
           const recalled = recallAnswers(stored, picked);
-          if (recalled) {
-            // 🔥 핵심: 알레르기 항목은 무조건 다시 묻는다. 지금은 저장할 때도 걷어내지만
+          if (recalled && Object.keys(recalled).length > 0) {
+            setIsRestored(true);
+            setRestoredSavedAt(stored.savedAt); 
+            // 알레르기 항목은 무조건 다시 묻는다. 지금은 저장할 때도 걷어내지만
             // (withoutAllergies), 이 수정 전에 저장해 둔 브라우저는 아직 들고 있다.
-            // 빈 기본값 위에 알레르기가 제거된 복원값만 덮어씌움
             initialAns = { ...initialAns, ...withoutAllergies(recalled) } as AnyAnswers;
           }
         }
@@ -290,7 +308,9 @@ export default function Home() {
     setSelections([]);
     setRunResult(null);
     setErrorMessage(null);
-    setCurrentStep(0); // 환경 선택(StartScreen)으로 완전 복귀
+    setIsRestored(false);
+    setRestoredSavedAt(null);
+    setCurrentStep(0); 
   };
 
   const a11yBar = (
@@ -302,7 +322,6 @@ export default function Home() {
     />
   );
 
-  // 고대비일 때는 아무것도 넣지 않는다 — 넣으면 그게 곧 노란색을 덮는 선언이 된다.
   const accentStyle = isHighContrast
     ? undefined
     : ({
@@ -314,15 +333,21 @@ export default function Home() {
       className="min-h-screen flex flex-col p-4 sm:p-8 max-w-4xl mx-auto gap-8 w-full relative pb-24"
       style={accentStyle}
     >
-      {/* 🔥 스크린리더를 위한 상태 메시지 읽기 영역 */}
-      <div role="status" aria-live="polite" className="sr-only">
-        {statusMessage}
-      </div>
+      {/* 6초 후 사라지는 고정 배너 (애니메이션 삭제) */}
+      {statusMessage && (
+        <div 
+          role="status" 
+          aria-live="polite"
+          className="w-full bg-gray-800 text-white font-bold p-4 rounded-xl text-center shadow-md mb-2"
+          style={{ fontSize: "calc(1.1rem * var(--font-scale))" }}
+        >
+          {statusMessage}
+        </div>
+      )}
 
       {currentStep > 0 && !isLoading && (
         <header className="pb-4 border-b border-gray-300 w-full flex flex-col gap-6">
           {a11yBar}
-          {/* [접근성 2-3] 진행 상황 인디케이터 (aria-current 적용) */}
           <nav aria-label="진행 상황" className="w-full">
             <ol 
               className="flex justify-between items-center rounded-full p-2" 
@@ -369,7 +394,6 @@ export default function Home() {
         </main>
       ) : (
         <>
-          {/* [결함 방어] 세션 10/12 - 엔진 거절 시 죽지 않고 alert 띄우는 로직 보존 */}
           {errorMessage && (
             <p role="alert" className="rounded-xl p-4 font-bold border-2 border-red-500 bg-red-500/10" style={{ fontSize: "calc(1.1rem * var(--font-scale))" }}>
               ⚠️ {errorMessage}
@@ -377,12 +401,28 @@ export default function Home() {
           )}
 
           {currentStep === 0 && <StartScreen onStart={handleStart} accessibilityBar={a11yBar} isHighContrast={isHighContrast} onDeleteProfile={handleDeleteProfile} />}
-          {currentStep === 1 && <ContextScreen questions={questions} currentAnswers={answers} onSubmit={handleContextSubmit} isHighContrast={isHighContrast} environmentId={environmentId} onReset={handleReset} />}
+          
+          {currentStep === 1 && (
+            <ContextScreen 
+              questions={questions} 
+              currentAnswers={answers} 
+              onChange={(newAnswers) => {
+                setAnswers(newAnswers);
+                saveProfile(fontScale, isHighContrast, newAnswers, environmentId);
+              }}
+              onSubmit={handleContextSubmit} 
+              isHighContrast={isHighContrast} 
+              environmentId={environmentId} 
+              onReset={handleReset} 
+              isRestored={isRestored} 
+              restoredSavedAt={restoredSavedAt} 
+            />
+          )}
+
           {currentStep === 2 && recView && <RecommendScreen recView={recView} environmentId={environmentId} isHighContrast={isHighContrast} onChoose={handleChoose} onBackToContext={handleBackToContext} />}
           {currentStep === 3 && chosen && <ConfirmScreen candidate={chosen} selections={selections} environmentId={environmentId} isHighContrast={isHighContrast} onApprove={handleApprove} onBackToContext={handleBackToContext} />}
           {currentStep === 4 && runResult && <ResultScreen runResult={runResult} environmentId={environmentId} isHighContrast={isHighContrast} onReset={handleReset} onDeleteProfile={handleDeleteProfile} />}
 
-          {/* [결함 방어] 세션 10/12 - 키오스크에 갇히지 않게 StaffHelp 고정 */}
           <div className="mt-auto pt-6 border-t border-gray-300 w-full">
             <StaffHelp questions={questions} answers={answers} answersSubmitted={recView !== null} candidate={chosen ?? recView?.recommended ?? null} environmentId={environmentId} isHighContrast={isHighContrast} />
           </div>

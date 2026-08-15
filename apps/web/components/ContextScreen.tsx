@@ -8,11 +8,14 @@ import { findMissing } from "../lib/api";
 interface ContextScreenProps {
   questions: QuestionDef[];
   currentAnswers: AnyAnswers;
+  onChange?: (answers: AnyAnswers) => void;
   onSubmit: (answers: AnyAnswers) => void;
   isHighContrast: boolean;
   title?: string;
   environmentId: EnvironmentId;
   onReset?: () => void;
+  isRestored?: boolean;
+  restoredSavedAt?: string | null;
 }
 
 const THEMES: Record<string, { border: string; selected: string }> = {
@@ -24,19 +27,20 @@ const THEMES: Record<string, { border: string; selected: string }> = {
 export function ContextScreen({
   questions,
   currentAnswers,
+  onChange,
   onSubmit,
   isHighContrast,
   title = "상황 입력",
   environmentId,
   onReset,
+  isRestored,
+  restoredSavedAt,
 }: ContextScreenProps) {
   const headingRef = useRef<HTMLHeadingElement>(null);
   const inputRefs = useRef<Record<string, HTMLElement | null>>({});
   
   const [answers, setAnswers] = useState<AnyAnswers>(currentAnswers);
   const [touched, setTouched] = useState<Set<string>>(() => initialTouched(currentAnswers));
-  // Nothing is flagged until the user has tried to submit once. Marking a form
-  // wrong before it has been filled in is how a kiosk greets someone with red.
   const [showErrors, setShowErrors] = useState(false);
 
   const theme = THEMES[environmentId] || THEMES["chicken-store"];
@@ -65,7 +69,24 @@ export function ContextScreen({
     setAnswers(currentAnswers);
     setTouched(initialTouched(currentAnswers));
     setShowErrors(false);
-  }, [currentAnswers]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // 상태 유실을 방지하기 위해 onChange를 항상 최신 상태의 참조로 유지합니다.
+  const onChangeRef = useRef(onChange);
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
+
+  // 답변 상태가 바뀔 때마다 안전하게 부모(page.tsx)에게 전달합니다. (연타 버그 완벽 방지)
+  const isFirstRender = useRef(true);
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    onChangeRef.current?.(answers);
+  }, [answers]);
 
   const setValue = (id: string, value: unknown) => {
     setAnswers((prev) => ({ ...prev, [id]: value }));
@@ -84,19 +105,18 @@ export function ContextScreen({
   };
 
   const handleNumberChange = (id: string, value: string) => {
-    setValue(id, value.trim() === "" ? null : Number(value));
+    setAnswers((prev) => ({ ...prev, [id]: value.trim() === "" ? null : Number(value) }));
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    // [요건 5] 필수 응답 검사. 어느 질문이 필수인지도, 답이 찼는지도 엔진이 정한다
+    // 필수 응답 검사. 어느 질문이 필수인지도, 답이 찼는지도 엔진이 정한다
     // — 화면이 직접 판정하면 화면과 제출본이 같은 답을 두고 다른 말을 하게 된다.
     // 무엇이 필수인지는 fixture 의 optionGroups[].required 가 정하므로, 환경이
     // 늘거나 fixture 가 바뀌어도 이 파일은 따라간다. (경위는 pm/22)
     const found = findMissing(answers, environmentId);
 
-    // 미응답 발생 시 UI 처리: 에러 표시를 켜고 첫 누락 필드로 포커스 이동
     if (found.length > 0) {
       setShowErrors(true);
       inputRefs.current[found[0].id]?.focus();
@@ -106,7 +126,6 @@ export function ContextScreen({
     setShowErrors(false);
     const submitted = { ...answers };
     
-    // 2. [팀장님 핵심 지시사항] 손 안 댄 것과 "없다고 답함" 분리
     for (const q of questions) {
       if (q.kind !== "multi" || !offersUnknown(q) || touched.has(q.id)) continue;
       submitted[q.id] = ["UNKNOWN"];
@@ -121,12 +140,18 @@ export function ContextScreen({
         {title}
       </h1>
 
+      {isRestored && (
+        <div role="status" className={`border-2 rounded-2xl p-6 font-bold flex flex-col gap-2 ${isHighContrast ? "border-[var(--color-accent)]" : "border-blue-400 bg-blue-50 text-blue-900"}`} style={{ fontSize: "calc(1.1rem * var(--font-scale))" }}>
+          <p>지난번에 답하신 내용을 채워 두었습니다. 지금도 맞는지 확인해 주세요.</p>
+          {restoredSavedAt && <p className="opacity-70" style={{ fontSize: "calc(0.9rem * var(--font-scale))" }}>저장 일시: {restoredSavedAt}</p>}
+        </div>
+      )}
+
       <form onSubmit={handleSubmit} className="flex flex-col gap-8 w-full">
         {questions.map((q) => {
           const errorMessage = missing[q.id];
           const isError = errorMessage !== undefined;
           
-          // 🔥 [수정] 고대비 모드일 때는 하얀 배경(bg-red-50)을 빼고 살짝 투명한 붉은 톤(bg-red-500/10)만 줍니다!
           const baseBorder = isError 
             ? (isHighContrast ? "border-red-400 bg-red-500/10" : "border-red-500 bg-red-50") 
             : (isHighContrast ? "border-gray-600 bg-transparent" : theme.border);
@@ -185,6 +210,11 @@ export function ContextScreen({
               {isError && (
                 <p id={`${q.id}-error`} aria-live="polite" className={`font-bold ${isHighContrast ? "text-red-400" : "text-red-600"}`} style={{ fontSize: "calc(1.1rem * var(--font-scale))" }}>
                   ⚠️ {errorMessage}
+                </p>
+              )}
+              {isRestored && environmentId === "chicken-store" && q.id === "allergenIds" && (
+                <p role="status" className={`font-bold p-3 rounded-lg mt-2 mb-2 ${isHighContrast ? "bg-gray-800 text-yellow-300" : "bg-orange-100 text-orange-800"}`} style={{ fontSize: "calc(1rem * var(--font-scale))" }}>
+                  드시면 안 되는 재료는 안전을 위해 매번 다시 여쭙니다.
                 </p>
               )}
               {q.help && <p className="opacity-80 mb-2" style={{ fontSize: "calc(1rem * var(--font-scale))" }}>{q.help}</p>}
