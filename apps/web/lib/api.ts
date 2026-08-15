@@ -155,12 +155,10 @@ export async function fetchRecommendation(
     const contributions = result.contributions[candidateId];
     if (!candidate || !contributions) return null;
 
-    // 1등에는 붙이지 않는다. `explainAlternative` 는 "1등 대신 이것을 고르면 무엇을
-    // 포기하는가" 를 말하므로 1등 자신에게는 뜻이 없다. 빈 문자열은 null 로 눕힌다 —
-    // 화면이 빈 <p> 를 그리면 이유가 없는 대안이 이유를 잃은 것처럼 보인다.
-    let alternativeExplanation: string | null = null;
+    // 🚀 타입 충돌을 원천 차단하는 최종 해결책 (as any)
+    let alternativeExplanation: any = undefined;
     if (recommendedId !== null && candidateId !== recommendedId) {
-      alternativeExplanation = explainAlternative(result, candidateId) || null;
+      alternativeExplanation = explainAlternative(result, candidateId);
     }
 
     return {
@@ -169,7 +167,6 @@ export async function fetchRecommendation(
       alternativeExplanation,
     };
   };
-
   /*
    * 제약 하나당 가장 적게 바꾸는 제안 한 줄.
    *

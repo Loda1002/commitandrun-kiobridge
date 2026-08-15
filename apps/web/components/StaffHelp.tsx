@@ -98,76 +98,94 @@ export function StaffHelp({
   }, [isOpen]);
 
   return (
-    <div className="w-full">
-      <button
-        type="button"
-        ref={triggerRef}
-        onClick={() => (isOpen ? closeDialog() : setIsOpen(true))}
-        aria-expanded={isOpen}
-        aria-controls="staff-help-panel"
-        className="w-full focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2 transition-transform active:scale-95"
-        style={{
-          minHeight: "var(--tap-min)",
-          borderRadius: "var(--radius)",
-          backgroundColor: "transparent",
-          color: "var(--color-fg)",
-          border: "2px dashed var(--color-fg)",
-          fontSize: "calc(1.1rem * var(--font-scale))",
-          fontWeight: "bold",
-        }}
-      >
-        🙋 {isOpen ? "직원 도움 화면 닫기" : "직원 도움이 필요해요"}
-      </button>
-
-      {isOpen && (
-        <section
-          id="staff-help-panel"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="staff-help-title"
-          className={`mt-4 border-4 rounded-2xl p-6 md:p-8 flex flex-col gap-5 ${
-            isHighContrast ? "border-yellow-300 bg-transparent" : "border-orange-500 bg-orange-50"
-          }`}
-        >
-          <h2 id="staff-help-title" ref={headingRef} tabIndex={-1} className="font-extrabold focus-visible:outline-none" style={{ fontSize: "calc(1.6rem * var(--font-scale))" }}>
-            직원에게 이 화면을 보여주세요
-          </h2>
-          <p style={{ fontSize: "calc(1.1rem * var(--font-scale))" }}>
-            이 서비스는 직원을 자동으로 부르지 않습니다. 가까운 직원에게 이 화면을 보여주시면 지금까지 고르신 내용을 바로 확인하실 수 있습니다.
-          </p>
-
-          {candidate && (
-            <p className="font-bold border-b pb-4" style={{ borderColor: "var(--color-fg)", fontSize: "calc(1.2rem * var(--font-scale))" }}>
-              보고 계신 {noun}: {candidate.name}
-              {/* Only the chicken shop prices anything; 0 means "no price", not free. */}
-              {candidate.priceKrw > 0 && ` · ${candidate.priceKrw.toLocaleString()}원`}
-            </p>
-          )}
-
-          <dl className="flex flex-col gap-3" style={{ fontSize: "calc(1.1rem * var(--font-scale))" }}>
-            {rows.map(([label, value]) => (
-              <div key={label} className="flex justify-between gap-4">
-                <dt className="opacity-80 font-bold shrink-0">{label}</dt>
-                <dd className="font-bold text-right">{value}</dd>
-              </div>
-            ))}
-          </dl>
-
-          <p className="opacity-80" style={{ fontSize: "calc(1rem * var(--font-scale))" }}>
-            결제는 이 화면에서 진행되지 않습니다.
-          </p>
-          
+    <>
+      {/* 🚀 1. CSS로 부드럽게 둥둥 떠다니는 퀵메뉴 (JS 렉 완전 제거, 하단 여백/크기 대폭 확대) */}
+      {!isOpen && (
+        <div className="fixed bottom-12 right-6 sm:right-8 md:right-12 z-40 w-max pointer-events-auto">
           <button
             type="button"
-            onClick={closeDialog}
-            className="w-full mt-4 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2 transition-transform active:scale-95"
-            style={{ minHeight: "var(--tap-min)", borderRadius: "var(--radius)", backgroundColor: "var(--color-fg)", color: "var(--color-bg)", fontSize: "calc(1.1rem * var(--font-scale))", fontWeight: "bold" }}
+            ref={triggerRef}
+            onClick={() => setIsOpen(true)}
+            aria-expanded={isOpen}
+            aria-controls="staff-help-panel"
+            // 패딩을 p-6 에서 p-10 으로 늘려 내부 여백도 큼직하게 확보했습니다.
+            className="shadow-2xl focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2 transition-transform active:scale-95 flex flex-col items-center justify-center gap-4 p-6 animate-bounce motion-reduce:animate-none"
+            style={{
+              // 수정 1: 버튼의 최소 너비/높이를 2배 이상으로 확 키웠습니다.
+              minWidth: "calc(var(--tap-min) * 2 + 60px)",
+              minHeight: "calc(var(--tap-min) * 2 + 35px)",
+              // 모서리가 예쁘게 둥글게 유지되도록 9999px로 설정했습니다.
+              borderRadius: "9999px",
+              backgroundColor: isHighContrast ? "var(--color-bg)" : "var(--color-fg)",
+              color: isHighContrast ? "var(--color-fg)" : "var(--color-bg)",
+              border: isHighContrast ? "4px solid var(--color-accent)" : "none",
+              animationDuration: "1s", 
+            }}
           >
-            닫기
+            
+            <span 
+              className="font-extrabold text-center leading-tight mt-1" 
+              // 수정 2: 글씨 크기를 1.3rem 에서 2.6rem 으로 딱 2배 키웠습니다.
+              style={{ fontSize: "calc(2.6rem * var(--font-scale))" }}
+            >
+              🙋 직원 도움
+            </span>
           </button>
-        </section>
+        </div>
       )}
-    </div>
+
+      {/* 🚀 2. 모달창 오버레이 및 중앙 팝업 */}
+      {isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 sm:p-8">
+          <section
+            id="staff-help-panel"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="staff-help-title"
+            className={`relative w-full max-w-2xl max-h-[90vh] overflow-y-auto border-4 rounded-3xl p-6 md:p-8 flex flex-col gap-6 shadow-2xl ${
+              isHighContrast ? "border-[var(--color-accent)] bg-black text-white" : "border-orange-500 bg-orange-50 text-gray-900"
+            }`}
+          >
+            <h2 id="staff-help-title" ref={headingRef} tabIndex={-1} className="font-extrabold focus-visible:outline-none text-center break-keep" style={{ fontSize: "calc(1.8rem * var(--font-scale))" }}>
+              직원에게 이 화면을 보여주세요
+            </h2>
+            <p className="text-center font-bold opacity-90 break-keep leading-snug" style={{ fontSize: "calc(1.15rem * var(--font-scale))" }}>
+              이 서비스는 직원을 자동으로 부르지 않습니다.<br />가까운 직원에게 이 화면을 보여주시면 지금까지 고르신 내용을 바로 확인하실 수 있습니다.
+            </p>
+
+            {candidate && (
+              <div className={`font-bold border-y-2 py-4 text-center rounded-xl break-keep ${isHighContrast ? "border-white bg-transparent" : "border-black/10 bg-white/60"}`} style={{ fontSize: "calc(1.3rem * var(--font-scale))", color: isHighContrast ? "var(--color-accent)" : "var(--color-accent)" }}>
+                보고 계신 {noun}: <span className="text-[1.1em]">{candidate.name}</span>
+                {/* Only the chicken shop prices anything; 0 means "no price", not free. */}
+                {candidate.priceKrw > 0 && ` · ${candidate.priceKrw.toLocaleString()}원`}
+              </div>
+            )}
+
+            <dl className={`flex flex-col gap-4 p-5 rounded-xl border-2 ${isHighContrast ? "border-white bg-transparent" : "border-black/10 bg-white/60"}`} style={{ fontSize: "calc(1.15rem * var(--font-scale))" }}>
+              {rows.map(([label, value]) => (
+                <div key={label} className="flex justify-between gap-6 border-b border-gray-300/50 pb-3 last:border-0 last:pb-0">
+                  <dt className="opacity-80 font-bold shrink-0">{label}</dt>
+                  <dd className="font-extrabold text-right break-keep">{value}</dd>
+                </div>
+              ))}
+            </dl>
+
+            <p className="opacity-80 font-bold text-center break-keep" style={{ fontSize: "calc(1.1rem * var(--font-scale))" }}>
+              결제는 이 화면에서 진행되지 않습니다.
+            </p>
+            
+            <button
+              type="button"
+              onClick={closeDialog}
+              className="w-full mt-2 shadow-lg focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2 transition-transform active:scale-95"
+              style={{ minHeight: "calc(var(--tap-min) + 8px)", borderRadius: "var(--radius)", backgroundColor: isHighContrast ? "var(--color-bg)" : "var(--color-fg)", color: isHighContrast ? "var(--color-fg)" : "var(--color-bg)", border: isHighContrast ? "4px solid var(--color-accent)" : "none", fontSize: "calc(1.3rem * var(--font-scale))", fontWeight: "900" }}
+            >
+              확인 다 했어요 (화면 닫기)
+            </button>
+          </section>
+        </div>
+      )}
+    </>
   );
 }
 

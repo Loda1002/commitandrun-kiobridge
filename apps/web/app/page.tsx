@@ -46,9 +46,9 @@ const STEP_LABELS = ["상황 입력", "추천 결과", "최종 확인", "실행 
  * 그대로였다는 뜻이고, 이 화면에서 강조색은 포커스 링과 점수 막대가 쓴다.
  */
 const THEME_COLORS: Record<string, string> = {
-  "chicken-store": "#ea580c",
-  hospital: "#2563eb",
-  "public-office": "#059669",
+  "chicken-store": "#F98C42",
+  hospital: "#51A3FA",
+  "public-office": "#A2E037",
 };
 
 /**
@@ -316,12 +316,14 @@ export default function Home() {
     setCurrentStep(0); 
   };
 
+  // 👇 여기에 isStartScreen 속성을 전달하여 현재 단계가 0일 때만 true가 되도록 변경했습니다.
   const a11yBar = (
     <AccessibilityBar
       fontScale={fontScale}
       isHighContrast={isHighContrast}
       onToggleFontScale={toggleFontScale}
       onToggleContrast={toggleContrast}
+      isStartScreen={currentStep === 0}
     />
   );
 
