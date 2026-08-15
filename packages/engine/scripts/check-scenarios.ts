@@ -986,10 +986,15 @@ interface SweepSpec {
    * position: picking the first sweep registered for an environment meant that
    * reordering this list would silently hand cell E a subset to grade, which
    * still prints OK while claiming less than the cell says it does.
+   *
+   * It also decides which sweeps the replacement list at the foot itemises.
+   * That used to be a `showsReplacements` of its own and the two drifted apart
+   * immediately — see the list itself for what the drift printed. "Not a slice
+   * of another sweep" is the whole of what either flag meant, and
+   * `wholeEnvironment` already fails the run when an environment does not have
+   * exactly one.
    */
   wholeSpace?: boolean;
-  /** Whether the replacement list at the foot of the run itemises this sweep. */
-  showsReplacements?: boolean;
   claim: (t: Tally) => { ok: boolean; why: string };
 }
 
@@ -1020,7 +1025,6 @@ const SWEEPS: SweepSpec[] = [
     label: "병원 전체",
     environmentId: "hospital",
     wholeSpace: true,
-    showsReplacements: true,
     claim: (t) => ({
       ok: t.zeroCandidates === 0 && t.escape.length > 0 && soundSweep(t),
       why: `${t.total}조합 · 후보0 = ${t.zeroCandidates} · ${agreement(t)} · 탈출구 ${t.escape.join(",") || "(없음)"}`,
@@ -1030,7 +1034,6 @@ const SWEEPS: SweepSpec[] = [
     label: "관공서 전체",
     environmentId: "public-office",
     wholeSpace: true,
-    showsReplacements: true,
     claim: (t) => ({
       ok: t.zeroCandidates === 0 && t.escape.length > 0 && soundSweep(t),
       why: `${t.total}조합 · 후보0 = ${t.zeroCandidates} · ${agreement(t)} · 탈출구 ${t.escape.join(",") || "(없음)"}`,
@@ -1046,7 +1049,6 @@ const SWEEPS: SweepSpec[] = [
     label: "병원 접근성 미선택",
     environmentId: "hospital",
     only: (a) => Array.isArray(a.supportModes) && a.supportModes.length === 0,
-    showsReplacements: true,
     claim: (t) => ({
       ok: soundSweep(t) && t.planned === t.total - t.gated,
       why: `${t.total}조합 · ${agreement(t)} (답 그대로 ${t.verbatim}건 · 대체된 계획 ${t.planned - t.verbatim}건 · 대체 ${t.replacements}곳) · 지어낸 답 ${t.invented.length}`,
@@ -1059,7 +1061,6 @@ const SWEEPS: SweepSpec[] = [
     label: "닭강정집 전체",
     environmentId: "chicken-store",
     wholeSpace: true,
-    showsReplacements: true,
     claim: (t) => ({
       ok: soundSweep(t) && t.planned === t.total - t.gated,
       why: `${t.total}조합 · ${agreement(t)} · 예외 ${t.threw.length} · 지어낸 답 ${t.invented.length}`,
@@ -1124,6 +1125,15 @@ function wholeEnvironment(environmentId: EnvironmentId): Tally {
   if (whole.length !== 1) {
     throw new Error(
       `check-scenarios: ${environmentId} 는 wholeSpace 스윕이 정확히 하나 있어야 하는데 ${whole.length}개다`,
+    );
+  }
+  // The flag now decides the replacement list too, so a slice wearing it would
+  // hand cell E a subset to grade and take the whole space's rows off the foot
+  // of the run at the same time. One line, because "wholeSpace with a filter on
+  // it" is a contradiction that cannot be true of a correct spec.
+  if (whole[0].spec.only !== undefined) {
+    throw new Error(
+      `check-scenarios: ${environmentId} 의 wholeSpace 스윕에 only 가 걸려 있다 — 전체 공간이 아니다`,
     );
   }
   return whole[0].tally;
@@ -1197,8 +1207,12 @@ for (const { spec, tally } of tallies) {
   if (tally.g8.length > 0) notes.push(`G8 위반 ${tally.g8.length}건 · 예: ${tally.g8[0]}`);
   claim(spec.label, verdict.ok, notes.length > 0 ? `${verdict.why} — ${notes.join(" · ")}` : verdict.why);
   // Only from the sweeps that are not a slice of another one, or the same
-  // replacement is reported twice under two names.
-  if (spec.showsReplacements) {
+  // replacement is reported twice under two names. That is exactly what the
+  // list did while this was a flag of its own: 병원 접근성 미선택 is 40 of the
+  // hospital's 160 answer sets, so its four `DEPARTMENT 내과 ⇒ 미정` were four
+  // of the sixteen 병원 전체 had already reported, printed again under a second
+  // name. The comment saying so was two lines above the line doing it.
+  if (spec.wholeSpace) {
     for (const [note, n] of Object.entries(tally.settled)) {
       replacements.push(`${spec.label}: ${note} ×${n}`);
     }
