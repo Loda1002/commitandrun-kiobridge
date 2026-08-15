@@ -31,7 +31,7 @@ import { explainRecommendation, filterCandidates, score } from "../src/select.ts
 import { ENVIRONMENT_BOUNDARY, FORBIDDEN_ACTIONS } from "../src/types.ts";
 import type {
   Candidate, EnvironmentId, ExclusionReason, PlannedAction, PublicFixture,
-  RecommendationReason, SessionContext,
+  RecommendationReason, SessionContext, Transition,
 } from "../src/types.ts";
 
 const read = async (p: string) => JSON.parse(await readFile(p, "utf8"));
@@ -1492,6 +1492,136 @@ for (const environmentId of registeredEnvironments()) {
       && namedAnEqual.length === 0 && pairs > 0 && sentences.size > 1 && refusesWinner,
     `쌍 ${pairs} · 서로 다른 문장 ${sentences.size} · 기준 ${labels.length}개 문구 있음 · 1등 id 거부` +
       (notes.length > 0 ? ` — ${notes.join(" · ")}` : ""),
+  );
+}
+console.log("");
+
+/* ═══════════ ⑧ 계획 길이 — 상수가 아니라 전이표에서 ═══════════════════════
+ *
+ * 닭강정 10 · 병원 7 · 관공서 6. Writing those three down and comparing a plan
+ * against them is `10 === 10`: it grades nothing, and it goes on being green the
+ * day the fixture loses a screen. So the length is worked out from the fixture,
+ * and the three numbers are what the calculation prints rather than what it is
+ * told. "관공서는 6단계뿐인데 덜 만든 것 아니냐" is then answerable — 관공서 has
+ * two option groups and no screen it picks them standing on, and that is the
+ * whole of the difference.
+ *
+ * 길이 = 최단 경로 + 서서 고르는 그룹 수 + 확인 1.
+ *
+ *  - The route is the breadth-first walk from the first screen to the review
+ *    boundary. A self-loop is never on it — its destination is visited by
+ *    definition — so every step on the route moves to a screen not yet seen.
+ *  - A group whose action is a self-loop is selected standing still: the chicken
+ *    shop picks 맵기 · 형태 · 컵 · 수량 in OPTION_SELECTION, the hospital picks
+ *    진료과 in DEPARTMENT_SELECTION. Those are the steps a route cannot show. A
+ *    group whose action is on the route rides along with that step and adds
+ *    nothing, which is why 이용 방식 and 인증 방식 are not counted twice.
+ *  - The verifier is one step, always. It is why a plan ends at a review screen
+ *    and not at a payment.
+ *
+ * `routeTo` is private to `plan.ts` and is deliberately not imported: a check
+ * that called the function it is checking would agree with it by construction.
+ * The walk is written out here, and the two agreeing over every plan in the
+ * space is the claim. Breaking `plan.ts` — routing depth-first, draining a
+ * self-loop twice, dropping the verifier — moves one side and not the other.
+ */
+
+/** The breadth-first walk `plan.ts` also does, written out rather than shared. */
+function shortestRoute(fixture: PublicFixture, forbidden: Set<string>): Transition[] {
+  const { manifest, transitions } = fixture;
+  const queue: Array<{ state: string; path: Transition[] }> = [
+    { state: manifest.initialState, path: [] },
+  ];
+  const seen = new Set([manifest.initialState]);
+
+  while (queue.length > 0) {
+    const { state, path } = queue.shift()!;
+    if (state === manifest.reviewBoundaryState) return path;
+    for (const move of transitions) {
+      if (move.from !== state || seen.has(move.to) || forbidden.has(move.action)) continue;
+      seen.add(move.to);
+      queue.push({ state: move.to, path: [...path, move] });
+    }
+  }
+  throw new Error(`check-scenarios: ${manifest.environmentId} 에 검토 화면까지 가는 길이 없다`);
+}
+
+/** The three parts kept apart, so a mismatch says which one moved. */
+function expectedPlanLength(
+  fixture: PublicFixture,
+  environmentId: EnvironmentId,
+  candidateId: string,
+  ctx: SessionContext,
+): { total: number; parts: string } {
+  const forbidden = new Set([...FORBIDDEN_ACTIONS, ...fixture.manifest.forbiddenActions]);
+  const route = shortestRoute(fixture, forbidden);
+  // Read off the table, not listed here: a fixture that turns a self-loop into a
+  // screen of its own should change the calculation, not break it.
+  const standingActions = new Set(
+    fixture.transitions
+      .filter((t) => t.from === t.to && !forbidden.has(t.action))
+      .map((t) => t.action),
+  );
+  const byKind = getDomain(environmentId).actionByGroupKind;
+  // The groups this candidate is actually ordered with. An optional group the
+  // user skipped is not in the list and does not cost a step — which is why the
+  // longest plan, not every plan, is the number worth quoting.
+  const standing = resolveOptionSelections(fixture, candidateId, ctx)
+    .filter((s) => standingActions.has(byKind[s.kind] ?? "")).length;
+
+  return { total: route.length + standing + 1, parts: `${route.length} + ${standing} + 1` };
+}
+
+for (const environmentId of registeredEnvironments()) {
+  const fixture = fixtures.get(environmentId)!;
+  let planned = 0;
+  let longest = 0;
+  let longestParts = "";
+  let shortest = Infinity;
+  const wrong: string[] = [];
+  const threw: string[] = [];
+
+  for (const answers of answerSpace.get(environmentId)!) {
+    const ctx = contextFor(fixture, environmentId, answers);
+    const { survivors } = filterCandidates(fixture, ctx);
+    if (survivors.length === 0) continue;
+    const winner = score(survivors, ctx).recommendedCandidateId;
+    if (winner === null) continue;
+    // The same two gates a screen passes before it may plan at all. Without them
+    // this would be measuring the length of plans that are refused for other
+    // reasons, and counting a throw as a mismatch.
+    if (findMissingAnswers(fixture, ctx).some((m) => !droppedByScreen(environmentId, m.groupId))) continue;
+    if (unsettleableGroups(fixture, winner, ctx).length > 0) continue;
+
+    let actual: number;
+    try {
+      actual = buildExecutionPlan({
+        environmentId, fixture, candidateId: winner, sessionContext: ctx, approved: true,
+      }).actions.length;
+    } catch (e) {
+      threw.push(`${JSON.stringify(answers)} — ${(e as Error).message}`);
+      continue;
+    }
+
+    const expected = expectedPlanLength(fixture, environmentId, winner, ctx);
+    planned++;
+    shortest = Math.min(shortest, actual);
+    if (actual > longest) {
+      longest = actual;
+      longestParts = expected.parts;
+    }
+    if (actual !== expected.total) {
+      wrong.push(`${JSON.stringify(answers)} — 계획 ${actual}단계 · 계산 ${expected.parts} = ${expected.total}`);
+    }
+  }
+
+  claim(
+    `${environmentId} 계획 길이`,
+    planned > 0 && wrong.length === 0 && threw.length === 0,
+    `계획 ${planned}건 · 길이 ${shortest === Infinity ? "-" : shortest}~${longest}` +
+      ` · 최장 ${longest} = ${longestParts || "-"} · 어긋남 ${wrong.length}` +
+      (wrong.length > 0 ? ` — 예: ${wrong[0]}` : "") +
+      (threw.length > 0 ? ` · 예외 ${threw.length}건 — 예: ${threw[0]}` : ""),
   );
 }
 console.log("");
