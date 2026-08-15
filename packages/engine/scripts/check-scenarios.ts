@@ -609,12 +609,30 @@ function judge(situation: Situation, environmentId: EnvironmentId, run: Run): { 
  * "도달 불가" is a claim and not an excuse, so each branch names a measurement
  * that can fail. A row that printed 해당 없음 would be one the matrix can never
  * go red on, which is the whole reason this file exists.
+ *
+ * Only E and F have such a measurement today, and anything else throws rather
+ * than borrowing E's. `judge` grades one run and this grades a claim about a
+ * whole space, so a situation landing in the wrong branch here would print a
+ * measurement of something else under its own label — green, and read by the
+ * next person as "this cell was checked".
  */
 function unreachableCell(
   situation: Situation,
   environmentId: EnvironmentId,
   fixture: PublicFixture,
 ): { ok: boolean; why: string } {
+  if (situation !== "E" && situation !== "F") {
+    // Runtime, not the compiler. `judge` can lean on an exhaustive switch
+    // because `tsc` refuses a missing branch there, but node strips the types
+    // and runs this file: a seventh situation, or an existing one marked
+    // unreachable in SCENARIOS, would otherwise take E's branch below and be
+    // reported with E's numbers.
+    throw new Error(
+      `check-scenarios: ${environmentId} 의 ${situation} 칸에는 도달 불가 판정이 없다` +
+        ` — E 의 판정을 빌려 쓸 수 없다`,
+    );
+  }
+
   if (situation === "F") {
     // The barrier pm/24 G7 rests on. Nothing in this fixture advertises a
     // support, so no accessibility sentence can fire here and the chicken shop
