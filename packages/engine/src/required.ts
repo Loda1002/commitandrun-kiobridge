@@ -98,7 +98,7 @@ export function findMissingAnswers(
     // groupId, and a missing answer nobody mentions is the failure this file
     // exists to prevent.
     const path = paths[group.groupId] ?? "";
-    if (hasAnswer(domain, group, ctx, path)) {
+    if (hasAnswer(domain, group, ctx)) {
       answered.push(group);
       continue;
     }
@@ -178,38 +178,49 @@ function findUnservableAnswers(
  * Whether the user answered this group — which is not quite "does the domain
  * have a value for it".
  *
- * `answerFor` exists to build a plan, so a domain may answer with a baseline it
- * supplied itself: hospital reports `"NONE"` (지원 없음) for the SUPPORT group
- * whenever no support mode was picked, because the plan has to select
- * something. That is the right value for planning and the wrong one here, so
- * the context is the tiebreaker — `input.ts` writes a field only once the user
- * has actually answered it.
+ * Two signals, and the second is the fixture. A value can be in the official
+ * vocabulary and still not be on offer here — `ENT` is a real Department, but
+ * the hospital fixture's DEPARTMENT group lists five other ids and not that
+ * one. Counting it as answered lights the progress button on a choice the
+ * screen cannot show as selected and `plan.ts` then refuses to plan ("ENT is
+ * not an option of DEPARTMENT"), which is the same disagreement one screen
+ * later. Answers can reach a context without passing through a button —
+ * recalled from the profile store, or written by hand into a submission input —
+ * so the group's own option list is what settles it.
  *
- * Both signals are needed, not just the context: someone who asked for
- * GUARDIAN_MODE, which this kiosk has no button for, has answered even though
- * the domain maps it back to "NONE".
+ * ⚠️ There used to be a third signal: the context had to carry a value at the
+ * group's own path, so that a baseline the domain supplied for its own use did
+ * not count as an answer. It read well and it locked out the commonest hospital
+ * user there is.
  *
- * The third signal is the fixture. A value can be in the official vocabulary
- * and still not be on offer here — `ENT` is a real Department, but the hospital
- * fixture's DEPARTMENT group lists five other ids and not that one. Counting it
- * as answered lights the progress button on a choice the screen cannot show as
- * selected and `plan.ts` then refuses to plan ("ENT is not an option of
- * DEPARTMENT"), which is the same disagreement one screen later. Answers can
- * reach a context without passing through a button — recalled from the profile
- * store, or written by hand into a submission input — so the group's own option
- * list is what settles it.
+ * Hospital's SUPPORT is `required: true`, and `input.ts` writes
+ * `/preferences/supportModes` only for a non-empty list — so the context of
+ * someone who needs no accessibility support is byte-for-byte the context of
+ * someone who has not reached the question yet. The screen cannot tell them
+ * apart either: its control is a multi-select that says "없으시면 비워 두셔도
+ * 됩니다", so both people post the same empty list. Resolving that ambiguity as
+ * "has not answered" made a required group unanswerable, and both callers grew
+ * their own copy of the workaround — `isUnanswerableHere` in `apps/web/lib/api.ts`
+ * and `droppedByScreen` in `check-scenarios.ts`. Two screens deciding
+ * separately what counts as answered is the fault this file exists to prevent.
+ *
+ * So the fixture decides, as it does everywhere else here. The hospital's
+ * SUPPORT group lists 지원 없음 (`NONE`) among its options, which is the fixture
+ * saying that needing nothing is a choice and not a gap; `answerFor` returns
+ * that id, `isOffered` finds it on the list, and the group is answered. A
+ * fixture that stopped offering it would fail `isOffered` and SUPPORT would be
+ * gated again — `check-required.ts` measures exactly that, by removing the
+ * option from a copy.
+ *
+ * This is `pm/22` 3-A and `pm/24` ⑫. What is NOT settled here is the profile
+ * vocabulary: `SupportMode` still has no "none" member, so the *preference*
+ * remains absent rather than explicit. That one needs `types.ts`, which is the
+ * lead's to open.
  */
-function hasAnswer(
-  domain: DomainSpec,
-  group: OptionGroup,
-  ctx: SessionContext,
-  path: string,
-): boolean {
+function hasAnswer(domain: DomainSpec, group: OptionGroup, ctx: SessionContext): boolean {
   const answer = domain.answerFor(group, ctx);
   if (!isAnswered(answer)) return false;
-  if (!isOffered(group, answer)) return false;
-  if (path === "") return true;
-  return isAnswered(readPointer(ctx, path));
+  return isOffered(group, answer);
 }
 
 /**
@@ -222,14 +233,4 @@ function isOffered(group: OptionGroup, answer: unknown): boolean {
   return typeof answer === "number"
     ? group.options.some((o) => o.value === answer)
     : group.options.some((o) => o.id === String(answer));
-}
-
-/** Walk a JSON Pointer into the context. Undefined for anything not there. */
-function readPointer(ctx: SessionContext, pointer: string): unknown {
-  let current: unknown = ctx;
-  for (const segment of pointer.split("/").slice(1)) {
-    if (typeof current !== "object" || current === null) return undefined;
-    current = (current as Record<string, unknown>)[segment];
-  }
-  return current;
 }
