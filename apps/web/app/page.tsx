@@ -51,18 +51,24 @@ const THEME_COLORS: Record<string, string> = {
   "public-office": "#059669",
 };
 
-// 엔진에 정의된 정확한 속성(staffAssistancePreferred 등)에 맞춰 배열을 검사합니다.
+// 🔥 [직원도움 최종 수정] 객체 순회나 배열 검사로 인한 누락을 원천 차단하기 위해, 
+// 통째로 문자열로 변환한 뒤 단어 존재 여부만 무식하고 확실하게 스캔합니다.
 function buildBaseProfile(isHighContrast: boolean, fontScale: number, currentAns?: AnyAnswers): CanonicalProfile {
-  const modes = Array.isArray(currentAns?.supportModes) ? currentAns.supportModes : [];
+  const ansStr = currentAns ? JSON.stringify(currentAns) : "";
+  
+  const hasStaff = ansStr.includes("STAFF_HELP") || ansStr.includes("STAFF_ASSIST") || ansStr.includes("STAFF");
+  const hasHearing = ansStr.includes("HEARING_SUPPORT");
+  const hasLarge = ansStr.includes("LARGE_TEXT");
+
   return {
     accessibility: {
-      largeText: fontScale > 1 || modes.includes("LARGE_TEXT"),
+      largeText: fontScale > 1 || hasLarge,
       simpleSteps: false,
       visualGuidance: false,
-      hearingSupport: modes.includes("HEARING_SUPPORT"),
+      hearingSupport: hasHearing,
       mobilitySupport: false,
       highContrast: isHighContrast,
-      staffAssistancePreferred: modes.includes("STAFF_HELP"),
+      staffAssistancePreferred: hasStaff,
     },
     interaction: {
       preferredInput: "TOUCH",
@@ -108,7 +114,6 @@ export default function Home() {
   const [isRestored, setIsRestored] = useState(false);
   const [restoredSavedAt, setRestoredSavedAt] = useState<string | null>(null);
 
-  // 애니메이션 없이, 6초 뒤에 깔끔하게 지워지는 배너 상태
   const [statusMessage, setStatusMessage] = useState("");
 
   useEffect(() => {
@@ -333,15 +338,16 @@ export default function Home() {
       className="min-h-screen flex flex-col p-4 sm:p-8 max-w-4xl mx-auto gap-8 w-full relative pb-24"
       style={accentStyle}
     >
-      {/* 6초 후 사라지는 고정 배너 (애니메이션 삭제) */}
       {statusMessage && (
-        <div 
-          role="status" 
-          aria-live="polite"
-          className="w-full bg-gray-800 text-white font-bold p-4 rounded-xl text-center shadow-md mb-2"
-          style={{ fontSize: "calc(1.1rem * var(--font-scale))" }}
-        >
-          {statusMessage}
+        <div className="fixed top-6 left-1/2 transform -translate-x-1/2 z-[100] w-[calc(100%-2rem)] max-w-4xl pointer-events-none">
+          <div 
+            role="status" 
+            aria-live="polite"
+            className="w-full bg-gray-800 text-white font-bold p-5 rounded-2xl text-center shadow-2xl"
+            style={{ fontSize: "calc(1.1rem * var(--font-scale))" }}
+          >
+            {statusMessage}
+          </div>
         </div>
       )}
 

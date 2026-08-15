@@ -133,6 +133,10 @@ export interface CandidateView {
    * user got a red banner with nothing to do about it.
    */
   blockedReason: string | null;
+
+  // 👇👇👇 [START: 9번 지시사항 추가] 문제가 생기면 이 아래 1줄만 지우세요 👇👇👇
+  alternativeExplanation?: string;
+  // 👆👆👆 [END: 9번 지시사항 추가] 👆👆👆
 }
 
 /** A candidate we removed, and the sentence explaining why. */
@@ -156,6 +160,10 @@ export interface RecommendationView {
   /** true when the screen must ask again before letting the user continue. */
   requiresReconfirmation: boolean;
   reconfirmRequests: ReconfirmRequest[];
+
+  // 👇👇👇 [START: 10번 지시사항 추가] 문제가 생기면 이 아래 1줄만 지우세요 👇👇👇
+  relaxationSuggestion?: string | null;
+  // 👆👆👆 [END: 10번 지시사항 추가] 👆👆👆
 }
 
 /** The user's approval. This is the gate — no plan runs without it. */

@@ -36,6 +36,12 @@ import {
   score,
 } from "@commitandrun/engine/select";
 
+
+// 👇👇👇 [START: 9, 10번 지시사항 임포트 추가] 👇👇👇
+import { explainAlternative } from "../../../packages/engine/src/alternative";
+import { relaxationOptions, explainRelaxation } from "../../../packages/engine/src/relax";
+// 👆👆👆 [END: 9, 10번 지시사항 임포트 추가] 👆👆👆
+
 import { DEFAULT_ENVIRONMENT_ID, fixtureFor } from "./fixture";
 import {
   HOSPITAL_DEFAULT_ANSWERS,
@@ -144,18 +150,48 @@ export async function fetchRecommendation(
   const result = score(survivors, ctx);
 
   const byId = new Map(fixture.candidates.map((c) => [c.candidateId, c]));
+  
+  const recommendedId = result.recommendedCandidateId;
+  const recommended = recommendedId === null ? null : byId.get(recommendedId) ?? null;
+
   const view = (candidateId: string): CandidateView | null => {
     const candidate = byId.get(candidateId);
     const contributions = result.contributions[candidateId];
     if (!candidate || !contributions) return null;
+
+    // 👇👇👇 [START: 9번 지시사항 로직 추가] 대안 이유를 가져옵니다. 문제가 생기면 이 블록을 지우세요 👇👇👇
+    let altExpl: string | undefined = undefined;
+    if (recommendedId !== null && candidateId !== recommendedId) {
+      try {
+        altExpl = explainAlternative(result, candidateId);
+      } catch (e) {
+        console.error("explainAlternative 실패:", e);
+      }
+    }
+    // 👆👆👆 [END: 9번 지시사항 로직 추가] 👆👆👆
+
     return {
       ...toCandidateView(candidate, contributions),
       blockedReason: blockedReason(fixture, candidateId, ctx),
+      // 👇👇👇 [START: 9번 지시사항 뷰 연결 추가] 문제가 생기면 이 1줄을 지우세요 👇👇👇
+      alternativeExplanation: altExpl,
+      // 👆👆👆 [END: 9번 지시사항 뷰 연결 추가] 👆👆👆
     };
   };
 
-  const recommendedId = result.recommendedCandidateId;
-  const recommended = recommendedId === null ? null : byId.get(recommendedId) ?? null;
+  // 👇👇👇 [START: 10번 지시사항 로직 추가] 완화 제안을 가져옵니다. 문제가 생기면 이 블록을 지우세요 👇👇👇
+  let relaxationSuggestion: string | null = null;
+  if (recommendedId === null) {
+    const options = relaxationOptions(fixture, ctx);
+    if (options.length > 0) {
+      try {
+        relaxationSuggestion = explainRelaxation(fixture, ctx, options[0]);
+      } catch (e) {
+        console.error("explainRelaxation 실패:", e);
+      }
+    }
+  }
+  // 👆👆👆 [END: 10번 지시사항 로직 추가] 👆👆👆
 
   return {
     recommended: recommendedId === null ? null : view(recommendedId),
@@ -170,6 +206,9 @@ export async function fetchRecommendation(
     confidence: result.confidence,
     requiresReconfirmation: result.requiresReconfirmation,
     reconfirmRequests: result.reconfirmRequests,
+    // 👇👇👇 [START: 10번 지시사항 뷰 연결 추가] 문제가 생기면 이 1줄을 지우세요 👇👇👇
+    relaxationSuggestion,
+    // 👆👆👆 [END: 10번 지시사항 뷰 연결 추가] 👆👆👆
   };
 }
 

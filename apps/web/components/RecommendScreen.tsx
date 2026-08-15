@@ -105,8 +105,15 @@ export function RecommendScreen({ recView, environmentId, isHighContrast, onChoo
           )}
         </section>
       ) : (
-        <div className={`p-8 text-center border-2 border-dashed rounded-2xl ${isHighContrast ? "border-gray-400 bg-transparent text-[var(--color-fg)]" : "border-gray-400 bg-gray-50"}`}>
+        <div className={`p-8 text-center border-2 border-dashed rounded-2xl flex flex-col gap-3 ${isHighContrast ? "border-gray-400 bg-transparent text-[var(--color-fg)]" : "border-gray-400 bg-gray-50"}`}>
           <p className="font-bold" style={{ fontSize: "calc(1.2rem * var(--font-scale))" }}>조건에 맞는 {copy.noun}{subjectParticle(copy.noun)} 없습니다. 직원의 도움을 받아주세요.</p>
+          {/* 👇👇👇 [START: 10번 지시사항 추가] 문제가 생기면 이 블록을 지우세요 👇👇👇 */}
+          {recView.relaxationSuggestion && (
+            <p className={`font-bold mt-2 ${isHighContrast ? "text-[var(--color-accent)]" : "text-[var(--color-accent)]"}`} style={{ fontSize: "calc(1.2rem * var(--font-scale))" }}>
+              💡 {recView.relaxationSuggestion}
+            </p>
+          )}
+          {/* 👆👆👆 [END: 10번 지시사항 추가] 👆👆👆 */}
         </div>
       )}
 
@@ -115,26 +122,35 @@ export function RecommendScreen({ recView, environmentId, isHighContrast, onChoo
           <h3 className="font-bold mb-5" style={{ fontSize: "calc(1.4rem * var(--font-scale))" }}>🔁 다른 것도 보시겠어요?</h3>
           <ul className="flex flex-col gap-4">
             {recView.alternatives.map((alt) => (
-              <li key={alt.candidateId} className={`flex flex-col sm:flex-row sm:items-center gap-4 justify-between border rounded-xl p-4 transition-colors ${isHighContrast ? "border-gray-600 bg-transparent" : "border-gray-200 bg-white hover:border-gray-400"}`}>
-                <div className="flex flex-col gap-1">
-                  <span className="font-bold" style={{ fontSize: "calc(1.3rem * var(--font-scale))" }}>{alt.name}</span>
-                  <span className="opacity-80 font-bold" style={{ fontSize: "calc(1.1rem * var(--font-scale))" }}>
-                    {/* [결함 방어] 가격은 있을 때만 표시 (0원은 공짜 오해 방지) */}
-                    {alt.priceKrw > 0 && `${alt.priceKrw.toLocaleString()}원 · `}{Math.round(alt.total * 100)}점
-                  </span>
+              <li key={alt.candidateId} className={`flex flex-col border rounded-xl p-4 transition-colors ${isHighContrast ? "border-gray-600 bg-transparent" : "border-gray-200 bg-white hover:border-gray-400"}`}>
+                <div className="flex flex-col sm:flex-row sm:items-center gap-4 justify-between w-full">
+                  <div className="flex flex-col gap-1">
+                    <span className="font-bold" style={{ fontSize: "calc(1.3rem * var(--font-scale))" }}>{alt.name}</span>
+                    <span className="opacity-80 font-bold" style={{ fontSize: "calc(1.1rem * var(--font-scale))" }}>
+                      {/* [결함 방어] 가격은 있을 때만 표시 (0원은 공짜 오해 방지) */}
+                      {alt.priceKrw > 0 && `${alt.priceKrw.toLocaleString()}원 · `}{Math.round(alt.total * 100)}점
+                    </span>
+                  </div>
+                  {/* [결함 방어] 진행할 수 없는 경로에는 버튼을 내지 않는다. 직원 도움
+                      경로는 일부러 안 걸러지므로 답변과 맞지 않아도 여기 올라온다 —
+                      누르면 계획이 거절해 빨간 배너만 뜨고 할 일이 없어진다. */}
+                  {alt.blockedReason ? (
+                    <p className={`sm:max-w-sm font-bold ${isHighContrast ? "text-yellow-300" : "text-red-700"}`} style={{ fontSize: "calc(1rem * var(--font-scale))" }}>
+                      {alt.blockedReason}
+                    </p>
+                  ) : (
+                    <button type="button" onClick={() => onChoose(alt)} className="focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2 transition-transform duration-200 motion-reduce:transition-none motion-reduce:transform-none active:scale-95 px-6" style={{ minHeight: "var(--tap-min)", borderRadius: "var(--radius)", backgroundColor: "transparent", color: "var(--color-fg)", border: "2px solid var(--color-fg)", fontSize: "calc(1.1rem * var(--font-scale))", fontWeight: "bold" }}>
+                      이걸로 할게요
+                    </button>
+                  )}
                 </div>
-                {/* [결함 방어] 진행할 수 없는 경로에는 버튼을 내지 않는다. 직원 도움
-                    경로는 일부러 안 걸러지므로 답변과 맞지 않아도 여기 올라온다 —
-                    누르면 계획이 거절해 빨간 배너만 뜨고 할 일이 없어진다. */}
-                {alt.blockedReason ? (
-                  <p className={`sm:max-w-sm font-bold ${isHighContrast ? "text-yellow-300" : "text-red-700"}`} style={{ fontSize: "calc(1rem * var(--font-scale))" }}>
-                    {alt.blockedReason}
+                {/* 👇👇👇 [START: 9번 지시사항 추가] 문제가 생기면 이 블록을 지우세요 👇👇👇 */}
+                {alt.alternativeExplanation && (
+                  <p className="mt-4 pt-3 border-t font-medium opacity-90" style={{ borderColor: isHighContrast ? "var(--color-fg)" : "var(--color-fg)", fontSize: "calc(1.1rem * var(--font-scale))" }}>
+                    {alt.alternativeExplanation}
                   </p>
-                ) : (
-                  <button type="button" onClick={() => onChoose(alt)} className="focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2 transition-transform duration-200 motion-reduce:transition-none motion-reduce:transform-none active:scale-95 px-6" style={{ minHeight: "var(--tap-min)", borderRadius: "var(--radius)", backgroundColor: "transparent", color: "var(--color-fg)", border: "2px solid var(--color-fg)", fontSize: "calc(1.1rem * var(--font-scale))", fontWeight: "bold" }}>
-                    이걸로 할게요
-                  </button>
                 )}
+                {/* 👆👆👆 [END: 9번 지시사항 추가] 👆👆👆 */}
               </li>
             ))}
           </ul>
