@@ -372,6 +372,24 @@ const BLANK: Record<EnvironmentId, Record<string, unknown>> = {
   },
 };
 
+/**
+ * Required groups a blank form legitimately answers.
+ *
+ * Hospital's SUPPORT is the only one, and it is one on purpose: its option list
+ * carries 지원 없음, so an empty support list is that choice rather than a gap.
+ * pm/24 ⑫ — and it is the fixture saying so, not this file: `check-required.ts`
+ * takes the option off a copy of the group and watches SUPPORT get gated again.
+ *
+ * Written out rather than derived from the same predicate `required.ts` uses.
+ * Deriving it would restate the rule and grade nothing; as a list, a second
+ * group quietly acquiring this shape arrives here as a FAIL.
+ */
+const ANSWERED_BY_BLANK: Record<EnvironmentId, string[]> = {
+  "chicken-store": [],
+  hospital: ["SUPPORT"],
+  "public-office": [],
+};
+
 for (const environmentId of registeredEnvironments()) {
   const fixture = fixtures.get(environmentId)!;
   const r = run(fixture, environmentId, BLANK[environmentId]);
@@ -379,10 +397,14 @@ for (const environmentId of registeredEnvironments()) {
   // question is followed here without anyone editing this file.
   const required = fixture.optionGroups.filter((g) => g.required).map((g) => g.groupId);
   const caught = required.filter((groupId) => r.missing.some((m) => m.groupId === groupId));
+  const answeredByBlank = ANSWERED_BY_BLANK[environmentId];
+  const expected = required.filter((groupId) => !answeredByBlank.includes(groupId));
   verdict(
     `${environmentId} 빈 입력`,
-    caught.length === required.length && r.recommendedId === null,
-    `필수 ${required.length}개 중 ${caught.length}개 잡음 · 추천 ${r.recommendedId ?? "없음"} · 되묻기 ${r.result.reconfirmRequests.length}건`,
+    caught.join(",") === expected.join(",") && r.recommendedId === null,
+    `필수 ${required.length}개 중 ${caught.length}개 잡음` +
+      (answeredByBlank.length > 0 ? ` (빈 답이 곧 답인 그룹 ${answeredByBlank.join(",")})` : "") +
+      ` · 추천 ${r.recommendedId ?? "없음"} · 되묻기 ${r.result.reconfirmRequests.length}건`,
   );
 }
 

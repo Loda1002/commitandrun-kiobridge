@@ -78,9 +78,15 @@ line("chicken-store  다 고르면 0건", chickenFull.length === 0);
 const hospital = await loadFixture("hospital");
 const hospitalEmpty = findMissingAnswers(hospital, nothing("hospital"));
 
-// SUPPORT is required and answerFor reports "NONE" for it when nothing was
-// picked — a baseline the domain supplies so a plan can be built, not an answer.
-// If it were counted as answered this would be 3.
+// SUPPORT is required and answerFor reports "NONE" (지원 없음) for it when
+// nothing was picked. That counts as an answer, so this is 3 and not 4 — the
+// fixture lists 지원 없음 among the group's options, which is the fixture saying
+// that needing nothing is a choice. pm/24 ⑫.
+//
+// Someone who needs no support and someone who has not reached the question
+// produce the same context, and the screen's multi-select cannot tell them
+// apart either. Gating on it locked the first person out of the hospital flow
+// entirely, and both callers grew their own workaround for that.
 const hospitalFull = findMissingAnswers(
   hospital,
   createContextFor(
@@ -112,15 +118,61 @@ const hospitalOffFixture = findMissingAnswers(
   ),
 );
 
+// The user ⑫ is about: every question answered, no support needed. This is the
+// person who could not get past the hospital's first screen.
+const hospitalNoSupport = findMissingAnswers(
+  hospital,
+  createContextFor(
+    "hospital",
+    {
+      visitType: "FIRST_VISIT",
+      appointmentStatus: "NO_APPOINTMENT",
+      departmentId: "INTERNAL_MEDICINE",
+      supportModes: [],
+    },
+    { capturedAt: CAPTURED_AT },
+  ),
+);
+// ...and the reason it passes is the fixture, not a special case for one group
+// id. Take 지원 없음 off the SUPPORT group and the same user is gated again.
+// Without this row, "SUPPORT is answered because there is a way to answer it"
+// would read the same as "SUPPORT is never gated", which is a different and
+// much weaker thing to have built.
+const withoutNone = {
+  ...hospital,
+  optionGroups: hospital.optionGroups.map((g) =>
+    g.groupId === "SUPPORT" ? { ...g, options: g.options.filter((o) => o.id !== "NONE") } : g,
+  ),
+} as PublicFixture;
+const hospitalNoNoneOption = findMissingAnswers(withoutNone, nothing("hospital"));
+// ⚠️ Which mechanism reported it, not just that something did. SUPPORT lands in
+// this list two ways — unanswered ("…골라 주세요"), or answered and unservable
+// ("…진행할 수 있는 곳이 없습니다") — and only the first is the fixture check
+// doing its job. Counting entries passed with `isOffered` deleted, because the
+// unservable branch picked it up instead and printed the same four ids.
+const supportSaysUnanswered = hospitalNoNoneOption
+  .find((m) => m.groupId === "SUPPORT")?.message.endsWith("골라 주세요.") ?? false;
+
 line(
-  "hospital       아무것도 안 고름 -> 4건",
-  hospitalEmpty.length === 4 &&
-    ids(hospitalEmpty) === "VISIT_TYPE · APPOINTMENT · DEPARTMENT · SUPPORT" &&
+  "hospital       아무것도 안 고름 -> 3건",
+  hospitalEmpty.length === 3 &&
+    ids(hospitalEmpty) === "VISIT_TYPE · APPOINTMENT · DEPARTMENT" &&
     hospitalFull.length === 0 &&
     ids(hospitalOffFixture) === "DEPARTMENT",
 );
+line(
+  "hospital       지원 필요 없는 사람도 통과 -> 0건",
+  hospitalNoSupport.length === 0,
+);
+line(
+  "hospital       픽스처가 지원 없음을 안 주면 다시 4건",
+  hospitalNoNoneOption.length === 4 &&
+    ids(hospitalNoNoneOption) === "VISIT_TYPE · APPOINTMENT · DEPARTMENT · SUPPORT" &&
+    supportSaysUnanswered,
+);
 console.log(`    ${ids(hospitalEmpty)}`);
 console.log(`    fixture 에 없는 값(ENT) -> ${ids(hospitalOffFixture)} 1건`);
+console.log(`    지원 없음 옵션을 뺀 사본 -> ${ids(hospitalNoNoneOption)}`);
 
 /* --- public-office --------------------------------------------------------- */
 

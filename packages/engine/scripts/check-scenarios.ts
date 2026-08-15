@@ -92,10 +92,18 @@ function contextFor(
  * exactly that user, and without this it never reaches a plan at all.
  *
  * Duplicated rather than imported because that file is a Next.js module and
- * `packages/engine` may not depend on the web app. Both are temporary and go
- * away together — pm/22 owns the decision, and the web comment says to delete
- * the pair when it lands. The summary prints what was dropped so this cannot
- * quietly outlive its cause.
+ * `packages/engine` may not depend on the web app.
+ *
+ * ⚠️ **The engine half of this has landed** (pm/24 ⑫): `required.ts` now counts
+ * hospital's SUPPORT as answered, because the fixture offers 지원 없음 and that
+ * is a choice rather than a gap. So this function no longer fires — the summary
+ * line below says 없음 every run, which is what it was printed for.
+ *
+ * Kept for one reason: `apps/web/lib/api.ts` still filters the same group out
+ * of the question list, and that file is G5. While the screen declines to ask
+ * the question, a matrix that gated where the screen does not would grade a
+ * path nobody walks. Delete this together with `isUnanswerableHere` — the pair
+ * still goes away together, and now only the web half is left.
  */
 const droppedByScreen = (environmentId: EnvironmentId, groupId: string): boolean =>
   environmentId === "hospital" && groupId === "SUPPORT";
@@ -1661,8 +1669,10 @@ if (replacements.length > 0) {
 }
 if (gateBlocked.length > 0) console.log(`  게이트가 막은 칸: ${gateBlocked.join(", ")}`);
 // Printed every run so the temporary drop above cannot outlive its cause
-// unnoticed: when pm/22 settles hospital SUPPORT, this line goes quiet.
-if (screenDropped.length > 0) console.log(`  화면이 버리는 필수 항목: ${screenDropped.join(", ")}`);
+// unnoticed. pm/24 ⑫ settled the engine half, so this now reads 없음 — printed
+// rather than skipped, because a line that vanishes says nothing and a line
+// that says 없음 says the workaround is done waiting on us.
+console.log(`  화면이 버리는 필수 항목: ${screenDropped.join(", ") || "없음 (pm/24 ⑫ 이후)"}`);
 for (const environmentId of registeredEnvironments()) {
   const domain = getDomain(environmentId);
   console.log(`  ${environmentId}: 기준 ${domain.criteria.length}개 · 제외 규칙 ${domain.rules.length}개`);
