@@ -124,10 +124,13 @@ export function explainAlternative(result: EngineResult, candidateId: string): s
   }
 
   if (worse.length === 0 && better.length === 0) {
-    // Measured: 8 of the chicken shop's 24 winner/alternative pairs and 12 of
-    // public-office's 52 land here. The bars really are identical and `tiebreak`
-    // separated them, so saying anything about "why" would be inventing a
-    // reason the chart does not carry.
+    // Measured over the spaces `check-scenarios` actually sweeps: 72 of the
+    // chicken shop's 216 winner/alternative pairs and 12 of public-office's 52
+    // land here, and none of hospital's 36. (`7ef20f4`'s message and this
+    // comment said "8 of 24" — that pair came from a 12-combination probe space
+    // built while writing this, and matches no number any check prints.)
+    // The bars really are identical and `tiebreak` separated them, so saying
+    // anything about "why" would be inventing a reason the chart does not carry.
     return "1등과 맞춘 조건이 같습니다. 막대만으로는 순위가 갈리지 않습니다.";
   }
 
