@@ -57,6 +57,12 @@ kit/submission-output/*
 #   Compress-Archive -Path .\kit\submission-output\COMMITANDRUN\* -DestinationPath .\COMMITANDRUN_KioBridge_Technical_Submission.zip -Force
 COMMITANDRUN_KioBridge_Technical_Submission.zip
 
+# The 08.16 hand-carry bundle: the archive above plus the deck, the email body,
+# the operator's field values, and a copy of pm/26_SUBMIT_0816.md. Every piece is
+# either tracked elsewhere or rebuilt from one, so the bundle itself stays local.
+COMMITANDRUN_0816_제출/
+COMMITANDRUN_0816_제출.zip
+
 # Rollback copies of previous kit releases, kept locally only.
 # WARNING: kit-v516-rc4/node_modules/@kiobridge/ holds 12 junctions whose absolute
 # targets now resolve into the CURRENT kit/. Never delete these folders recursively
