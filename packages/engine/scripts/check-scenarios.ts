@@ -26,7 +26,7 @@ import { buildExecutionPlan, resolveOptionSelections, unsettleableGroups } from 
 import { findMissingAnswers } from "../src/required.ts";
 import { createContextFor } from "../src/input.ts";
 import { askedForPhrase, explainAlternative } from "../src/alternative.ts";
-import { relaxationOptions } from "../src/relax.ts";
+import { explainRelaxation, relaxationOptions, type RelaxationOption } from "../src/relax.ts";
 import { explainRecommendation, filterCandidates, score } from "../src/select.ts";
 import { ENVIRONMENT_BOUNDARY, FORBIDDEN_ACTIONS } from "../src/types.ts";
 import type {
@@ -1340,6 +1340,176 @@ const RELAXABLE_PATHS = ["/hardConstraints/maxPriceKrw", "/preferences/serviceTy
       `${seen}조합 호출 · 제안 ${produced}건 · 본 제외 이유 ${[...codes].sort().join(",") || "(없음)"}`,
     );
   }
+}
+
+/* ═══════ 완화 제안의 문장 — pm/27 2절 (⑨ 아님, 위 번호는 pm/24 것이다) ════
+ *
+ * The facts have been in the engine since pm/24 ④ and the screen still ends at
+ * "조건에 맞는 메뉴가 없습니다". `explainRelaxation` is the half that says them,
+ * so the thing to measure is that the sentence and the row agree: every number
+ * the customer reads is `survivorCount` and `value` as they were measured, and
+ * none of them counted a second time. 6,000원 is where that matters — the
+ * exclusion list names five dishes there and four actually come back.
+ *
+ * Read as digits rather than compared against a sentence written here. Holding
+ * the expected string would be `explainRelaxation` typed twice: green on any
+ * rewording, and green on the two numbers being swapped, which is the defect
+ * this was tried against.
+ */
+{
+  const fixture = fixtures.get("chicken-store")!;
+  const sets = relaxAnswerSets(fixture);
+
+  /**
+   * 5500 → "5,500", grouped here rather than imported. A check that formats with
+   * the engine's own helper cannot tell a broken formatter from a matching one.
+   */
+  const grouped = (n: number): string => {
+    const digits = String(n);
+    let out = "";
+    for (let i = 0; i < digits.length; i++) {
+      if (i > 0 && (digits.length - i) % 3 === 0) out += ",";
+      out += digits[i];
+    }
+    return out;
+  };
+
+  /** Every run of digits the customer would read, in the order they read them. */
+  const numbersIn = (sentence: string): string[] => sentence.match(/[0-9][0-9,]*/g) ?? [];
+
+  /**
+   * What is wrong with this sentence, or null.
+   *
+   * The numbers are compared as a sequence, not as a set: swapping the amount
+   * and the count leaves the same two numbers in the sentence, and a customer
+   * told "예산을 1원까지 올리시면 5,500개" has been told something false in
+   * exactly the way a set comparison would call correct.
+   *
+   * A value that is an option id has to be named as well as counted, or the
+   * sentence says "바꾸시면 6개" without saying what to change. The label comes
+   * off the fixture, so this cannot pass by matching wording typed here.
+   */
+  const faultIn = (
+    from: Pick<PublicFixture, "optionGroups">,
+    option: RelaxationOption,
+    sentence: string,
+  ): string | null => {
+    if (sentence.trim() === "") return "빈 문장";
+    const expected = [
+      ...(typeof option.value === "number" ? [grouped(option.value)] : []),
+      String(option.survivorCount),
+    ];
+    const found = numbersIn(sentence);
+    if (found.join("·") !== expected.join("·")) {
+      return `숫자 기대 ${expected.join("·")} · 실제 ${found.join("·") || "(없음)"}`;
+    }
+    if (typeof option.value === "string") {
+      const label = from.optionGroups
+        .flatMap((g) => g.options)
+        .find((o) => o.id === option.value)?.label;
+      if (label === undefined) return `픽스처에 ${option.value} 의 이름이 없다`;
+      if (!sentence.includes(label)) return `바꿀 값 「${label}」 을 말하지 않는다`;
+    }
+    return null;
+  };
+
+  let said = 0;
+  const sentences = new Set<string>();
+  const faults: string[] = [];
+  const threw: string[] = [];
+
+  for (const answers of sets) {
+    const ctx = contextFor(fixture, "chicken-store", answers);
+    for (const option of relaxationOptions(fixture, ctx)) {
+      said++;
+      let sentence: string;
+      try {
+        sentence = explainRelaxation(fixture, ctx, option);
+      } catch (e) {
+        threw.push(`${JSON.stringify(answers)} — ${(e as Error).message}`);
+        continue;
+      }
+      sentences.add(sentence);
+      const fault = faultIn(fixture, option, sentence);
+      if (fault !== null) faults.push(`${JSON.stringify(answers)} — ${fault} :: ${sentence}`);
+    }
+  }
+
+  claim(
+    "닭강정집 완화 문장",
+    said > 0 && faults.length === 0 && threw.length === 0 && sentences.size > 1,
+    `제안 ${said}건 → 문장 ${said - threw.length}건 · 서로 다른 문장 ${sentences.size}` +
+      ` · 어긋남 ${faults.length} · 예외 ${threw.length}` +
+      (faults.length > 0 ? ` — 예: ${faults[0]}` : "") +
+      (threw.length > 0 ? ` — 예: ${threw[0]}` : ""),
+  );
+
+  /*
+   * The dormant row, made to speak.
+   *
+   * `SERVICE_TYPE_MISMATCH` suggests nothing in this fixture — the takeout-only
+   * dish and the dine-in-only dish both cost 6,000원, so the swap is always a
+   * wash and the sweep above never words it. A sentence nobody can reach is a
+   * sentence nobody has read, and the day a fixture tilts is the day the screen
+   * finds out. So the fixture is tilted here: the service type the customer
+   * asked for is dropped from the first dish that offers both, which is the
+   * smallest change that makes switching worth something.
+   *
+   * The tilt is ours; nothing else is. Both service types are tried because the
+   * fixture names two, the budget is the priciest dish so no budget row joins in,
+   * and the label the sentence has to carry is read back out of the fixture.
+   */
+  const serviceTypes = (fixture.optionGroups.find((g) => g.groupId === "SERVICE_TYPE")?.options ?? [])
+    .map((o) => o.id);
+  const roomy = Math.max(...fixture.candidates.map((c) => c.price ?? 0));
+  const tiltedSentences: string[] = [];
+  const tiltedFaults: string[] = [];
+  const tiltedThrew: string[] = [];
+  /** The dish the tilt is applied to. The same one for both service types. */
+  const target = fixture.candidates
+    .find((c) => (c.supportedOptions?.SERVICE_TYPE ?? []).length > 1);
+
+  for (const wanted of serviceTypes) {
+    // A fixture with no dish that offers both, or no answer set to start from,
+    // cannot be tilted — and the claim below goes red rather than reporting a
+    // sentence nobody produced.
+    if (target === undefined || sets.length === 0) break;
+    const tilted: PublicFixture = {
+      ...fixture,
+      candidates: fixture.candidates.map((c) =>
+        c.candidateId !== target.candidateId ? c : {
+          ...c,
+          supportedOptions: {
+            ...c.supportedOptions,
+            SERVICE_TYPE: (c.supportedOptions?.SERVICE_TYPE ?? []).filter((v) => v !== wanted),
+          },
+        }),
+    };
+    const answers = { ...sets[0], serviceType: wanted, maxPriceKrw: roomy, allergenIds: [] };
+    const ctx = contextFor(tilted, "chicken-store", answers);
+    for (const option of relaxationOptions(tilted, ctx)) {
+      if (option.reasonCode !== "SERVICE_TYPE_MISMATCH") continue;
+      let sentence: string;
+      try {
+        sentence = explainRelaxation(tilted, ctx, option);
+      } catch (e) {
+        tiltedThrew.push(`${wanted} — ${(e as Error).message}`);
+        continue;
+      }
+      tiltedSentences.push(sentence);
+      const fault = faultIn(tilted, option, sentence);
+      if (fault !== null) tiltedFaults.push(`${wanted} — ${fault} :: ${sentence}`);
+    }
+  }
+
+  claim(
+    "휴면 이용 방식 문장",
+    tiltedSentences.length > 0 && tiltedFaults.length === 0 && tiltedThrew.length === 0,
+    `기울인 픽스처 ${serviceTypes.length}종 · 제안 ${tiltedSentences.length}건 · 어긋남 ${tiltedFaults.length}` +
+      ` · 예: ${tiltedSentences[0] ?? "문장 없음"}` +
+      (tiltedFaults.length > 0 ? ` — ${tiltedFaults[0]}` : "") +
+      (tiltedThrew.length > 0 ? ` — 예외 ${tiltedThrew[0]}` : ""),
+  );
 }
 
 /* ═════════ ⑦ 예산을 안 정한 손님이 덜 듣지 않는다 ═══════════════════════
