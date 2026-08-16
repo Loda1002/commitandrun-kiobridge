@@ -47,10 +47,14 @@ export function ConfirmScreen({ candidate, selections, environmentId, isHighCont
   })();
 
   /*
-   * ⚠️ 아래 여백(`gap-6` · `p-5 md:p-6` · `pb-3`)은 1280x**720** 에
+   * ⚠️ 아래 여백(`gap-6` · `p-5 md:p-6` · `gap-3` · `pb-3`)은 1280x**720** 에
    * 「이대로 진행할게요」를 넣기 위해 줄여 둔 것이다. 늘리기 전에 그 창 높이에서
    * 버튼이 보이는지 재십시오 — 최종 승인 버튼이 화면 밖에 있으면 사용자는 승인할
    * 방법이 없다고 읽는다. 글자 크기와 44px 터치 영역은 건드리지 않았다.
+   *
+   * ⚠️ **로컬에서 잰 값보다 배포본이 12px 크다.** 넘치기 시작하면 세로 스크롤바가
+   * 생기고, 폭이 1280 에서 1265 로 줄면서 다시 조금 더 높아지는 되먹임이 있다.
+   * 로컬에서 딱 맞는 정도로는 배포본에서 모자란다 — 여유를 두고 재십시오.
    */
   return (
     <main className="flex flex-col gap-6 w-full">
@@ -58,7 +62,7 @@ export function ConfirmScreen({ candidate, selections, environmentId, isHighCont
         {copy.confirmTitle}
       </h1>
 
-      <section className={`border-2 rounded-2xl p-5 md:p-6 flex flex-col gap-4 ${isHighContrast ? "border-gray-400" : "border-gray-300 shadow-lg bg-white"}`}>
+      <section className={`border-2 rounded-2xl p-5 md:p-6 flex flex-col gap-3 ${isHighContrast ? "border-gray-400" : "border-gray-300 shadow-lg bg-white"}`}>
         <div className="flex justify-between items-center border-b pb-3" style={{ borderColor: "var(--color-fg)" }}>
           <span className="opacity-80 font-bold" style={{ fontSize: "calc(1.2rem * var(--font-scale))" }}>{copy.noun}</span>
           <span className="font-extrabold" style={{ fontSize: "calc(1.6rem * var(--font-scale))" }}>{candidate.name}</span>
