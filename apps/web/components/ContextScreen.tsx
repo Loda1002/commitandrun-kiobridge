@@ -277,7 +277,9 @@ export function ContextScreen({
         {title}
         {pages.length > 1 && (
           <span className="font-bold opacity-80 ml-3 whitespace-nowrap" style={{ fontSize: "calc(1.2rem * var(--font-scale))" }}>
-            질문 {pageIndex + 1}장째 (모두 {pages.length}장)
+            {isLastPage
+              ? `마지막 질문입니다 (${pages.length}장 중 ${pages.length}장째)`
+              : `질문 ${pageIndex + 1}장째 (모두 ${pages.length}장)`}
           </span>
         )}
       </h1>

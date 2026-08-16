@@ -109,6 +109,35 @@ export function RecommendScreen({ recView, environmentId, isHighContrast, onChoo
             </p>
           )}
 
+          {/* 고르신 것 중 이 메뉴가 맞추지 못한 것. 최종 확인 화면에만 있던 안내를
+              여기로 당겨 왔다(팀장 지시, 2026-08-16). 뼈를 고르셨는데 순살이
+              추천되는 일이 실제로 있고 — 뼈 있는 메뉴가 하나뿐인 데다 매운맛
+              전용이라 보통맛과 겹치지 않는다 — 그 사실을 최종 확인에서 처음 보면
+              되돌아가는 것 말고 할 수 있는 게 없다. 여기서 알면 바로 아래 대안
+              목록에서 뼈 메뉴를 고르실 수 있다.
+              빨간 경고가 아니다. 진행할 수 없다는 뜻이 아니라 달라지는 부분을
+              미리 알려 드리는 것이라, 색은 지금 환경색을 쓴다. */}
+          {recView.recommended.unmet.length > 0 && (
+            <div
+              className={`mb-6 rounded-xl p-4 border-2 flex flex-col gap-2 ${isHighContrast ? "border-[var(--color-accent)] bg-transparent" : ""}`}
+              style={isHighContrast ? undefined : { borderColor: barColor, backgroundColor: envTint(environmentId) }}
+            >
+              <p className="font-extrabold break-keep" style={{ fontSize: "calc(1.15rem * var(--font-scale))" }}>
+                고르신 것 중 이 {copy.noun}에서 달라지는 부분이 있습니다
+              </p>
+              <ul className="flex flex-col gap-1">
+                {recView.recommended.unmet.map((selection) => (
+                  <li key={selection.groupId} className="font-bold break-keep leading-snug" style={{ fontSize: "calc(1.1rem * var(--font-scale))" }}>
+                    {selection.label}: 「{selection.userAnswerLabel}」 대신 「{selection.optionLabel}」로 나갑니다.
+                  </li>
+                ))}
+              </ul>
+              <p className="opacity-90 font-bold break-keep leading-snug" style={{ fontSize: "calc(1rem * var(--font-scale))" }}>
+                그대로 진행하셔도 되고, 아래에서 다른 것을 고르셔도 됩니다.
+              </p>
+            </div>
+          )}
+
           {/* [보류 2026-08-16] 기준별 기여도 막대그래프 전체.
               요구사항 정리서의 P0 어디에도 없고 창업팀 Q&A 에 「점수」「막대」라는
               말이 한 번도 나오지 않는다. 「왜 추천됐는지」는 아래 이유 문장이 한다.

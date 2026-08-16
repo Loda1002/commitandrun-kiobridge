@@ -200,10 +200,13 @@ export async function fetchRecommendation(
       alternativeExplanation = explainAlternative(result, candidateId) || null;
     }
 
+    const blocked = blockedReason(fixture, candidateId, ctx);
+
     return {
       ...toCandidateView(candidate, contributions),
-      blockedReason: blockedReason(fixture, candidateId, ctx),
+      blockedReason: blocked,
       alternativeExplanation,
+      unmet: blocked === null ? unmetSelections(fixture, candidateId, ctx) : [],
     };
   };
 
@@ -292,6 +295,33 @@ export async function runPlan(
   };
 }
 
+/**
+ * 이 후보로 진행하면 고르신 답과 **달라지는** 항목들.
+ *
+ * 최종 확인 화면이 이미 같은 계산으로 「고르신 것과 다른 부분이 있습니다」를
+ * 그린다(`previewOrder`). 그것을 추천 화면으로 한 단계 당겨 오는 것이 전부다 —
+ * 판정은 엔진의 `resolveOptionSelections` 가 그대로 하고, 여기서 새로 정하는
+ * 것은 없다. 두 화면이 다른 말을 할 수 없는 이유이기도 하다.
+ *
+ * 던지면 빈 배열이다. 이 값은 안내 한 줄이라, 계산이 안 되는 후보 때문에 추천
+ * 화면 전체가 사라지는 쪽이 훨씬 나쁘다. 진짜로 진행할 수 없는 후보는
+ * `blockedReason` 이 따로 잡아 버튼을 내지 않는다.
+ */
+function unmetSelections(
+  fixture: PublicFixture,
+  candidateId: string,
+  ctx: ReturnType<typeof toSessionContext>,
+): OptionSelection[] {
+  try {
+    return resolveOptionSelections(fixture, candidateId, ctx).filter(
+      (s) => s.userAnswer !== null && s.userAnswer !== s.optionId,
+    );
+  } catch (e) {
+    console.error("unmetSelections 실패:", e);
+    return [];
+  }
+}
+
 function blockedReason(
   fixture: PublicFixture,
   candidateId: string,
@@ -349,15 +379,16 @@ function quantityAnswer(optionId: unknown, fixture: PublicFixture): string {
 /*
  * The part of a card that depends only on the candidate and its score.
  *
- * The two fields left out are the ones that depend on *where* the card is:
+ * The three fields left out are the ones that depend on *where* the card is:
  * `blockedReason` needs the context to know whether this route can be planned,
- * and `alternativeExplanation` only means something next to the recommended
- * card. Both are filled in by the caller, which is the only place that knows.
+ * `unmet` needs it to know what the answers would resolve to, and
+ * `alternativeExplanation` only means something next to the recommended card.
+ * All three are filled in by the caller, which is the only place that knows.
  */
 function toCandidateView(
   candidate: Candidate,
   contributions: ScoreContribution[],
-): Omit<CandidateView, "blockedReason" | "alternativeExplanation"> {
+): Omit<CandidateView, "blockedReason" | "alternativeExplanation" | "unmet"> {
   return {
     candidateId: candidate.candidateId,
     name: displayCandidateName(candidate.candidateId, candidate.name),

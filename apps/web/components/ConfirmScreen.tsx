@@ -58,11 +58,15 @@ export function ConfirmScreen({ candidate, selections, environmentId, isHighCont
 
         {changed.length > 0 && (
           <div className={`p-4 rounded-xl border-2 flex flex-col gap-2 ${isHighContrast ? "border-yellow-300" : "border-orange-500 bg-orange-50"}`} style={{ fontSize: "calc(1.1rem * var(--font-scale))" }}>
-            <p className="font-extrabold">고르신 것과 다른 부분이 있습니다</p>
+            {/* 「형태: 뼈 → 순살 — 이 메뉴에는 고르신 선택지가 없습니다」였다.
+                화살표와 대시로 쓴 말이라 읽는 데 한 번 걸리고, 왜 그런지가 없어
+                「그럼 왜 이걸 추천했지」로 읽힌다(팀장 지시, 2026-08-16).
+                추천 화면에도 같은 안내를 미리 띄우므로 문장을 그쪽과 맞춘다. */}
+            <p className="font-extrabold">고르신 것과 달라지는 부분이 있습니다</p>
             <ul className="flex flex-col gap-1 list-disc pl-5">
               {changed.map((selection) => (
                 <li key={selection.groupId}>
-                  {selection.label}: {selection.userAnswerLabel} → <strong>{selection.optionLabel}</strong> — 이 {copy.noun}에는 고르신 선택지가 없습니다.
+                  {selection.label}: 「{selection.userAnswerLabel}」 대신 <strong>「{selection.optionLabel}」</strong>로 나갑니다. 이 {copy.noun}에는 「{selection.userAnswerLabel}」이 없습니다.
                 </li>
               ))}
             </ul>

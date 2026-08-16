@@ -142,6 +142,20 @@ export interface CandidateView {
    * the submission JSON would say about the same two candidates.
    */
   alternativeExplanation: string | null;
+  /**
+   * 고르신 것 중 **이 후보가 맞추지 못하는** 항목. 없으면 빈 배열.
+   *
+   * 왜 추천 화면까지 올려 보내는가. 닭강정집에 뼈 있는 메뉴는 「매운 뼈 닭강정」
+   * 하나뿐이고 그것은 매운맛 전용이다. 그래서 뼈 + 보통맛을 고르면 맵기 쪽이
+   * 무거워 순살 메뉴가 1등이 되는데, 추천 화면의 이유 목록에는 형태 이야기가
+   * 한 줄도 나오지 않았다. 「뼈를 골랐는데 왜 순살이지?」를 **최종 확인 화면에
+   * 가서야** 알게 되고, 거기서는 되돌아가는 것 말고 할 수 있는 게 없다
+   * (팀장 지시, 2026-08-16).
+   *
+   * 계획을 세울 수 없는 후보(`blockedReason`)에서는 빈 배열이다 — 무엇으로
+   * 대체될지 자체가 정해지지 않는다.
+   */
+  unmet: OptionSelection[];
 }
 
 /** A candidate we removed, and the sentence explaining why. */
