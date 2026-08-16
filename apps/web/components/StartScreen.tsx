@@ -143,9 +143,22 @@ export function StartScreen({ onStart, accessibilityBar, isHighContrast, onDelet
                  설명 1.5→1.2rem 으로 각각 한 단계씩만 내렸고, 카드 자체의 최소
                  높이는 14→12rem 이다. 44px 기준을 넘는 것은 물론이고 여전히
                  화면 폭의 3분의 1을 차지한다. */
+              /* 고대비에서 마우스를 올려도 **하얗게 채우지 않는다**(팀장 지시,
+                 2026-08-16). 전에는 카드 한 장이 통째로 흰색이 됐는데, 1280x800
+                 에서 400x471 = 188,400px² 이 순백으로 켜지는 것이라 화면의 18%
+                 였다. 고대비를 켜는 분은 대개 빛에 예민해서, 그 면적의 순백은
+                 정보가 아니라 통증이다.
+                 대신 노란색으로 말한다 — 테두리는 평소에도 노랑이고, 올리면
+                 **바탕에만** 35% 노란 물이 든다. 검정 위에서 rgb(89,81,0) 이라
+                 흰 글자 대비가 8.07:1 로 넉넉하고, 내보내는 빛은 순백의 12분의 1
+                 이다. **글자는 흰색 그대로 둔다**(팀장 지시, 2026-08-16) —
+                 바탕과 글자가 함께 노랗게 변하면 글자가 바탕에 묻힌다.
+                 ⚠️ 20% 에서 35% 로 올린 것은 글자 색이 안 바뀌게 되면서 hover 를
+                 알리는 신호가 바탕 하나만 남았기 때문이다. 이 값을 다시 내리려면
+                 글자 쪽에 다른 신호를 주고 내려야 한다. */
               className={`flex-1 w-full flex flex-col items-center justify-center rounded-[2.5rem] p-5 min-h-[12rem] transition-transform active:scale-95 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--color-fg)] focus-visible:ring-offset-4 ${
                 isHighContrast
-                  ? 'border-4 border-[var(--color-fg)] bg-transparent text-[var(--color-fg)] hover:bg-[var(--color-fg)] hover:text-[var(--color-bg)]'
+                  ? 'border-4 border-[var(--color-accent)] bg-transparent text-[var(--color-fg)] hover:bg-[#ffe60059]'
                   : 'text-white shadow-md hover:brightness-105'
               }`}
               style={isHighContrast ? undefined : { backgroundColor: envColor(env.id) }}

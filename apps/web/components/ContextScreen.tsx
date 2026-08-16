@@ -69,6 +69,18 @@ export function ContextScreen({
   const themeColor = envColor(environmentId);
   const themeTint = envTint(environmentId);
 
+  /**
+   * 「다음 질문」·「추천 결과 보기」의 채운 바탕.
+   *
+   * 고대비에서는 노란색이다(팀장 지시, 2026-08-16). 전에는 보통 화면과 같은
+   * `--color-fg` 를 써서 고대비일 때 **순백으로 21,133px² 가 켜졌다**(1280px
+   * 실측). 같은 성격의 「이걸로 할게요」·「이대로 진행할게요」는 이미 강조색을
+   * 쓰고 있어서, 앞으로 가는 버튼이 화면마다 흰색과 노란색으로 갈리기도 했다.
+   * 글자색은 양쪽 다 `--color-bg` 로 맞는다 — 고대비면 검정(15.9:1),
+   * 보통 화면이면 흰색이다. 보통 화면의 생김새는 바뀌지 않는다.
+   */
+  const primaryFill = isHighContrast ? "var(--color-accent)" : "var(--color-fg)";
+
   const pages = useMemo(() => paginate(questions), [questions]);
   const pageQuestions = pages[pageIndex] ?? [];
   const isLastPage = pageIndex >= pages.length - 1;
@@ -412,7 +424,7 @@ export function ContextScreen({
               type="submit"
               disabled={pageQuestions.some((q) => missing[q.id] !== undefined)}
               className="flex-1 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-4 transition-transform hover:scale-[1.02] active:scale-95 duration-200 motion-reduce:transition-none motion-reduce:transform-none disabled:opacity-50 disabled:hover:scale-100"
-              style={{ minHeight: "calc(var(--tap-min) + 8px)", borderRadius: "var(--radius)", backgroundColor: "var(--color-fg)", color: "var(--color-bg)", fontSize: "calc(1.3rem * var(--font-scale))", fontWeight: "bold" }}
+              style={{ minHeight: "calc(var(--tap-min) + 8px)", borderRadius: "var(--radius)", backgroundColor: primaryFill, color: "var(--color-bg)", fontSize: "calc(1.3rem * var(--font-scale))", fontWeight: "bold" }}
             >
               추천 결과 보기
             </button>
@@ -422,7 +434,7 @@ export function ContextScreen({
               onClick={goNext}
               disabled={pageQuestions.some((q) => missing[q.id] !== undefined)}
               className="flex-1 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-4 transition-transform hover:scale-[1.02] active:scale-95 duration-200 motion-reduce:transition-none motion-reduce:transform-none disabled:opacity-50 disabled:hover:scale-100"
-              style={{ minHeight: "calc(var(--tap-min) + 8px)", borderRadius: "var(--radius)", backgroundColor: "var(--color-fg)", color: "var(--color-bg)", fontSize: "calc(1.3rem * var(--font-scale))", fontWeight: "bold" }}
+              style={{ minHeight: "calc(var(--tap-min) + 8px)", borderRadius: "var(--radius)", backgroundColor: primaryFill, color: "var(--color-bg)", fontSize: "calc(1.3rem * var(--font-scale))", fontWeight: "bold" }}
             >
               다음 질문 →
             </button>

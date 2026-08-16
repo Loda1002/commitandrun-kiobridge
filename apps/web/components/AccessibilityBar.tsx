@@ -77,14 +77,18 @@ export function AccessibilityBar({
         </span>
       </button>
 
-      {/* 고대비 화면 변경 버튼 */}
+      {/* 고대비 화면 변경 버튼.
+          고대비를 켠 상태에서 이 버튼이 **순백으로 채워져** 있었다 — 1280px 에서
+          27,224px² 로, 그 화면에서 가장 밝은 면이었다(실측). 눌린 상태를 알리려고
+          채운 것이므로 채움은 그대로 두되 **노란색(#ffe600)으로** 바꾼다. 검정
+          글씨 대비 15.9:1 이고, 흰색보다 내보내는 빛이 22% 적다. */}
       <button
         type="button"
         aria-pressed={isHighContrast}
         onClick={onToggleContrast}
         className={`flex-1 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2 transition-transform hover:scale-[1.02] active:scale-95 shadow-md ${
           isHighContrast
-            ? "bg-[var(--color-fg)] text-[var(--color-bg)] border-2 border-[var(--color-fg)]"
+            ? "bg-[var(--color-accent)] text-black border-2 border-[var(--color-accent)]"
             : isStartScreen
               ? "border-4 border-black bg-black text-white"
               : "bg-black text-white"
