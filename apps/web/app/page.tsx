@@ -6,6 +6,7 @@ import {
   emptyAnswers,
   fetchQuestions,
   fetchRecommendation,
+  findUnknownRequired,
   previewOrder,
   runPlan,
 } from "../lib/api";
@@ -116,6 +117,19 @@ export default function Home() {
 
   const [isRestored, setIsRestored] = useState(false);
   const [restoredSavedAt, setRestoredSavedAt] = useState<string | null>(null);
+
+  /**
+   * 「모르겠어요」로 답하고 넘어온 필수 질문들의 이름.
+   *
+   * 상황 입력 화면은 이제 이것 때문에 사람을 막지 않는다 — 모른다고 말한 사람에게
+   * 다시 고르라고 하는 화면이었다(팀장 지시, 2026-08-16). 대신 추천을 그리기 전에
+   * 여기서 한 번 되묻는다. 비어 있으면 평소대로 추천이 나온다.
+   */
+  const [unknownNotices, setUnknownNotices] = useState<string[]>([]);
+  /** 다른 화면에서 직원을 부를 때 올리는 숫자. StaffHelp 가 이걸 보고 호출을 건다. */
+  const [staffCallRequest, setStaffCallRequest] = useState(0);
+  /** 호출이 걸려 있는가. 호출 자체는 StaffHelp 가 들고 있고 여기는 표시용이다. */
+  const [staffCalled, setStaffCalled] = useState(false);
 
   const [statusMessage, setStatusMessage] = useState("");
 
@@ -260,6 +274,15 @@ export default function Home() {
     setIsLoading(true);
     setErrorMessage(null);
     try {
+      // 모른다고 하신 항목은 화면 이름 그대로 옮긴다. 엔진의 「…을 골라 주세요」는
+      // 안 고른 사람에게 하는 말이라 여기서는 쓰지 않는다.
+      setUnknownNotices(
+        findUnknownRequired(userAnswers, environmentId).map(
+          (u) => questions.find((q) => q.id === u.id)?.short
+            ?? questions.find((q) => q.id === u.id)?.label
+            ?? u.message,
+        ),
+      );
       const view = await fetchRecommendation(userAnswers, environmentId);
       setRecView(view);
       setCurrentStep(2);
@@ -318,7 +341,8 @@ export default function Home() {
     setErrorMessage(null);
     setIsRestored(false);
     setRestoredSavedAt(null);
-    setCurrentStep(0); 
+    setUnknownNotices([]);
+    setCurrentStep(0);
   };
 
   // 👇 여기에 isStartScreen 속성을 전달하여 현재 단계가 0일 때만 true가 되도록 변경했습니다.
@@ -433,14 +457,14 @@ export default function Home() {
             />
           )}
 
-          {currentStep === 2 && recView && <RecommendScreen recView={recView} environmentId={environmentId} isHighContrast={isHighContrast} onChoose={handleChoose} onBackToContext={handleBackToContext} />}
+          {currentStep === 2 && recView && <RecommendScreen recView={recView} environmentId={environmentId} isHighContrast={isHighContrast} onChoose={handleChoose} onBackToContext={handleBackToContext} unknownNotices={unknownNotices} onCallStaff={() => setStaffCallRequest((n) => n + 1)} staffCalled={staffCalled} />}
           {currentStep === 3 && chosen && <ConfirmScreen candidate={chosen} selections={selections} environmentId={environmentId} isHighContrast={isHighContrast} onApprove={handleApprove} onBackToContext={handleBackToContext} />}
           {currentStep === 4 && runResult && <ResultScreen runResult={runResult} environmentId={environmentId} isHighContrast={isHighContrast} onReset={handleReset} onDeleteProfile={handleDeleteProfile} />}
 
           {/* 감싸는 상자를 두지 않는다. 「직원 도움」 버튼은 `fixed` 로 떠 있어서
               흐름에 자리를 차지하지 않는데, `mt-auto pt-6 border-t` 상자만 남아
               모든 화면 아래에 빈 줄과 구분선을 57px 씩 그리고 있었다. */}
-          <StaffHelp questions={questions} answers={answers} answersSubmitted={recView !== null} candidate={chosen ?? recView?.recommended ?? null} environmentId={environmentId} isHighContrast={isHighContrast} />
+          <StaffHelp questions={questions} answers={answers} answersSubmitted={recView !== null} candidate={chosen ?? recView?.recommended ?? null} environmentId={environmentId} isHighContrast={isHighContrast} callRequest={staffCallRequest} onCallStateChange={setStaffCalled} />
         </>
       )}
     </div>

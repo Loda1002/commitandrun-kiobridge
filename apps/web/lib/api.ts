@@ -110,15 +110,52 @@ export interface MissingQuestion {
   message: string;
 }
 
+/**
+ * 아직 답하지 않은 필수 질문. **「모르겠어요」는 여기 들어오지 않는다.**
+ *
+ * 엔진은 둘을 구분하지 않는다 — 픽스처 선택지에 `UNKNOWN` 이 없으므로
+ * `required.ts` 의 `isOffered` 가 걸러 「안 골랐다」로 본다. 그래서 「모르겠어요」를
+ * 누른 사람도 「고르지 않았습니다」라는 빨간 글씨를 보고 진행 버튼이 잠겼다.
+ * 모른다고 말한 사람에게 다시 고르라고 하는 화면이었다(팀장 지시, 2026-08-16).
+ *
+ * 그래서 화면 단계에서 둘을 가른다. 「모르겠어요」는 막지 않고 통과시키되,
+ * **추측으로 채우지 않는다** — `findUnknownRequired` 가 그것을 따로 모아,
+ * 추천을 그리기 전에 되묻는 화면(RecommendScreen 의 「한 가지만 더 여쭐게요」)에서
+ * 다시 여쭙고 직원 호출로 빠져나갈 길을 준다. CLAUDE.md 2절의
+ * 「재확인·대체경로·STOP 중 하나」에서 앞의 둘을 택한 것이다.
+ */
 export function findMissing(
   answers: AnyAnswers,
   environmentId: EnvironmentId = DEFAULT_ENVIRONMENT_ID,
 ): MissingQuestion[] {
+  return allMissing(answers, environmentId).filter((m) => !saidUnknown(answers[m.id]));
+}
+
+/**
+ * 필수 질문 중 사용자가 「모르겠어요」라고 답한 것들.
+ *
+ * 화면은 이걸로 사람을 막지 않는다. 다만 추천을 그리기 전에 한 번 더 여쭙는다 —
+ * 맵기를 모른 채로 맵기를 정해 주는 것이 이 서비스가 하지 말아야 할 일이다.
+ */
+export function findUnknownRequired(
+  answers: AnyAnswers,
+  environmentId: EnvironmentId = DEFAULT_ENVIRONMENT_ID,
+): MissingQuestion[] {
+  return allMissing(answers, environmentId).filter((m) => saidUnknown(answers[m.id]));
+}
+
+function allMissing(answers: AnyAnswers, environmentId: EnvironmentId): MissingQuestion[] {
   const fixture = fixtureFor(environmentId);
   const ctx = toSessionContext(answers, environmentId);
   return findMissingAnswers(fixture, ctx)
     .filter((m) => !isUnanswerableHere(environmentId, m.groupId))
     .map((m) => ({ id: m.path.split("/").pop() || m.groupId, message: m.message }));
+}
+
+/** 화면이 보낸 답이 「모르겠어요」 그 자체인가. 빈 값과는 다른 상태다. */
+function saidUnknown(value: unknown): boolean {
+  if (Array.isArray(value)) return value.includes("UNKNOWN");
+  return value === "UNKNOWN";
 }
 
 /**

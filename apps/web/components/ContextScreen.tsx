@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import type { EnvironmentId } from "@commitandrun/engine";
 import type { AnyAnswers, QuestionDef } from "../lib/types";
-import { findMissing } from "../lib/api";
+import { findMissing, findUnknownRequired } from "../lib/api";
 
 interface ContextScreenProps {
   questions: QuestionDef[];
@@ -86,6 +86,18 @@ export function ContextScreen({
         ? Object.fromEntries(findMissing(answers, environmentId).map((m) => [m.id, m.message]))
         : {},
     [showErrors, answers, environmentId],
+  );
+
+  /**
+   * 「모르겠어요」라고 답한 필수 질문.
+   *
+   * 빨간 오류가 아니다 — 막지 않는다. 다만 조용히 넘기지도 않는다. 모른 채로
+   * 지나갔다는 사실을 그 질문 옆에 적어 두고, 마지막에 한 번 더 여쭙는다.
+   * `showErrors` 와 무관하게 늘 계산한다: 이건 잘못이 아니라 상태다.
+   */
+  const unknowns = useMemo(
+    () => new Set(findUnknownRequired(answers, environmentId).map((m) => m.id)),
+    [answers, environmentId],
   );
 
   useEffect(() => {
@@ -347,7 +359,20 @@ export function ContextScreen({
             ⚠️ 진행 버튼의 잠김은 **지금 장에 보이는 질문**만 보고 정한다. 뒷장 질문
             때문에 잠기면 화면에는 이유가 없는데 버튼만 안 먹는다. 전체 검사는
             마지막 장의 제출에서 한다. */}
-        <div className="flex flex-col sm:flex-row gap-4 w-full mt-4">
+        {/* 「모르겠어요」를 고른 장에 한 줄. 잠그지 않고, 넘어가도 된다고 먼저
+            말해 준다 — 모른다고 답한 사람에게 빨간 글씨로 다시 고르라고 하던
+            화면을 대신하는 자리다(팀장 지시, 2026-08-16).
+            ⚠️ 질문마다 붙이지 않는다. 한 장에 두 개가 걸리면 상자 두 개가
+            1280x800 에서 60px 을 넘치게 만들었다(실측). 스크롤을 없애려고 장을
+            나눈 것이므로 장당 한 줄로 합쳤다. 버튼 줄 위에 붙여 세로 여백도
+            새로 만들지 않는다. */}
+        <div className="flex flex-col gap-3 w-full mt-4">
+          {pageQuestions.some((q) => unknowns.has(q.id)) && (
+            <p role="status" className="font-bold opacity-90 break-keep leading-snug" style={{ fontSize: "calc(1rem * var(--font-scale))" }}>
+              모르겠다고 하신 것이 있습니다. 이대로 넘어가셔도 됩니다 — 마지막에 한 번 더 여쭙고, 직원을 부르실 수도 있습니다.
+            </p>
+          )}
+        <div className="flex flex-col sm:flex-row gap-4 w-full">
           {pageIndex === 0
             ? onReset && (
                 <button
@@ -390,6 +415,7 @@ export function ContextScreen({
               다음 질문 →
             </button>
           )}
+        </div>
         </div>
       </form>
     </main>

@@ -12,6 +12,20 @@ interface RecommendScreenProps {
   isHighContrast: boolean;
   onChoose: (candidate: CandidateView) => void;
   onBackToContext: () => void;
+  /**
+   * 사용자가 「모르겠어요」를 눌러서 여기까지 온 필수 질문의 이름들.
+   *
+   * 아래 되묻기 문장은 **엔진이** 질문마다 만든다(각 도메인의 `reconfirm`) —
+   * 세 환경 전부 빠짐없이 만들고 있어서 화면이 목록을 다시 그릴 필요가 없다.
+   * 이 값은 그 위에 얹을 한 줄, 「왜 또 묻는가」에만 쓴다. 「모르겠어요」를 누른
+   * 사람에게 필요한 것은 항목의 재나열이 아니라 그 이유다(팀장 지시,
+   * 2026-08-16). 비어 있으면 그 줄이 뜨지 않는다.
+   */
+  unknownNotices?: string[];
+  /** 되묻기 화면에서 바로 직원을 부를 수 있게 한다. 사람에게 가는 길은 늘 남긴다. */
+  onCallStaff?: () => void;
+  /** 이미 불렀는가. 불러 놓고도 「부르기」라고 적혀 있으면 두 번 누르게 된다. */
+  staffCalled?: boolean;
 }
 
 // [디자인] 환경별 강조색 (주황, 파랑, 초록). 시작 화면 카드의 밝은 색과 색상은
@@ -25,7 +39,7 @@ const PROGRESS_COLORS: Record<string, string> = {
   "public-office": "#5A8214",
 };
 
-export function RecommendScreen({ recView, environmentId, isHighContrast, onChoose, onBackToContext }: RecommendScreenProps) {
+export function RecommendScreen({ recView, environmentId, isHighContrast, onChoose, onBackToContext, unknownNotices = [], onCallStaff, staffCalled = false }: RecommendScreenProps) {
   const headingRef = useRef<HTMLHeadingElement>(null);
   useEffect(() => { headingRef.current?.focus(); }, []);
 
@@ -33,21 +47,37 @@ export function RecommendScreen({ recView, environmentId, isHighContrast, onChoo
   const barColor = isHighContrast ? "var(--color-accent)" : PROGRESS_COLORS[environmentId] || "var(--color-accent)";
 
   // [결함 방어] 세션 10/12 재확인 게이트 완벽 보존
-  if (recView.reconfirmRequests.length > 0) {
+  // 「모르겠어요」로 답한 필수 질문도 같은 문으로 들어온다. 엔진이 만든 되묻기와
+  // 성격이 같기 때문이다 — 답을 지어내지 않고 사람에게 되돌린다.
+  if (recView.reconfirmRequests.length > 0 || unknownNotices.length > 0) {
     return (
       <main className="flex flex-col gap-8 w-full">
         <h1 ref={headingRef} tabIndex={-1} className="font-extrabold text-center focus-visible:outline-none" style={{ fontSize: "calc(2rem * var(--font-scale))" }}>
           한 가지만 더 여쭐게요
         </h1>
+        {unknownNotices.length > 0 && (
+          <p className="text-center font-bold break-keep leading-snug opacity-90" style={{ fontSize: "calc(1.2rem * var(--font-scale))" }}>
+            {unknownNotices.join(" · ")} — 모르겠다고 하셔서 여기서 한 번 멈췄습니다.
+            <br />
+            저희가 짐작해서 정하면 원하지 않으신 쪽으로 진행됩니다. 직접 고르셔도 되고, 직원을 부르셔도 됩니다.
+          </p>
+        )}
         {recView.reconfirmRequests.map((request, idx) => (
           <section key={idx} className={`border-4 rounded-2xl p-6 md:p-8 flex flex-col gap-4 ${isHighContrast ? "border-yellow-300 bg-transparent" : "border-orange-500 bg-orange-50 shadow-sm"}`}>
             <p className="font-extrabold" style={{ fontSize: "calc(1.5rem * var(--font-scale))" }}>{request.question}</p>
             <p className="opacity-90 font-medium" style={{ fontSize: "calc(1.1rem * var(--font-scale))" }}>{request.because}</p>
           </section>
         ))}
-        <button type="button" onClick={onBackToContext} className="w-full mt-4 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-4 transition-transform hover:scale-[1.02] active:scale-95 duration-200 motion-reduce:transition-none motion-reduce:transform-none" style={{ minHeight: "calc(var(--tap-min) + 8px)", borderRadius: "var(--radius)", backgroundColor: "var(--color-accent)", color: "var(--color-bg)", fontSize: "calc(1.3rem * var(--font-scale))", fontWeight: "bold" }}>
-          다시 답하러 가기
-        </button>
+        <div className="flex flex-col sm:flex-row gap-4 w-full mt-4">
+          <button type="button" onClick={onBackToContext} className="flex-1 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-4 transition-transform hover:scale-[1.02] active:scale-95 duration-200 motion-reduce:transition-none motion-reduce:transform-none" style={{ minHeight: "calc(var(--tap-min) + 8px)", borderRadius: "var(--radius)", backgroundColor: "var(--color-accent)", color: "var(--color-bg)", fontSize: "calc(1.3rem * var(--font-scale))", fontWeight: "bold" }}>
+            다시 답하러 가기
+          </button>
+          {onCallStaff && (
+            <button type="button" onClick={onCallStaff} className="flex-1 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-4 transition-transform hover:scale-[1.02] active:scale-95 duration-200 motion-reduce:transition-none motion-reduce:transform-none" style={{ minHeight: "calc(var(--tap-min) + 8px)", borderRadius: "var(--radius)", backgroundColor: "transparent", color: "var(--color-fg)", border: "2px solid var(--color-fg)", fontSize: "calc(1.3rem * var(--font-scale))", fontWeight: "bold" }}>
+              {staffCalled ? "🔔 직원 오는 중 (내용 보기)" : "🔔 직원 부르기"}
+            </button>
+          )}
+        </div>
       </main>
     );
   }

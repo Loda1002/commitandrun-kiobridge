@@ -75,24 +75,26 @@ export function StartScreen({ onStart, accessibilityBar, isHighContrast, onDelet
     <main className={`fixed inset-0 w-screen h-[100dvh] flex flex-col overflow-y-auto overflow-x-hidden pb-32 ${isHighContrast ? 'bg-black text-[var(--color-fg)]' : 'bg-[#EFEFEF] text-black'}`}>
 
       {/* 1. 상단 배너 */}
-      <header className={`w-full p-6 sm:px-10 relative flex flex-col xl:flex-row items-start xl:items-center justify-between gap-4 ${isHighContrast ? 'bg-black border-b-4 border-[var(--color-fg)]' : 'bg-white border-b-2 border-gray-300'}`}>
-        
-        <div className="text-left w-full flex-1 pl-2 sm:pl-4 flex flex-col sm:flex-row sm:items-start gap-2 sm:gap-6">
+      <header className={`w-full p-4 sm:px-8 relative flex flex-col xl:flex-row items-start xl:items-center justify-between gap-3 ${isHighContrast ? 'bg-black border-b-4 border-[var(--color-fg)]' : 'bg-white border-b-2 border-gray-300'}`}>
+
+        <div className="text-left w-full flex-1 pl-2 sm:pl-4 flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-5">
           {/* 고대비 모드일 때는 선명한 글자색, 일반 모드일 때는 검정색 적용 */}
-          <h1 
-            ref={headingRef} 
-            tabIndex={-1} 
+          <h1
+            ref={headingRef}
+            tabIndex={-1}
             className={`font-black focus-visible:outline-none whitespace-nowrap ${
               isHighContrast ? 'text-[var(--color-fg)]' : 'text-black'
             }`}
-            /* clamp 로 좁은 화면에서 줄인다. 4.6rem 고정 + whitespace-nowrap 이면
-               휴대폰 폭에서 「안녕하세요!」 가 가로로 넘쳐 잘렸다. 넓은 화면에서는
-               디자인대로 4.6rem 이다. */
-            style={{ fontSize: "calc(clamp(2.2rem, 6vw, 4.6rem) * var(--font-scale))" }}
+            /* 4.6rem 에서 2.6rem 으로 내렸다(팀장 지시, 2026-08-16). 인사말이
+               1280x800 에서 배너 높이의 절반을 먹고 있었고, 정작 눌러야 하는
+               카드 셋이 그만큼 밀려 있었다. 인사는 장식이고 카드가 본문이다.
+               clamp 는 그대로 둔다 — 휴대폰 폭에서 `whitespace-nowrap` 과 만나면
+               가로로 넘쳐 잘린다. */
+            style={{ fontSize: "calc(clamp(1.8rem, 3.4vw, 2.6rem) * var(--font-scale))" }}
           >
             안녕하세요!
           </h1>
-          <p className="opacity-85 font-bold sm:pt-2" style={{ fontSize: "calc(1.4rem * var(--font-scale))" }}>
+          <p className="opacity-85 font-bold" style={{ fontSize: "calc(1.15rem * var(--font-scale))" }}>
             어디에서 쓰실 건지 골라 주세요.
             <br />
             로그인은 필요하지 않습니다.
@@ -123,21 +125,27 @@ export function StartScreen({ onStart, accessibilityBar, isHighContrast, onDelet
                  배경을 진한 색으로 내리면 셋 다 4.5:1 을 넘지만, 밝은 색을 쓰기로
                  한 결정이라 그대로 둔다. 제출 README 의 대비 신고값도 이 숫자로
                  적어 두었다 — 화면과 신고서가 어긋나지 않게 한다. */
-              className={`flex-1 w-full flex flex-col items-center justify-center rounded-[2.5rem] p-6 min-h-[14rem] transition-transform active:scale-95 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--color-fg)] focus-visible:ring-offset-4 ${
+              /* 크기를 한 단계 줄였다(팀장 지시, 2026-08-16). 다만 **작게 만들지는
+                 않았다** — 이 카드는 저시력·손 떨림이 있는 분이 처음 누르는 곳이라
+                 큰 표적이 그 자체로 기능이다. 아이콘 8.5→5rem, 이름 3.5→2.6rem,
+                 설명 1.5→1.2rem 으로 각각 한 단계씩만 내렸고, 카드 자체의 최소
+                 높이는 14→12rem 이다. 44px 기준을 넘는 것은 물론이고 여전히
+                 화면 폭의 3분의 1을 차지한다. */
+              className={`flex-1 w-full flex flex-col items-center justify-center rounded-[2.5rem] p-5 min-h-[12rem] transition-transform active:scale-95 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--color-fg)] focus-visible:ring-offset-4 ${
                 isHighContrast
                   ? 'border-4 border-[var(--color-fg)] bg-transparent text-[var(--color-fg)] hover:bg-[var(--color-fg)] hover:text-[var(--color-bg)]'
                   : `${config.bgClass} text-white shadow-md hover:brightness-105`
               }`}
             >
-              <span aria-hidden="true" className="mb-6 stroke-[2.5]" style={{ fontSize: "calc(clamp(3.5rem, 10vw, 8.5rem) * var(--font-scale))" }}>
+              <span aria-hidden="true" className="mb-4 stroke-[2.5]" style={{ fontSize: "calc(clamp(2.8rem, 6.5vw, 5rem) * var(--font-scale))" }}>
                 {config.icon}
               </span>
 
-              <span className="block font-black mb-3 text-center tracking-tight" style={{ fontSize: "calc(clamp(1.8rem, 4.5vw, 3.5rem) * var(--font-scale))" }}>
+              <span className="block font-black mb-2 text-center tracking-tight" style={{ fontSize: "calc(clamp(1.6rem, 3.2vw, 2.6rem) * var(--font-scale))" }}>
                 {env.name}
               </span>
 
-              <p className="text-center leading-normal font-extrabold break-keep" style={{ fontSize: "calc(clamp(1.05rem, 2vw, 1.5rem) * var(--font-scale))" }}>
+              <p className="text-center leading-normal font-extrabold break-keep" style={{ fontSize: "calc(clamp(1rem, 1.7vw, 1.2rem) * var(--font-scale))" }}>
                 {env.description}
               </p>
             </button>
