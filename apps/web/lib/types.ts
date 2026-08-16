@@ -60,6 +60,19 @@ export interface QuestionDef {
   unit?: string;
   /** Shown under the label. Optional. */
   help?: string;
+  /**
+   * 답 id -> 그 답을 고르면 선택지 아래에 뜨는 한 줄.
+   *
+   * **묻지 않기로 한 것**을 알려 주는 자리다. 닭강정집의 컵이 그렇다 — 환경
+   * 데이터가 `required: false` 로 둔 선택 항목이라(`option-groups.json` 의 CUP)
+   * 굳이 한 장을 더 넘기게 하지 않고, 이용 방식에 따라 무엇이 나가는지만 알려
+   * 준다. 질문 하나가 줄면 넘겨야 할 장도 하나 준다.
+   *
+   * ⚠️ 여기에 쓰는 문장은 **화면이 지어내는 말이 아니라 매장 규칙**이어야 한다.
+   * 엔진이 정하는 것(추천 이유·대안·되묻기)을 이 자리에 옮겨 적으면 화면과
+   * 제출본이 같은 답을 두고 다른 말을 하게 된다.
+   */
+  answerNotes?: Record<string, string>;
   kind: "single" | "multi" | "number";
   options: AnswerOption[];
 }

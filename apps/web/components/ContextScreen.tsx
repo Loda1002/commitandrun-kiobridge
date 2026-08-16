@@ -309,7 +309,12 @@ export function ContextScreen({
       </h1>
 
       {isRestored && (
-        <div role="status" className={`border-2 rounded-xl px-4 py-3 font-bold ${isHighContrast ? "border-[var(--color-accent)]" : "border-blue-400 bg-blue-50 text-blue-900"}`} style={{ fontSize: "calc(1.1rem * var(--font-scale))" }}>
+        /* ⚠️ `py-2` 다. 한 줄짜리 알림이라 위아래를 더 벌릴 이유가 없고, 이 상자와
+           답에 딸린 안내 줄이 함께 뜨는 장(닭강정집 1장, 되살린 사람)이 1280x720
+           에서 「다음 질문」을 14px 밀어냈다(실측, 2026-08-16).
+           ⚠️ 여기는 표현식 자리라 중괄호로 감싼 JSX 주석을 쓰면 파싱이 깨진다.
+           중괄호 없는 보통 블록 주석이어야 한다. */
+        <div role="status" className={`border-2 rounded-xl px-4 py-2 font-bold ${isHighContrast ? "border-[var(--color-accent)]" : "border-blue-400 bg-blue-50 text-blue-900"}`} style={{ fontSize: "calc(1.1rem * var(--font-scale))" }}>
           지난번에 답하신 내용을 채워 두었습니다. 지금도 맞는지 확인해 주세요.
           {restoredSavedAt && <span className="opacity-70 ml-2" style={{ fontSize: "calc(0.9rem * var(--font-scale))" }}>(저장: {restoredSavedAt.slice(0, 10)})</span>}
         </div>
@@ -429,6 +434,27 @@ export function ContextScreen({
                   );
                 })}
               </div>
+              {/* 고른 답에 딸린 안내 한 줄(`QuestionDef.answerNotes`).
+                  질문이 아니라 알림이라 상자를 세우지 않는다 — 선택지 바로 아래에
+                  환경색 띠 하나만 왼쪽에 세운다. 바탕을 깔고 위아래 여백을 주면
+                  22px 이던 것이 46px 이 되고, 되살림 알림까지 함께 뜨는 장에서는
+                  그 차이가 그대로 「다음 질문」을 화면 밖으로 밀어냈다(1280x720
+                  실측, 2026-08-16). 띠만 남기는 쪽이 가볍게 읽히기도 한다.
+                  고대비에서는 띠가 노란 강조색이고 글자는 흰색 그대로다(21:1).
+                  `role="status"` 라 답을 바꾸면 스크린리더가 바뀐 문장을 읽는다.
+                  ⚠️ 지금 고른 답 하나에만 붙는다. 답마다 쌓이면 그것이 곧 질문
+                  하나만큼의 높이라, 장을 나눈 뜻이 없어진다. */}
+              {q.answerNotes?.[String(answers[q.id] ?? "")] && (
+                <p
+                  role="status"
+                  className={`font-bold break-keep leading-snug pl-3 border-l-4 ${isHighContrast ? "border-[var(--color-accent)]" : ""}`}
+                  style={isHighContrast ? undefined : { borderColor: themeColor }}
+                >
+                  <span style={{ fontSize: "calc(1rem * var(--font-scale))" }}>
+                    {q.answerNotes[String(answers[q.id] ?? "")]}
+                  </span>
+                </p>
+              )}
             </fieldset>
           );
         })}

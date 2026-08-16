@@ -81,6 +81,51 @@ const withoutAllergies = (answers: Record<string, unknown>): Record<string, unkn
   return out;
 };
 
+/**
+ * 이제 묻지 않는 항목을 걷어낸 답변. 되살릴 때만 건다.
+ *
+ * 컵(`cupOption`)은 2026-08-16 에 질문에서 뺐다 — 환경 데이터가 `required: false`
+ * 로 둔 선택 항목이고, 이용 방식을 고르면 어차피 매장 규칙으로 따라오기 때문이다.
+ * 그런데 그 전에 저장해 둔 브라우저는 아직 그 값을 들고 있다. 그대로 되살리면
+ * **화면 어디에도 없는 답이 최종 확인 화면에 뜬다** — 고른 적 없는 컵을 승인하라고
+ * 하는 셈이고, 화면에 그 답을 고칠 자리가 없으니 되돌아가도 지울 수가 없다.
+ */
+const withoutUnasked = (answers: Record<string, unknown>): Record<string, unknown> => {
+  const out = { ...answers };
+  delete out.cupOption;
+  return out;
+};
+
+/**
+ * 되살린 답 중에 **사람이 실제로 고른 것**이 하나라도 있는가.
+ *
+ * 전에는 `Object.keys(recalled).length > 0` 이었다. 그런데 저장되는 답 묶음은
+ * 빈 칸까지 자리를 갖고 있어서(`emptyAnswers`), **아무것도 안 고른 사람의
+ * 프로필도 키는 다 차 있다.** 그래서 시작 화면에서 고대비나 큰 글씨를 한 번
+ * 누른 것만으로 다음 화면에 「지난번에 답하신 내용을 채워 두었습니다」가 떴다 —
+ * 채워 둔 것이 없는데 그렇게 말하니 사실이 아니고, 그 상자가 72px 을 먹어
+ * 1280x720 에서 진행 버튼을 화면 밖으로 밀어냈다(실측, 2026-08-16).
+ *
+ * 그 두 가지가 하필 **접근성 설정을 켜는 사람**에게만 일어난다. 이 서비스가
+ * 가장 먼저 챙겨야 하는 사람이다.
+ *
+ * 그래서 「키가 있는가」가 아니라 「빈 양식과 다른가」로 판정한다. 수량처럼
+ * 처음부터 기본값이 들어 있는 칸은 기본값 그대로면 고른 것으로 세지 않는다.
+ */
+const hasRealAnswer = (
+  restorable: Record<string, unknown>,
+  picked: EnvironmentId,
+): boolean => {
+  const blank = emptyAnswers(picked) as Record<string, unknown>;
+  return Object.entries(restorable).some(([key, value]) => {
+    const base = blank[key];
+    if (Array.isArray(value) || Array.isArray(base)) {
+      return JSON.stringify(value ?? []) !== JSON.stringify(base ?? []);
+    }
+    return value !== base;
+  });
+};
+
 export default function Home() {
   const [fontScale, setFontScale] = useState(1);
   const [isHighContrast, setIsHighContrast] = useState(false);
@@ -245,12 +290,13 @@ export default function Home() {
         const stored = parseStoredProfile(raw);
         if (stored) {
           const recalled = recallAnswers(stored, picked);
-          if (recalled && Object.keys(recalled).length > 0) {
+          // 알레르기 항목은 무조건 다시 묻는다. 지금은 저장할 때도 걷어내지만
+          // (withoutAllergies), 이 수정 전에 저장해 둔 브라우저는 아직 들고 있다.
+          const restorable = withoutUnasked(withoutAllergies(recalled ?? {}));
+          if (hasRealAnswer(restorable, picked)) {
             setIsRestored(true);
-            setRestoredSavedAt(stored.savedAt); 
-            // 알레르기 항목은 무조건 다시 묻는다. 지금은 저장할 때도 걷어내지만
-            // (withoutAllergies), 이 수정 전에 저장해 둔 브라우저는 아직 들고 있다.
-            initialAns = { ...initialAns, ...withoutAllergies(recalled) } as AnyAnswers;
+            setRestoredSavedAt(stored.savedAt);
+            initialAns = { ...initialAns, ...restorable } as AnyAnswers;
           }
         }
       }

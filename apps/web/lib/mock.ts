@@ -29,6 +29,23 @@ export const MOCK_QUESTIONS: QuestionDef[] = [
     short: "받는 방법",
     label: "어떻게 받으시겠어요?",
     kind: "single",
+    /**
+     * 컵은 묻지 않고 여기서 알려만 준다.
+     *
+     * 환경 데이터가 CUP 을 `required: false` 로 둔다 — 창업팀이 필수로 제시한
+     * 항목이 아니다(팀장 확인, 2026-08-16). 그런데 이용 방식을 고르면 어차피
+     * 매장 규칙으로 정해지는 것이라, 물어 봐야 답이 뒤집히지 않는 질문이었다.
+     * 질문을 걷어내면 닭강정집이 네 장에서 세 장이 된다.
+     *
+     * 「모르겠어요」에는 **한쪽을 골라 주지 않는다.** 두 갈래를 나란히 적어
+     * 고르는 데 도움이 되게만 한다 — 안 정한 사람 대신 정하는 순간 그것이
+     * 추측이 된다.
+     */
+    answerNotes: {
+      DINE_IN: "여기서 드시는 분께는 매장용 컵으로 드립니다.",
+      TAKE_OUT: "가져가시는 분께는 일회용 컵으로 드립니다.",
+      UNKNOWN: "여기서 드시면 매장용 컵, 가져가시면 일회용 컵으로 드립니다. 컵은 따로 고르지 않으셔도 됩니다.",
+    },
     options: [
       { value: "TAKE_OUT", label: "포장해서 가져갈게요" },
       { value: "DINE_IN", label: "여기서 먹을게요" },
@@ -74,17 +91,10 @@ export const MOCK_QUESTIONS: QuestionDef[] = [
       { value: "UNKNOWN", label: "모르겠어요" },
     ],
   },
-  {
-    id: "cupOption",
-    short: "컵",
-    label: "컵은 어떻게 하시겠어요?",
-    kind: "single",
-    options: [
-      { value: "PAPER", label: "종이컵" },
-      { value: "REGULAR", label: "일반 컵" },
-      { value: "UNKNOWN", label: "모르겠어요" },
-    ],
-  },
+  /* 컵 질문은 여기 있었다. 걷어낸 이유는 `serviceType` 의 `answerNotes` 주석에
+     적었다. 답 자체(`cupOption`)는 빈 값으로 남는다 — 엔진이 선택 항목을 안 고른
+     것으로 보고 계획에서 통째로 뺀다(`plan.ts` 의 `settle`), 그래서 최종 확인
+     화면에도 컵 줄이 뜨지 않는다. */
   {
     id: "quantity",
     short: "개수",

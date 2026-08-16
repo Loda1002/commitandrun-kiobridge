@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import type { EnvironmentId } from "@commitandrun/engine";
 import { actionLabel, stateLabel, type RunView } from "../lib/types";
 import { ENVIRONMENTS, displayCandidateName, environmentCopy, fixtureFor } from "../lib/fixture";
+import { envColor } from "../lib/theme";
 import evidence from "../public/simulation-evidence.json";
 
 type StepTarget = { kind: string; id: string; groupId?: string };
@@ -70,7 +71,35 @@ export function ResultScreen({ runResult, environmentId, isHighContrast, onReset
         {copy.boundaryNotice}
       </p>
 
-      {/* 10단계 실행 계획은 접어 둔다. 사람이 방금 화면에서 직접 고른 것을 기계
+      {/* 여기서 화면이 둘로 갈린다. 위는 하러 오신 일이 끝났다는 말이고, 아래는
+          그 일을 저희가 어떻게 했는지 펼쳐 놓은 자리다 — 실행 계획·자체 안전
+          검사·공식 시뮬레이터 증거 셋 다 심사와 검증을 위한 것이지, 키오스크 앞에
+          선 분이 읽고 판단할 것이 아니다(팀장 지시, 2026-08-16).
+
+          **감추지 않고 선만 긋는다.** 「무엇을 시켰는지」를 숨기지 않는 것이 이
+          서비스의 약속이라 접어 두기는 해도 지우지는 않는다. 대신 여기까지 읽으면
+          된다고 말해 주면, 읽을 필요가 없는 분은 멈출 수 있고 심사위원은 어디부터
+          보면 되는지 알 수 있다.
+
+          점선인 것도 뜻이 있다 — 실선은 「다른 이야기가 시작된다」이지만 점선은
+          「여기서 끊어도 된다」에 가깝다. 색은 환경색이라 화면의 다른 구분과
+          같은 계열로 읽히고, 고대비에서는 회색이다(노란 강조색은 이 자리에
+          쓰기엔 너무 세다 — 덜 중요한 것을 가리키는 선이다). */}
+      <div
+        className={`border-t-2 border-dashed pt-5 flex flex-col gap-2 ${isHighContrast ? "border-gray-500" : ""}`}
+        style={isHighContrast ? undefined : { borderColor: envColor(environmentId) }}
+      >
+        <p className="font-extrabold break-keep leading-snug" style={{ fontSize: "calc(1.15rem * var(--font-scale))" }}>
+          여기까지가 이용하시는 데 필요한 내용입니다
+        </p>
+        <p className="opacity-80 font-medium break-keep leading-snug" style={{ fontSize: "calc(1rem * var(--font-scale))" }}>
+          아래는 저희 서비스가 뒤에서 무엇을 했는지 그대로 펼쳐 둔 자리입니다.
+          창업팀과 심사위원이 확인하시라고 남겨 두었으니, 이용하러 오신 분은
+          읽지 않으셔도 됩니다.
+        </p>
+      </div>
+
+      {/* 실행 계획은 접어 둔다. 사람이 방금 화면에서 직접 고른 것을 기계
           말투로 다시 늘어놓는 목록이라, 첫 화면에 있을 것이 아니다. 지우지는
           않는다 — 「무엇을 시켰는지」를 감추지 않는 것이 이 서비스의 약속이고,
           심사에서도 보는 자리다. */}
