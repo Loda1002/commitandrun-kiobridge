@@ -41,8 +41,11 @@ export function AccessibilityBar({
           fontWeight: "900", 
         }}
       >
-        <span className="flex items-center justify-center gap-2 whitespace-nowrap">
-          <svg xmlns="http://www.w3.org/2000/svg" width="1.2em" height="1.2em" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        {/* 줄바꿈을 막지 않는다. `whitespace-nowrap` 이면 640px 화면에서 큰 글씨
+            1.25배부터 두 버튼이 733px 을 차지해 화면 밖으로 나갔다(실측). 확대
+            200% 상당에서 가로 스크롤이 없다는 것이 제출 문서의 신고 항목이다. */}
+        <span className="flex items-center justify-center gap-2 break-keep">
+          <svg className="shrink-0" xmlns="http://www.w3.org/2000/svg" width="1.2em" height="1.2em" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="11" cy="11" r="8"/>
             <line x1="21" x2="16.65" y1="21" y2="16.65"/>
             <line x1="11" x2="11" y1="8" y2="14"/>
@@ -72,12 +75,15 @@ export function AccessibilityBar({
           fontWeight: "900",
         }}
       >
-        <span className="flex items-center justify-center gap-2 whitespace-nowrap">
+        {/* 줄바꿈을 막지 않는다. `whitespace-nowrap` 이면 640px 화면에서 큰 글씨
+            1.25배부터 두 버튼이 733px 을 차지해 화면 밖으로 나갔다(실측). 확대
+            200% 상당에서 가로 스크롤이 없다는 것이 제출 문서의 신고 항목이다. */}
+        <span className="flex items-center justify-center gap-2 break-keep">
           {isHighContrast ? (
             "일반 화면으로 변경"
           ) : (
             <>
-              <svg xmlns="http://www.w3.org/2000/svg" width="1.2em" height="1.2em" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <svg className="shrink-0" xmlns="http://www.w3.org/2000/svg" width="1.2em" height="1.2em" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="12" cy="12" r="10"/>
                 <path d="M12 18a6 6 0 0 0 0-12v12z"/>
               </svg>
