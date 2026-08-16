@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import type { EnvironmentId } from "@commitandrun/engine";
-import { environmentCopy } from "../lib/fixture";
+import { environmentCopy, fixtureFor } from "../lib/fixture";
 import type { CandidateView, OptionSelection } from "../lib/types";
 
 interface ConfirmScreenProps {
@@ -22,6 +22,24 @@ export function ConfirmScreen({ candidate, selections, environmentId, isHighCont
   const changed = selections.filter((s) => s.userAnswer !== null && s.userAnswer !== s.optionId);
   const copy = environmentCopy(environmentId);
 
+  /*
+   * 두 개 이상 담는 분에게 「가격 5,500원」은 개당인지 합계인지 알 수 없다.
+   *
+   * 합계를 지어내지는 않는다 — 환경 데이터의 가격 규칙(`CHICKEN_PRICE_LIMIT`)은
+   * 후보의 **개당** `price` 하나만 예산과 견주고, 수량을 곱한 값을 말하는 규칙은
+   * 어디에도 없다. 없는 계산을 화면이 만들어 붙이면 그 숫자는 저희가 지어낸
+   * 것이 되고, 실제 매장 합계와 다를 때 책임질 근거가 없다.
+   *
+   * 그래서 곱하지 않고 **무슨 값인지만 밝힌다.** 한 개면 문구도 그대로다.
+   */
+  const orderedCount = (() => {
+    const picked = selections.find((s) => s.groupId === "QUANTITY");
+    if (!picked) return 1;
+    const group = fixtureFor(environmentId).optionGroups.find((g) => g.groupId === "QUANTITY");
+    const value = group?.options.find((o) => o.id === picked.optionId)?.value;
+    return typeof value === "number" ? value : 1;
+  })();
+
   return (
     <main className="flex flex-col gap-8 w-full">
       <h1 ref={headingRef} tabIndex={-1} className="font-extrabold text-center focus-visible:outline-none" style={{ fontSize: "calc(2rem * var(--font-scale))" }}>
@@ -37,7 +55,9 @@ export function ConfirmScreen({ candidate, selections, environmentId, isHighCont
         {/* [결함 방어] 병원/관공서는 가격(0원) 숨김. 치킨집 가격 표시 */}
         {candidate.priceKrw > 0 && (
           <div className="flex justify-between items-center border-b pb-4" style={{ borderColor: "var(--color-fg)" }}>
-            <span className="opacity-80 font-bold" style={{ fontSize: "calc(1.2rem * var(--font-scale))" }}>가격</span>
+            <span className="opacity-80 font-bold" style={{ fontSize: "calc(1.2rem * var(--font-scale))" }}>
+              {orderedCount > 1 ? "개당 가격" : "가격"}
+            </span>
             <span className="font-extrabold" style={{ fontSize: "calc(1.6rem * var(--font-scale))", color: "var(--color-accent)" }}>
               {candidate.priceKrw.toLocaleString()}원
             </span>
