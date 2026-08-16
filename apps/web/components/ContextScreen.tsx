@@ -159,6 +159,23 @@ export function ContextScreen({
     headingRef.current?.focus();
   }, [pageIndex]);
 
+  /**
+   * 이 장이 화면에 뜬 시각. 뜨자마자 들어오는 제출을 막는 데만 쓴다.
+   *
+   * 원인 쪽은 버튼 줄에서 이미 막았다(DOM 노드 재사용 + `type` 바뀜). 이건 그와
+   * **별개의 두 번째 그물**이다. 마지막 장이 뜬 지 0.4초도 안 돼서 들어오는 제출은
+   * 사람이 그 장을 보고 누른 것일 수 없다 — 무엇이 그것을 일으켰든, 사람이 읽지
+   * 못한 장을 지나쳐 버리는 결과는 같다. 팀장님이 세 번 겪으신 증상이라 원인 하나만
+   * 믿지 않는다(2026-08-16).
+   *
+   * 첫 장은 0 이라 이 검사에 걸리지 않는다. 사람이 직접 누른 제출은 아무리 빨라도
+   * 0.4초는 넘고, 걸리더라도 한 번 더 누르면 된다 — 그때는 이미 그 장을 본 뒤다.
+   */
+  const pageShownAtRef = useRef(0);
+  useEffect(() => {
+    pageShownAtRef.current = pageIndex === 0 ? 0 : Date.now();
+  }, [pageIndex]);
+
   // 상태 유실을 방지하기 위해 onChange를 항상 최신 상태의 참조로 유지합니다.
   const onChangeRef = useRef(onChange);
   useEffect(() => {
@@ -219,8 +236,12 @@ export function ContextScreen({
     setPageIndex((i) => Math.max(i - 1, 0));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  /**
+   * `e` 가 없을 수도 있다 — 마지막 장의 버튼이 `onClick` 으로 직접 부른다.
+   * 왜 그렇게 하는지는 아래 버튼 줄의 주석에 적었다.
+   */
+  const handleSubmit = (e?: React.FormEvent) => {
+    e?.preventDefault();
 
     // 숫자 칸에서 엔터를 치면 마지막 장이 아니어도 여기로 들어온다. 그때 제출까지
     // 가 버리면 뒷장 질문을 건너뛴 채로 추천을 받는다.
@@ -228,6 +249,9 @@ export function ContextScreen({
       goNext();
       return;
     }
+
+    // 이 장이 뜬 직후의 제출은 사람이 누른 것이 아니다. 위 `pageShownAtRef` 참고.
+    if (pageShownAtRef.current > 0 && Date.now() - pageShownAtRef.current < 400) return;
 
     // 필수 응답 검사. 어느 질문이 필수인지도, 답이 찼는지도 엔진이 정한다
     // — 화면이 직접 판정하면 화면과 제출본이 같은 답을 두고 다른 말을 하게 된다.
@@ -427,9 +451,13 @@ export function ContextScreen({
             </p>
           )}
         <div className="flex flex-col sm:flex-row gap-4 w-full">
+          {/* 왼쪽 줄도 같은 이유로 `key` 를 나눈다. 이쪽은 둘 다 `type="button"`
+              이라 폼 제출까지 가지는 않지만, 누르는 순간 눌린 버튼이 다른 버튼으로
+              바뀌는 구조는 그대로다. */}
           {pageIndex === 0
             ? onReset && (
                 <button
+                  key="reset"
                   type="button"
                   onClick={onReset}
                   className="flex-1 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-4 transition-transform hover:scale-[1.02] active:scale-95 duration-200 motion-reduce:transition-none motion-reduce:transform-none"
@@ -440,6 +468,7 @@ export function ContextScreen({
               )
             : (
                 <button
+                  key="prev"
                   type="button"
                   onClick={goPrev}
                   className="flex-1 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-4 transition-transform hover:scale-[1.02] active:scale-95 duration-200 motion-reduce:transition-none motion-reduce:transform-none"
@@ -449,9 +478,30 @@ export function ContextScreen({
                 </button>
               )}
 
+          {/* ⚠️ 이 두 버튼은 **서로 다른 `key`** 를 갖고, 마지막 장의 것도
+              `type="button"` 이다. 둘 다 같은 결함 하나를 막는다.
+
+              전에는 조건부의 두 가지가 같은 자리·같은 태그라 React 가 **DOM 노드를
+              그대로 재사용**했다. 그래서 「마지막 질문 →」(type=button)을 누르면
+              클릭 처리 도중에 그 노드가 「추천 결과 보기」(type=submit)로 바뀌고,
+              브라우저는 클릭이 끝난 뒤 **바뀐 상태**로 기본 동작을 실행한다 —
+              즉 마지막 장이 떴다가 **같은 클릭 한 번으로 폼이 제출됐다.**
+              사람 눈에는 마지막 장이 아예 없는 것처럼 보인다(팀장 지시,
+              2026-08-16: 「마지막 질문을 누르면 바로 추천 결과가 나온다」).
+
+              ⚠️ 스크립트의 `element.click()` 으로는 재현되지 않는다. 실제 마우스
+              클릭과 기본 동작을 처리하는 시점이 달라서다. **이 자리를 고칠 때는
+              반드시 손으로 눌러 확인하십시오.**
+
+              `key` 가 다르면 React 가 옛 노드를 지우고 새로 만들어 애초에 상태가
+              바뀌지 않고, `type="button"` 이면 폼 제출이라는 기본 동작 자체가 없다.
+              엔터는 그대로 `form` 의 `onSubmit` 이 받는다 — 마지막 장은 입력칸이
+              하나라 브라우저가 암묵적 제출을 해 준다. */}
           {isLastPage ? (
             <button
-              type="submit"
+              key="submit"
+              type="button"
+              onClick={() => handleSubmit()}
               disabled={pageQuestions.some((q) => missing[q.id] !== undefined)}
               className="flex-1 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-4 transition-transform hover:scale-[1.02] active:scale-95 duration-200 motion-reduce:transition-none motion-reduce:transform-none disabled:opacity-50 disabled:hover:scale-100"
               style={{ minHeight: "calc(var(--tap-min) + 8px)", borderRadius: "var(--radius)", backgroundColor: primaryFill, color: "var(--color-bg)", fontSize: "calc(1.3rem * var(--font-scale))", fontWeight: "bold" }}
@@ -460,6 +510,7 @@ export function ContextScreen({
             </button>
           ) : (
             <button
+              key="next"
               type="button"
               onClick={goNext}
               disabled={pageQuestions.some((q) => missing[q.id] !== undefined)}
