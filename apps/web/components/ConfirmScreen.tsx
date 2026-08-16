@@ -23,14 +23,20 @@ export function ConfirmScreen({ candidate, selections, environmentId, isHighCont
   const copy = environmentCopy(environmentId);
 
   /*
-   * 두 개 이상 담는 분에게 「가격 5,500원」은 개당인지 합계인지 알 수 없다.
+   * 두 개 이상 담을 때 개당 가격 · 수량 · 합계를 영수증처럼 보여 주기 위한 개수.
    *
-   * 합계를 지어내지는 않는다 — 환경 데이터의 가격 규칙(`CHICKEN_PRICE_LIMIT`)은
-   * 후보의 **개당** `price` 하나만 예산과 견주고, 수량을 곱한 값을 말하는 규칙은
-   * 어디에도 없다. 없는 계산을 화면이 만들어 붙이면 그 숫자는 저희가 지어낸
-   * 것이 되고, 실제 매장 합계와 다를 때 책임질 근거가 없다.
+   * ⚠️ **합계는 환경 데이터가 정한 값이 아니다.** 가격 규칙
+   * (`CHICKEN_PRICE_LIMIT`)은 후보의 **개당** `price` 하나만 예산과 견주고,
+   * 수량을 곱하라고 말하는 규칙은 열한 개 중 어디에도 없다. 그래서 이 곱셈은
+   * **화면이 보여 주는 안내이지 엔진의 판정이 아니다.** 예산 초과 판단도 여전히
+   * 개당 가격으로만 이뤄진다 — 합계가 예산을 넘어도 후보가 빠지지 않는다.
+   * 팀장 판단으로 넣었다(2026-08-16). 엔진·제출본과는 무관하다.
    *
-   * 그래서 곱하지 않고 **무슨 값인지만 밝힌다.** 한 개면 문구도 그대로다.
+   * 곱해도 되는 근거는 데이터 쪽에 있다. 후보가 가진 금액 필드는 `price` 하나
+   * 뿐이고 할인·포장비·세금 같은 항목이 없다. 그러니 「개당 × 수량」이 이 데이터로
+   * 낼 수 있는 전부이고, 화면에도 무엇을 곱한 값인지 그대로 적는다.
+   *
+   * 한 개면 곱할 것이 없으므로 예전처럼 「가격」 한 줄이다.
    */
   const orderedCount = (() => {
     const picked = selections.find((s) => s.groupId === "QUANTITY");
@@ -40,32 +46,63 @@ export function ConfirmScreen({ candidate, selections, environmentId, isHighCont
     return typeof value === "number" ? value : 1;
   })();
 
+  /*
+   * ⚠️ 아래 여백(`gap-6` · `p-5 md:p-6` · `pb-3`)은 1280x**720** 에
+   * 「이대로 진행할게요」를 넣기 위해 줄여 둔 것이다. 늘리기 전에 그 창 높이에서
+   * 버튼이 보이는지 재십시오 — 최종 승인 버튼이 화면 밖에 있으면 사용자는 승인할
+   * 방법이 없다고 읽는다. 글자 크기와 44px 터치 영역은 건드리지 않았다.
+   */
   return (
-    <main className="flex flex-col gap-8 w-full">
+    <main className="flex flex-col gap-6 w-full">
       <h1 ref={headingRef} tabIndex={-1} className="font-extrabold text-center focus-visible:outline-none" style={{ fontSize: "calc(2rem * var(--font-scale))" }}>
         {copy.confirmTitle}
       </h1>
 
-      <section className={`border-2 rounded-2xl p-6 md:p-8 flex flex-col gap-6 ${isHighContrast ? "border-gray-400" : "border-gray-300 shadow-lg bg-white"}`}>
-        <div className="flex justify-between items-center border-b pb-4" style={{ borderColor: "var(--color-fg)" }}>
+      <section className={`border-2 rounded-2xl p-5 md:p-6 flex flex-col gap-4 ${isHighContrast ? "border-gray-400" : "border-gray-300 shadow-lg bg-white"}`}>
+        <div className="flex justify-between items-center border-b pb-3" style={{ borderColor: "var(--color-fg)" }}>
           <span className="opacity-80 font-bold" style={{ fontSize: "calc(1.2rem * var(--font-scale))" }}>{copy.noun}</span>
           <span className="font-extrabold" style={{ fontSize: "calc(1.6rem * var(--font-scale))" }}>{candidate.name}</span>
         </div>
 
         {/* [결함 방어] 병원/관공서는 가격(0원) 숨김. 치킨집 가격 표시 */}
         {candidate.priceKrw > 0 && (
-          <div className="flex justify-between items-center border-b pb-4" style={{ borderColor: "var(--color-fg)" }}>
-            <span className="opacity-80 font-bold" style={{ fontSize: "calc(1.2rem * var(--font-scale))" }}>
-              {orderedCount > 1 ? "개당 가격" : "가격"}
-            </span>
-            <span className="font-extrabold" style={{ fontSize: "calc(1.6rem * var(--font-scale))", color: "var(--color-accent)" }}>
-              {candidate.priceKrw.toLocaleString()}원
-            </span>
+          <div className="flex flex-col gap-2 border-b pb-3" style={{ borderColor: "var(--color-fg)" }}>
+            <div className="flex justify-between items-center gap-3">
+              <span className="opacity-80 font-bold break-keep" style={{ fontSize: "calc(1.2rem * var(--font-scale))" }}>
+                {orderedCount > 1 ? "개당 가격 × 수량" : "가격"}
+              </span>
+              <span
+                className="font-extrabold whitespace-nowrap"
+                style={{
+                  fontSize: `calc(${orderedCount > 1 ? "1.3rem" : "1.6rem"} * var(--font-scale))`,
+                  color: orderedCount > 1 ? "var(--color-fg)" : "var(--color-accent)",
+                }}
+              >
+                {candidate.priceKrw.toLocaleString()}원{orderedCount > 1 ? ` × ${orderedCount}개` : ""}
+              </span>
+            </div>
+
+            {orderedCount > 1 && (
+              /* 영수증처럼 합계 앞에 줄을 하나 긋는다. 점선인 것은 위를 더해
+                 아래가 나온다는 뜻이지 다른 이야기가 시작된다는 뜻이 아니라서다.
+                 ⚠️ 곱셈은 **윗줄 오른쪽에 그대로 적는다.** 「수량」을 따로 한 줄
+                 더 놓아 봤더니 이 화면이 1280x720 에서 878px 이 되어 「이대로
+                 진행할게요」가 150px 아래로 밀려났다(실측). 최종 승인 버튼이
+                 화면 밖에 있는 것은 어떤 설명보다 나쁘다. */
+              <div
+                className={`flex justify-between items-center border-t-2 border-dashed pt-3 ${isHighContrast ? "border-gray-500" : "border-gray-300"}`}
+              >
+                <span className="font-extrabold" style={{ fontSize: "calc(1.3rem * var(--font-scale))" }}>합계</span>
+                <span className="font-extrabold" style={{ fontSize: "calc(1.6rem * var(--font-scale))", color: "var(--color-accent)" }}>
+                  {(candidate.priceKrw * orderedCount).toLocaleString()}원
+                </span>
+              </div>
+            )}
           </div>
         )}
 
         {/* [결함 방어] 엔진이 확정한 selections 기반으로 옵션 표시 */}
-        <div className="flex flex-col gap-3 border-b pb-4" style={{ borderColor: "var(--color-fg)" }}>
+        <div className="flex flex-col gap-3 border-b pb-3" style={{ borderColor: "var(--color-fg)" }}>
           <span className="opacity-80 font-bold" style={{ fontSize: "calc(1.2rem * var(--font-scale))" }}>선택 옵션</span>
           <div className="flex flex-wrap gap-2">
             {selections.map((selection) => (
@@ -94,12 +131,12 @@ export function ConfirmScreen({ candidate, selections, environmentId, isHighCont
         )}
 
         {/* [결함 방어] 환경별 경계 안내 문구 동적 매핑 */}
-        <div className="p-4 rounded-xl text-center font-extrabold bg-red-500/10 border-2 border-red-500" style={{ fontSize: "calc(1.2rem * var(--font-scale))" }}>
+        <div className="p-3 rounded-xl text-center font-extrabold bg-red-500/10 border-2 border-red-500" style={{ fontSize: "calc(1.2rem * var(--font-scale))" }}>
           ⚠️ {copy.boundaryNotice}
         </div>
       </section>
 
-      <div className="flex flex-col sm:flex-row gap-4 w-full mt-4">
+      <div className="flex flex-col sm:flex-row gap-4 w-full mt-2">
         <button type="button" onClick={onBackToContext} className="flex-1 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-4 transition-transform hover:scale-[1.02] active:scale-95 duration-200 motion-reduce:transition-none motion-reduce:transform-none" style={{ minHeight: "calc(var(--tap-min) + 8px)", borderRadius: "var(--radius)", backgroundColor: "transparent", color: "var(--color-fg)", border: "2px solid var(--color-fg)", fontSize: "calc(1.2rem * var(--font-scale))", fontWeight: "bold" }}>
           다시 고를게요
         </button>
