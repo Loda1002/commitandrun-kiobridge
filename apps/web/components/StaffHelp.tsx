@@ -44,6 +44,15 @@ interface StaffHelpProps {
    */
   onCallStateChange?: (active: boolean) => void;
   /**
+   * 지금 보고 있는 화면이 **자기 흐름 안에** 직원 호출 버튼을 갖고 있는가.
+   *
+   * 그럴 때는 떠 있는 버튼을 감춘다. 되묻기 화면에서 둘이 겹쳐 있었고(실측:
+   * 1280x800 에서 모서리 7x5px), 똑같은 「🔔 직원 부르기」가 50px 간격으로 둘 있으면
+   * 어느 쪽이 진짜인지 세는 데 시간이 든다. 감추는 것은 버튼뿐이고 호출 상태는
+   * 그대로다 — 그 화면의 버튼이 「직원 오는 중」으로 바뀌어 같은 것을 알려 준다.
+   */
+  triggerHidden?: boolean;
+  /**
    * Whether the form has been submitted at least once.
    *
    * An empty multi-select carries two meanings and only this tells them apart:
@@ -79,6 +88,7 @@ export function StaffHelp({
   isHighContrast,
   callRequest = 0,
   onCallStateChange,
+  triggerHidden = false,
 }: StaffHelpProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [call, setCall] = useState<StaffCall | null>(null);
@@ -93,9 +103,20 @@ export function StaffHelp({
     describe(q, answers[q.id], answersSubmitted),
   ]);
 
+  /**
+   * 닫고 부르던 자리로 초점을 되돌린다.
+   *
+   * 떠 있는 버튼이 감춰져 있으면 되돌릴 곳이 사라진다 — 초점이 문서 맨 앞으로
+   * 떨어져, 키보드로 쓰는 사람이 방금 있던 자리를 처음부터 다시 찾아야 한다.
+   * 그때는 그 화면의 제목으로 보낸다.
+   */
   const closeDialog = () => {
     setIsOpen(false);
-    setTimeout(() => triggerRef.current?.focus(), 0);
+    setTimeout(() => {
+      const trigger = triggerRef.current;
+      if (trigger && document.contains(trigger)) trigger.focus();
+      else document.querySelector<HTMLElement>("main h1")?.focus();
+    }, 0);
   };
 
   /**
@@ -179,7 +200,7 @@ export function StaffHelp({
           잡아 44px 기준은 그대로 넘긴다. */}
       {/* 호출이 걸려 있으면 버튼이 그 사실과 기다린 시간을 들고 있는다. 패널을
           닫고 다음 화면으로 가도 「내가 불렀나?」를 다시 확인할 곳이 필요하다. */}
-      {!isOpen && (
+      {!isOpen && !triggerHidden && (
         <div className="fixed bottom-12 right-6 sm:right-8 md:right-12 z-40 w-max pointer-events-auto">
           <button
             type="button"

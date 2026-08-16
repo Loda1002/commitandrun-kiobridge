@@ -131,6 +131,17 @@ export default function Home() {
   /** 호출이 걸려 있는가. 호출 자체는 StaffHelp 가 들고 있고 여기는 표시용이다. */
   const [staffCalled, setStaffCalled] = useState(false);
 
+  /**
+   * 되묻기 화면이 떠 있는가 — 그 화면은 자기 흐름 안에 직원 호출 버튼을 갖고 있어서,
+   * 떠 있는 버튼까지 두면 똑같은 것이 둘이 되고 실제로 겹쳤다(실측).
+   * 판정은 RecommendScreen 의 게이트 조건과 같은 식이다. 한쪽만 고치면 어긋나므로
+   * 그 조건을 바꿀 때는 여기도 함께 본다.
+   */
+  const reconfirming =
+    currentStep === 2 &&
+    recView !== null &&
+    (recView.reconfirmRequests.length > 0 || unknownNotices.length > 0);
+
   const [statusMessage, setStatusMessage] = useState("");
 
   useEffect(() => {
@@ -464,7 +475,7 @@ export default function Home() {
           {/* 감싸는 상자를 두지 않는다. 「직원 도움」 버튼은 `fixed` 로 떠 있어서
               흐름에 자리를 차지하지 않는데, `mt-auto pt-6 border-t` 상자만 남아
               모든 화면 아래에 빈 줄과 구분선을 57px 씩 그리고 있었다. */}
-          <StaffHelp questions={questions} answers={answers} answersSubmitted={recView !== null} candidate={chosen ?? recView?.recommended ?? null} environmentId={environmentId} isHighContrast={isHighContrast} callRequest={staffCallRequest} onCallStateChange={setStaffCalled} />
+          <StaffHelp questions={questions} answers={answers} answersSubmitted={recView !== null} candidate={chosen ?? recView?.recommended ?? null} environmentId={environmentId} isHighContrast={isHighContrast} callRequest={staffCallRequest} onCallStateChange={setStaffCalled} triggerHidden={reconfirming} />
         </>
       )}
     </div>
