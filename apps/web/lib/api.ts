@@ -38,7 +38,7 @@ import {
   score,
 } from "@commitandrun/engine/select";
 
-import { DEFAULT_ENVIRONMENT_ID, fixtureFor } from "./fixture";
+import { DEFAULT_ENVIRONMENT_ID, displayCandidateName, fixtureFor } from "./fixture";
 import {
   HOSPITAL_DEFAULT_ANSWERS,
   HOSPITAL_QUESTIONS,
@@ -244,7 +244,7 @@ export async function fetchRecommendation(
       .filter((c): c is CandidateView => c !== null),
     excluded: excluded.map((e) => ({
       ...e,
-      name: byId.get(e.candidateId)?.name ?? e.candidateId,
+      name: displayCandidateName(e.candidateId, byId.get(e.candidateId)?.name ?? e.candidateId),
     })) satisfies ExcludedView[],
     reasons: recommended ? explainRecommendation(recommended, ctx, excluded) : [],
     confidence: result.confidence,
@@ -360,7 +360,7 @@ function toCandidateView(
 ): Omit<CandidateView, "blockedReason" | "alternativeExplanation"> {
   return {
     candidateId: candidate.candidateId,
-    name: candidate.name,
+    name: displayCandidateName(candidate.candidateId, candidate.name),
     priceKrw: candidate.price ?? 0,
     total: round2(contributions.reduce((sum, row) => sum + row.earned, 0)),
     contributions,

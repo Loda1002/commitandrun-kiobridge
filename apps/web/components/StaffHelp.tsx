@@ -39,6 +39,15 @@ interface StaffHelpProps {
    */
   callRequest?: number;
   /**
+   * 걸어 둔 호출을 거두라는 신호. 값이 올라가면 호출도 패널도 없던 상태로 돌아간다.
+   *
+   * 「처음으로」는 앞사람이 끝내고 다음 사람이 서는 순간이다. 그전에는 이 컴포넌트가
+   * 화면 전환마다 다시 만들어지면서 호출이 저절로 사라졌는데, 그 리마운트를 없애
+   * 호출과 기다린 시간을 살려 두자 이번에는 시작 화면에 「🔔 직원 오는 중 · 5:49」가
+   * 남았다(실측). 남은 것은 지우고, 살릴 것만 살린다.
+   */
+  cancelRequest?: number;
+  /**
    * 호출이 걸렸는지 부모에게 알린다. 다른 화면의 「직원 부르기」 버튼이 이미
    * 부른 뒤에도 「부르기」라고 적혀 있으면 안 되기 때문이다 — 호출 자체는 여기서
    * 관리하고, 밖으로는 걸렸는지 여부만 나간다.
@@ -88,6 +97,7 @@ export function StaffHelp({
   environmentId,
   isHighContrast,
   callRequest = 0,
+  cancelRequest = 0,
   onCallStateChange,
   triggerHidden = false,
 }: StaffHelpProps) {
@@ -140,11 +150,38 @@ export function StaffHelp({
     setWaited(0);
   };
 
-  // 다른 화면(「모르겠어요」 되묻기)에서 부른 경우. 첫 렌더의 0 은 무시한다.
+  /**
+   * 다른 화면(「모르겠어요」 되묻기)에서 부른 경우.
+   *
+   * ⚠️ **숫자가 올라갔을 때만** 연다. `callRequest > 0` 으로 판정하면 한 번 부른
+   * 사람에게 이 패널이 계속 다시 열린다. 이 컴포넌트가 새로 마운트될 때마다
+   * 첫 렌더의 effect 가 도는데, 그때 `callRequest` 는 이미 1 이라 조건이 참이기
+   * 때문이다. 실제로 그랬다 — 추천을 받을 때 `page.tsx` 가 로딩 화면으로
+   * 갈아끼우며 StaffHelp 를 통째로 내렸다 올리고 있어서, 직원을 한 번 부른
+   * 사람은 그 뒤 추천을 받을 때마다 팝업을 닫아야 했다(팀장 지시, 2026-08-16).
+   *
+   * 리마운트 자체도 함께 없앴다(`page.tsx` 에서 로딩 분기 밖으로 옮김) —
+   * 그래야 걸어 둔 호출과 기다린 시간이 화면을 넘겨도 살아 있는다. 이 가드는
+   * 그와 별개로 남긴다. 초점을 옮기고 화면을 덮는 동작은 사람이 누른 그 순간에만
+   * 일어나야 한다.
+   */
+  const seenRequestRef = useRef(callRequest);
   useEffect(() => {
-    if (callRequest > 0) placeCall();
+    if (callRequest <= seenRequestRef.current) return;
+    seenRequestRef.current = callRequest;
+    placeCall();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [callRequest]);
+
+  // 「처음으로」. 같은 이유로 값이 올라갔을 때만 본다.
+  const seenCancelRef = useRef(cancelRequest);
+  useEffect(() => {
+    if (cancelRequest <= seenCancelRef.current) return;
+    seenCancelRef.current = cancelRequest;
+    setIsOpen(false);
+    setCall(null);
+    setWaited(0);
+  }, [cancelRequest]);
 
   // 참조로 들고 있는 이유는 부모가 매 렌더 새 함수를 넘겨도 여기가 다시 돌지
   // 않게 하기 위해서다. 알릴 것은 호출이 걸렸다·풀렸다 두 순간뿐이다.
@@ -202,7 +239,12 @@ export function StaffHelp({
       {/* 호출이 걸려 있으면 버튼이 그 사실과 기다린 시간을 들고 있는다. 패널을
           닫고 다음 화면으로 가도 「내가 불렀나?」를 다시 확인할 곳이 필요하다. */}
       {!isOpen && !triggerHidden && (
-        <div className="fixed bottom-12 right-6 sm:right-8 md:right-12 z-40 w-max pointer-events-auto">
+        /* 오른쪽 여백을 48 → 16px 로 붙였다. 화면 아래 여백을 걷어내 상황 입력을
+           1280x720 에 넣고 나니, 「다음 질문 →」의 오른쪽 끝과 이 버튼의 왼쪽 끝이
+           **0px 간격으로 맞닿았다**(1280 실측: 둘 다 x=1056, 세로로 18px 겹침).
+           손 떨림이 있는 분이 다음으로 가려다 직원을 부르게 되는 자리다.
+           가장자리로 붙이면 32px 이 벌어진다. 버튼 자체 크기는 그대로다. */
+        <div className="fixed bottom-12 right-4 sm:right-6 md:right-4 z-40 w-max pointer-events-auto">
           <button
             type="button"
             ref={triggerRef}
@@ -303,8 +345,8 @@ export function StaffHelp({
                 밝힌다. 시뮬레이터 위에서 도는 서비스라고 제출본에도 그렇게 적어
                 두었으니 화면에서만 다르게 말하지 않는다. */}
             <p className="opacity-80 font-bold text-center break-keep leading-snug" style={{ fontSize: "calc(1.1rem * var(--font-scale))" }}>
-              결제는 이 화면에서 진행되지 않습니다.<br />
-              지금은 시연 환경이라 호출이 실제 직원 단말까지 가지는 않습니다.
+              이 화면에서는 결제하지 않습니다.<br />
+              지금은 시연이라 실제 직원에게 연락이 가지는 않습니다.
             </p>
             </div>
 

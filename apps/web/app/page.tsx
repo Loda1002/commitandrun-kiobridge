@@ -111,6 +111,8 @@ export default function Home() {
   const [staffCallRequest, setStaffCallRequest] = useState(0);
   /** 호출이 걸려 있는가. 호출 자체는 StaffHelp 가 들고 있고 여기는 표시용이다. */
   const [staffCalled, setStaffCalled] = useState(false);
+  /** 「처음으로」에서 올린다. 앞사람의 호출을 다음 사람 화면에 남기지 않는다. */
+  const [staffCancelRequest, setStaffCancelRequest] = useState(0);
 
   /**
    * 되묻기 화면이 떠 있는가 — 그 화면은 자기 흐름 안에 직원 호출 버튼을 갖고 있어서,
@@ -334,6 +336,7 @@ export default function Home() {
     setIsRestored(false);
     setRestoredSavedAt(null);
     setUnknownNotices([]);
+    setStaffCancelRequest((n) => n + 1);
     setCurrentStep(0);
   };
 
@@ -363,10 +366,12 @@ export default function Home() {
 
   return (
     <div
-      /* 위아래 여백을 32px 에서 20px 로 줄였다. 상황 입력이 한 화면에 들어가야
-         하는데(팀장 지시 2026-08-16) 1280x800 에서 30px 이 모자랐다. 좌우 여백은
-         그대로다. */
-      className="min-h-screen flex flex-col p-4 sm:px-8 sm:py-5 max-w-4xl mx-auto gap-6 w-full relative pb-24"
+      /* 위아래 여백을 32 → 20 → 12px 로 줄여 왔다. 상황 입력이 한 화면에 들어가야
+         하는데(팀장 지시 2026-08-16) 기준을 1280x**720** 으로 내리면서 다시 모자랐다.
+         800 이 아니라 720 인 이유는 그것이 흔한 노트북 창 높이이고, 세션 32 가
+         800 에서 「넘침 0」으로 재 둔 화면이 720 에서 65~70px 넘쳤기 때문이다.
+         좌우 여백과 글자 크기, 44px 터치 영역은 건드리지 않는다. */
+      className="min-h-screen flex flex-col p-4 sm:px-8 sm:py-2 max-w-4xl mx-auto gap-4 w-full relative"
       style={accentStyle}
     >
       {statusMessage && (
@@ -383,7 +388,7 @@ export default function Home() {
       )}
 
       {currentStep > 0 && !isLoading && (
-        <header className="pb-4 border-b border-gray-300 w-full flex flex-col gap-6">
+        <header className="pb-2 border-b border-gray-300 w-full flex flex-col gap-3">
           {a11yBar}
           <nav aria-label="진행 상황" className="w-full">
             <ol 
@@ -402,11 +407,21 @@ export default function Home() {
                     key={label}
                     aria-current={isActive ? "step" : undefined}
                     className={`flex-1 text-center font-bold rounded-full py-2 transition-colors ${
-                      isActive 
-                        ? "bg-[var(--color-accent)] text-[var(--color-bg)] shadow-md" 
+                      isActive
+                        ? "bg-[var(--color-accent)] shadow-md"
                         : isPassed ? "opacity-80" : "opacity-40"
                     }`}
-                    style={{ fontSize: "calc(0.9rem * var(--font-scale))" }}
+                    /* 지금 단계 칩의 글자만 검정으로 고정한다.
+                       이 칩은 0.9rem(=14.4px) 이라 굵은 글씨여도 WCAG 의 큰 글씨
+                       기준(18.66px)에 못 미쳐 본문 기준 4.5:1 을 지켜야 한다.
+                       전에는 `--color-bg` 를 썼는데, 보통 화면에서 그것은 흰색이라
+                       환경색 위에서 3.26 / 3.46 / 4.53:1 이었다 — 셋 중 둘이 미달.
+                       검정으로 내리면 6.45 / 6.07 / 4.64:1 로 셋 다 넘는다.
+                       고대비에서도 맞다: 노랑(#ffe600) 위 검정은 15.9:1 이고,
+                       `--color-bg` 가 어차피 검정이라 그쪽 생김새는 안 바뀐다.
+                       ⚠️ `--color-fg`(#1a1a1a) 로는 관공서가 3.84:1 로 모자란다.
+                       순검정이어야 한다. */
+                    style={{ fontSize: "calc(0.9rem * var(--font-scale))", color: isActive ? "#000000" : undefined }}
                   >
                     <span className="hidden sm:inline">{stepNumber}. </span>{label}
                   </li>
@@ -450,22 +465,29 @@ export default function Home() {
               onSubmit={handleContextSubmit} 
               isHighContrast={isHighContrast} 
               environmentId={environmentId} 
-              onReset={handleReset} 
-              isRestored={isRestored} 
-              restoredSavedAt={restoredSavedAt} 
+              onReset={handleReset}
+              isRestored={isRestored}
+              restoredSavedAt={restoredSavedAt}
+              answersSubmitted={recView !== null}
             />
           )}
 
           {currentStep === 2 && recView && <RecommendScreen recView={recView} environmentId={environmentId} isHighContrast={isHighContrast} onChoose={handleChoose} onBackToContext={handleBackToContext} unknownNotices={unknownNotices} onCallStaff={() => setStaffCallRequest((n) => n + 1)} staffCalled={staffCalled} />}
           {currentStep === 3 && chosen && <ConfirmScreen candidate={chosen} selections={selections} environmentId={environmentId} isHighContrast={isHighContrast} onApprove={handleApprove} onBackToContext={handleBackToContext} />}
           {currentStep === 4 && runResult && <ResultScreen runResult={runResult} environmentId={environmentId} isHighContrast={isHighContrast} onReset={handleReset} onDeleteProfile={handleDeleteProfile} />}
-
-          {/* 감싸는 상자를 두지 않는다. 「직원 도움」 버튼은 `fixed` 로 떠 있어서
-              흐름에 자리를 차지하지 않는데, `mt-auto pt-6 border-t` 상자만 남아
-              모든 화면 아래에 빈 줄과 구분선을 57px 씩 그리고 있었다. */}
-          <StaffHelp questions={questions} answers={answers} answersSubmitted={recView !== null} candidate={chosen ?? recView?.recommended ?? null} environmentId={environmentId} isHighContrast={isHighContrast} callRequest={staffCallRequest} onCallStateChange={setStaffCalled} triggerHidden={reconfirming} />
         </>
       )}
+
+      {/* 감싸는 상자를 두지 않는다. 「직원 도움」 버튼은 `fixed` 로 떠 있어서
+          흐름에 자리를 차지하지 않는데, `mt-auto pt-6 border-t` 상자만 남아
+          모든 화면 아래에 빈 줄과 구분선을 57px 씩 그리고 있었다.
+
+          ⚠️ 로딩 분기 **바깥**이다. 안에 두면 추천을 계산하는 잠깐 사이에 이
+          컴포넌트가 통째로 내려갔다 올라오고, 그때마다 걸어 둔 호출과 기다린
+          시간이 사라진다. 「직원 오는 중 3:12」를 보고 있던 사람이 다음 화면에서
+          「직원 부르기」를 다시 만나면, 부른 적이 없다는 뜻으로 읽고 또 누른다
+          (팀장 지시, 2026-08-16). */}
+      <StaffHelp questions={questions} answers={answers} answersSubmitted={recView !== null} candidate={chosen ?? recView?.recommended ?? null} environmentId={environmentId} isHighContrast={isHighContrast} callRequest={staffCallRequest} cancelRequest={staffCancelRequest} onCallStateChange={setStaffCalled} triggerHidden={reconfirming || isLoading} />
     </div>
   );
 }

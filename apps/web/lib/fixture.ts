@@ -184,6 +184,36 @@ export function environmentCopy(environmentId: EnvironmentId): EnvironmentChoice
   return found;
 }
 
+/**
+ * 화면에 띄울 후보 이름. 픽스처의 이름이 사람에게 잘못 읽히는 것만 갈아 끼운다.
+ *
+ * 왜 여기인가. `lib/fixtures/` 의 JSON 은 `kit/environments/` 의 **글자 그대로의
+ * 복사본**이고(이 파일 맨 위의 drift check), 운영진은 깨끗한 키트에서 우리
+ * 제출본을 재실행한다. 그 JSON 을 고치면 원본과 어긋나면서 채점에는 반영되지도
+ * 않는다. 반대로 후보 이름은 제출본(`participant-submission.json`)에 들어가지
+ * 않으므로 — 거기 실리는 것은 `candidateId` 다 — 화면에서 부르는 이름만 바꾸는
+ * 것은 제출본에 닿지 않는다.
+ *
+ * 무엇을 바꾸나. 「포장 전용 닭강정」·「매장 전용 닭강정」이 서로 다른 음식처럼
+ * 읽힌다(팀장 지시, 2026-08-16). 실제로 둘은 같은 닭강정이고, 다른 것은 담는
+ * 그릇과 받는 방법뿐이다(CHICKEN-006 은 종이컵·포장만, CHICKEN-007 은 일반
+ * 컵·매장만). 이름 앞머리를 「닭강정」으로 맞추고 조건을 괄호로 내리면 그렇게
+ * 읽힌다.
+ *
+ * ⚠️ 이유·제외 사유 문장에는 후보 이름이 들어가지 않는다(엔진이 조건만 말한다).
+ * 그래서 이름을 바꿔도 화면 안에서 두 이름이 어긋나는 자리는 없다 — 만약 엔진이
+ * 이름을 문장에 넣기 시작하면 그때는 이 표를 엔진 쪽에서도 읽어야 한다.
+ */
+const CANDIDATE_DISPLAY_NAMES: Record<string, string> = {
+  "CHICKEN-006": "닭강정 (포장 전용)",
+  "CHICKEN-007": "닭강정 (매장 전용)",
+};
+
+/** 픽스처의 이름을 화면용 이름으로. 갈아 끼울 것이 없으면 원래 이름 그대로. */
+export function displayCandidateName(candidateId: string, fixtureName: string): string {
+  return CANDIDATE_DISPLAY_NAMES[candidateId] ?? fixtureName;
+}
+
 /** The environment the app opens on. */
 export const DEFAULT_ENVIRONMENT_ID: EnvironmentId = "chicken-store";
 

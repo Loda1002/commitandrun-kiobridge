@@ -185,7 +185,18 @@ export function StartScreen({ onStart, accessibilityBar, isHighContrast, onDelet
           글자색은 완전한 검정이다 — #1a1a1a 에서 내려 #EFEFEF 바탕에서 18.25:1
           이다(팀장 지시, 2026-08-16). 고대비에서는 흰 글씨로 돌아가야 하므로
           분기를 남긴다. */}
-      <footer className="w-full flex justify-center pb-3">
+      {/* 「로그인은 필요하지 않습니다」를 눈에 보이는 자리에 되돌린다.
+          세션 32 가 배너를 줄이면서 이 줄이 화면에서 사라지고 카드 묶음의
+          `aria-label` 에만 남았다 — 스크린리더로 오는 분은 듣지만, 로그인 화면이
+          나올까 봐 키오스크 앞에서 돌아서는 분은 눈으로 읽을 데가 없었다.
+          심사 항목에도 「로그인 없이 끝낼 수 있는가」가 있다. */}
+      <footer className="w-full flex flex-col items-center gap-1 pb-3">
+        <p
+          className={`font-bold text-center break-keep ${isHighContrast ? "text-[var(--color-fg)]" : "text-black"}`}
+          style={{ fontSize: "calc(1.1rem * var(--font-scale))" }}
+        >
+          로그인이나 회원가입은 필요하지 않습니다.
+        </p>
         <button
           type="button"
           onClick={onDeleteProfile}

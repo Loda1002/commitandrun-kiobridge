@@ -53,9 +53,9 @@ export function RecommendScreen({ recView, environmentId, isHighContrast, onChoo
         </h1>
         {unknownNotices.length > 0 && (
           <p className="text-center font-bold break-keep leading-snug opacity-90" style={{ fontSize: "calc(1.2rem * var(--font-scale))" }}>
-            {unknownNotices.join(" · ")} — 모르겠다고 하셔서 여기서 한 번 멈췄습니다.
+            「{unknownNotices.join("」 「")}」을 모르겠다고 하셔서 잠깐 멈췄습니다.
             <br />
-            저희가 짐작해서 정하면 원하지 않으신 쪽으로 진행됩니다. 직접 고르셔도 되고, 직원을 부르셔도 됩니다.
+            저희가 대신 정하면 원하지 않으신 대로 진행될 수 있습니다. 직접 고르셔도 되고, 직원을 부르셔도 됩니다.
           </p>
         )}
         {/* 되묻기 상자도 지금 환경의 색을 쓴다. Tailwind 의 orange-500
@@ -85,8 +85,11 @@ export function RecommendScreen({ recView, environmentId, isHighContrast, onChoo
 
   return (
     <main className="flex flex-col gap-8 w-full">
+      {/* 「맞춤형 추천 결과」였다. 광고 문구처럼 읽혀서 뺐다(팀장 지시,
+          2026-08-16) — 무엇을 골랐는지는 바로 아래 카드가 말하고, 왜 골랐는지는
+          「이렇게 골랐습니다」가 말한다. 제목은 위의 진행 칩과 같은 말이면 된다. */}
       <h1 ref={headingRef} tabIndex={-1} className="font-extrabold text-center focus-visible:outline-none" style={{ fontSize: "calc(2rem * var(--font-scale))" }}>
-        맞춤형 추천 결과
+        이렇게 하시면 어떨까요?
       </h1>
 
       {recView.recommended ? (
@@ -233,7 +236,9 @@ export function RecommendScreen({ recView, environmentId, isHighContrast, onChoo
       )}
 
       <section className={`border-2 rounded-2xl p-6 md:p-8 ${isHighContrast ? "border-red-400 bg-transparent" : "bg-red-50 border-red-300"}`}>
-        <h3 className={`font-bold mb-5 ${isHighContrast ? "text-red-400" : "text-red-700"}`} style={{ fontSize: "calc(1.4rem * var(--font-scale))" }}>🚫 제외된 후보 {recView.excluded.length}개</h3>
+        {/* 「제외된 후보」는 우리가 코드에서 쓰는 말이지 손님이 쓰는 말이 아니다.
+            무엇을 왜 뺐는지는 아래 줄들이 그대로 말한다. */}
+        <h3 className={`font-bold mb-5 ${isHighContrast ? "text-red-400" : "text-red-700"}`} style={{ fontSize: "calc(1.4rem * var(--font-scale))" }}>🚫 빼고 고른 {copy.noun} {recView.excluded.length}개</h3>
         <ul className="flex flex-col gap-4" style={{ fontSize: "calc(1.1rem * var(--font-scale))" }}>
           {recView.excluded.map((item, idx) => (
             <li key={idx} className={`flex gap-4 items-center border-b pb-3 last:border-0 last:pb-0 ${isHighContrast ? "border-gray-700" : "border-red-200"}`}>

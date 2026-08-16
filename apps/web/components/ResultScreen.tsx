@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import type { EnvironmentId } from "@commitandrun/engine";
 import { actionLabel, stateLabel, type RunView } from "../lib/types";
-import { ENVIRONMENTS, environmentCopy, fixtureFor } from "../lib/fixture";
+import { ENVIRONMENTS, displayCandidateName, environmentCopy, fixtureFor } from "../lib/fixture";
 import evidence from "../public/simulation-evidence.json";
 
 type StepTarget = { kind: string; id: string; groupId?: string };
@@ -42,7 +42,7 @@ export function ResultScreen({ runResult, environmentId, isHighContrast, onReset
     const fixture = fixtureFor(environmentId);
     if (target.kind === "candidate") {
       const candidate = fixture.candidates.find((c) => c.candidateId === target.id);
-      if (candidate) return candidate.name;
+      if (candidate) return displayCandidateName(candidate.candidateId, candidate.name);
     }
     if (target.kind === "review") {
       const screen = fixture.screens.find((s) => s.state === target.id);
@@ -102,7 +102,7 @@ export function ResultScreen({ runResult, environmentId, isHighContrast, onReset
           {runResult.validation.valid ? "✅ 자체 안전 검사 결과" : "❌ 안전 검사 실패 (위험)"}
         </h2>
         <p className="opacity-80 mb-6 font-medium" style={{ fontSize: "calc(1rem * var(--font-scale))" }}>
-          우리 서비스가 실행계획을 자체 안전 규칙에 대조해 본 결과입니다. (공식 시뮬레이터가 아닙니다)
+          방금 만든 순서를 저희 안전 규칙과 하나씩 맞춰 본 결과입니다. 공식 시뮬레이터 검사는 아래에 따로 있습니다.
         </p>
         <ul className="flex flex-col gap-6 font-bold" style={{ fontSize: "calc(1.2rem * var(--font-scale))" }}>
           <li className={`flex justify-between items-center border-b pb-4 ${isHighContrast ? "border-gray-700" : (runResult.validation.valid ? "border-green-200" : "border-red-200")}`}>
@@ -136,7 +136,9 @@ export function ResultScreen({ runResult, environmentId, isHighContrast, onReset
       </section>
 
       <details className={`border-2 rounded-2xl p-6 md:p-8 group ${isHighContrast ? "border-gray-400 bg-transparent" : "border-gray-300 bg-gray-50"}`}>
-        <summary className="font-bold cursor-pointer list-none flex justify-between items-center focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--color-accent)] rounded-lg" style={{ fontSize: "calc(1.4rem * var(--font-scale))" }}>
+        {/* `minHeight` 은 위의 「무엇을 시켰는지 보기」와 같은 이유로 명시한다.
+            빼 두면 글자 높이만큼인 34px 이 되어 44px 터치 기준에 못 미쳤다(실측). */}
+        <summary className="font-bold cursor-pointer list-none flex justify-between items-center focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--color-accent)] rounded-lg" style={{ fontSize: "calc(1.4rem * var(--font-scale))", minHeight: "var(--tap-min)" }}>
           <span>🛡️ 공식 시뮬레이터 검증 증거 확인</span>
           <span className="group-open:rotate-180 transition-transform">▼</span>
         </summary>
@@ -147,7 +149,7 @@ export function ResultScreen({ runResult, environmentId, isHighContrast, onReset
           </p>
           <p className="opacity-80 font-medium" style={{ fontSize: "calc(1rem * var(--font-scale))" }}>
             {EVIDENCE_DATE}에 <strong>{EVIDENCE_ENVIRONMENT_NAME}</strong> 제출본을 공식 시뮬레이터로
-            한 번 돌린 기록입니다. 아래 값은 그 파일에서 그대로 읽어 온 것입니다.
+            돌려 본 기록입니다. 아래 값은 그때 나온 파일에서 그대로 읽어 옵니다.
             <a href="/simulation-evidence.json" target="_blank" rel="noopener noreferrer" className={`ml-2 underline font-bold ${isHighContrast ? "text-yellow-300" : "text-blue-700"}`}>
               [원본 JSON 파일 보기]
             </a>

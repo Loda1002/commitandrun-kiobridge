@@ -17,6 +17,17 @@ interface ContextScreenProps {
   onReset?: () => void;
   isRestored?: boolean;
   restoredSavedAt?: string | null;
+  /**
+   * 이 화면을 한 번이라도 제출하고 돌아온 것인가.
+   *
+   * 여러 개 고르는 질문에서 빈 배열은 뜻이 둘이다 — 제출 전에는 「아직 안 고름」,
+   * 제출한 뒤에는 사용자가 고른 「없어요」다. 이것 없이는 둘을 가를 수 없어서,
+   * 알레르기에 「없어요」를 고르고 되묻기까지 갔다가 돌아오면 그 선택이 풀려
+   * 있었다. 더 나쁜 것은 그다음이다: 풀린 채로 다시 제출하면 아래 `handleSubmit`
+   * 이 손대지 않은 질문으로 보고 `["UNKNOWN"]` 을 채워, **없다고 답한 사람이
+   * 모르겠다고 답한 것으로 바뀌었다**(2026-08-16 배포본에서 재현).
+   */
+  answersSubmitted?: boolean;
 }
 
 /**
@@ -28,41 +39,31 @@ interface ContextScreenProps {
  */
 
 /**
- * 질문을 여러 장으로 나눈다 — 한 화면에 두 개씩.
+ * 질문을 여러 장으로 나눈다 — 한 화면에 두 개씩, 예외 없이.
  *
  * 스크롤을 없애는 것이 목적이다(팀장 지시 2026-08-16). 질문 7개를 한 화면에 세우면
  * 1280x800 에서 세로로 두 배 넘게 넘쳐, 아래쪽 질문이 있는 줄도 모르고 지나가게
  * 된다. 손 떨림이 있는 분에게 긴 스크롤은 그 자체가 장벽이다.
  *
- * 둘씩 끊되, **마지막에 혼자 남은 질문이 숫자 칸이면 앞 장에 붙인다.**
- * 닭강정집 7개는 2·2·3(예산이 붙는다), 병원 5개는 2·2·1, 관공서 4개는 2·2 다.
+ * 닭강정집 7개는 2·2·2·1, 병원 5개는 2·2·1, 관공서 4개는 2·2 다.
  *
- * 왜 붙이는가. 혼자 남은 마지막 장은 사람이 보지 못하고 지나간다(팀장님이 실제로
- * 그렇게 겪으셨다, 2026-08-16). 앞 장들이 두 문제씩이라 리듬이 생기는데 마지막
- * 장만 한 문제라 화면이 휑하고, 「다음 질문 →」과 「추천 결과 보기」가 **같은
- * 자리에** 있어서 같은 곳을 두 번 누르면 그 장이 떴다가 그대로 넘어간다.
+ * ⚠️ 세션 32 는 「마지막에 혼자 남은 질문이 숫자 칸이면 앞 장에 붙인다」는 예외를
+ * 두어 닭강정집을 2·2·3 으로 만들었다. **되돌렸다** — 예산이 붙은 3장이 넘쳐서
+ * 정작 그 예산 칸이 안 보였다. 2026-08-16 실측, 1280x**720**:
  *
- * ⚠️ 왜 숫자 칸일 때만인가. 셋이 들어간 장은 1280x800 에서 넘친다 — 그래서
- * 세션 31 이 떼어 놨던 것이고, 여백을 좁혀도(`tight`, 아래) 붙이는 질문이
- * 무엇이냐에 따라 갈린다. 2026-08-16 실측:
+ *   3장(컵·개수·예산)  전체 넘침 65px · 「추천 결과 보기」가 713~765px = 화면 밖
  *
- *   닭강정 예산(숫자 한 칸)      붙이고 여백 좁힘 → 넘침 **0px**   ✅
- *   병원 보호자 동반(선택지 그룹) 붙이고 여백 좁힘 → 넘침 **93px**  ❌
+ * 세션 32 가 「넘침 0px」로 잰 것은 1280x800 이었다. 팀장님 브라우저를 포함해
+ * 흔한 노트북 창 높이는 720 이고, 거기서는 예산 칸이 화면 맨 아래 45px 에 걸려
+ * 눈에 띄지 않았다(팀장 지시 2026-08-16: 「금액 입력이 아직도 안 보인다」).
  *
- * 93px 이면 「추천 결과 보기」 버튼이 화면 아래로 내려간다. 도움을 받으러 온
- * 화면에서 눌러야 할 버튼이 스크롤 밑에 숨는 것은 세션 31 이 직원 호출 버튼에서
- * 이미 한 번 겪은 결함이다. 그래서 선택지 그룹은 붙이지 않는다.
- * 숫자 칸은 선택지 격자가 없어 한 줄이라, 이 조건이 곧 「들어가는 모양」이다.
+ * 혼자 남은 마지막 장을 지나치는 문제는 붙이는 대신 **말로** 푼다 — 그 앞 장의
+ * 버튼이 「마지막 질문 →」이라고 예고하고, 제목이 「질문 4장째 (모두 4장)」이라고
+ * 센다. 병원의 마지막 장(보호자 동반)도 같은 이유로 같은 방식이다.
  */
 function paginate(questions: QuestionDef[]): QuestionDef[][] {
   const pages: QuestionDef[][] = [];
   for (let i = 0; i < questions.length; i += 2) pages.push(questions.slice(i, i + 2));
-
-  const last = pages[pages.length - 1];
-  if (pages.length > 1 && last && last.length === 1 && last[0].kind === "number") {
-    pages.pop();
-    pages[pages.length - 1] = [...pages[pages.length - 1], ...last];
-  }
   return pages;
 }
 
@@ -77,12 +78,13 @@ export function ContextScreen({
   onReset,
   isRestored,
   restoredSavedAt,
+  answersSubmitted = false,
 }: ContextScreenProps) {
   const headingRef = useRef<HTMLHeadingElement>(null);
   const inputRefs = useRef<Record<string, HTMLElement | null>>({});
-  
+
   const [answers, setAnswers] = useState<AnyAnswers>(currentAnswers);
-  const [touched, setTouched] = useState<Set<string>>(() => initialTouched(currentAnswers));
+  const [touched, setTouched] = useState<Set<string>>(() => initialTouched(currentAnswers, answersSubmitted));
   const [showErrors, setShowErrors] = useState(false);
   const [pageIndex, setPageIndex] = useState(0);
 
@@ -104,18 +106,6 @@ export function ContextScreen({
   const pages = useMemo(() => paginate(questions), [questions]);
   const pageQuestions = pages[pageIndex] ?? [];
   const isLastPage = pageIndex >= pages.length - 1;
-
-  /**
-   * 질문이 셋인 장에서만 여백을 좁힌다. 그냥 두면 1280x800 에서 85px 넘친다(실측).
-   *
-   * 좁히는 것은 **상자 사이와 상자 안쪽 여백뿐**이다 — 글자 크기, 선택지 칸의
-   * 44px 터치 영역, 선택지 사이 간격은 하나도 건드리지 않는다. 거기를 줄이면
-   * 손 떨림이 있는 분이 옆 칸을 누르게 되고, 그게 이 화면이 지키는 것이다.
-   *
-   * 아끼는 값: 상자 안쪽 24→16px 셋 = 48 · 상자 사이 20→12px 셋 = 24 ·
-   * 제목과 폼 사이 20→12 = 8 · 버튼 줄 위 16→8 = 8. 합해서 88px 이라 85px 을 넘긴다.
-   */
-  const tight = pageQuestions.length > 2;
 
   /**
    * question id -> the engine's sentence, asked again on every change.
@@ -151,7 +141,7 @@ export function ContextScreen({
   useEffect(() => {
     headingRef.current?.focus();
     setAnswers(currentAnswers);
-    setTouched(initialTouched(currentAnswers));
+    setTouched(initialTouched(currentAnswers, answersSubmitted));
     setShowErrors(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -273,15 +263,21 @@ export function ContextScreen({
   };
 
   return (
-    <main className={`flex flex-col w-full ${tight ? "gap-3" : "gap-5"}`}>
+    <main className="flex flex-col w-full gap-4">
       {/* 몇 장 중 몇 번째인지를 제목 안에 넣는다. 끝이 안 보이는 질문지는 그만두게
           만든다. 장을 넘길 때마다 초점이 이 제목으로 오므로, 스크린리더는 새 장
-          번호를 제목과 함께 읽는다 — 따로 `aria-live` 를 둘 필요가 없다. */}
+          번호를 제목과 함께 읽는다 — 따로 `aria-live` 를 둘 필요가 없다.
+
+          ⚠️ 「3장 중 1장」이라고만 적지 않는다. 바로 위에 「1.상황 입력 2.추천 결과
+          3.최종 확인 4.실행 결과」 진행 칩이 있어서, 세는 대상이 없으면 그 넷 중
+          셋을 가리키는 말로 읽힌다 — 「3장 중 하나가 추천 결과라는 뜻이냐」고
+          실제로 물으셨다(팀장 지시, 2026-08-16). 그래서 **무엇을 세는지**를
+          말에 넣는다: 「질문 1장째 (모두 3장)」. */}
       <h1 ref={headingRef} tabIndex={-1} className="font-extrabold text-center focus-visible:outline-none" style={{ fontSize: "calc(2rem * var(--font-scale))" }}>
         {title}
         {pages.length > 1 && (
           <span className="font-bold opacity-80 ml-3 whitespace-nowrap" style={{ fontSize: "calc(1.2rem * var(--font-scale))" }}>
-            ({pages.length}장 중 {pageIndex + 1}장)
+            질문 {pageIndex + 1}장째 (모두 {pages.length}장)
           </span>
         )}
       </h1>
@@ -293,7 +289,7 @@ export function ContextScreen({
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className={`flex flex-col w-full ${tight ? "gap-3" : "gap-5"}`}>
+      <form onSubmit={handleSubmit} className="flex flex-col w-full gap-4">
         {pageQuestions.map((q) => {
           const errorMessage = missing[q.id];
           const isError = errorMessage !== undefined;
@@ -308,7 +304,7 @@ export function ContextScreen({
           if (q.kind === "number") {
             const inputId = `question-${q.id}`;
             return (
-              <section key={q.id} style={boxStyle} className={`border-2 rounded-2xl flex flex-col gap-2 transition-colors ${tight ? "p-4" : "p-5 md:p-6"} ${baseBorder}`}>
+              <section key={q.id} style={boxStyle} className={`border-2 rounded-2xl flex flex-col gap-2 transition-colors p-4 ${baseBorder}`}>
                 <div className="flex justify-between items-center">
                   <label htmlFor={inputId} className="font-bold cursor-pointer" style={{ fontSize: "calc(1.3rem * var(--font-scale))" }}>
                     {q.label}
@@ -348,7 +344,7 @@ export function ContextScreen({
               key={q.id}
               aria-describedby={isError ? `${q.id}-error` : undefined}
               style={boxStyle}
-              className={`border-2 rounded-2xl flex flex-col gap-2 transition-colors ${tight ? "p-4" : "p-5 md:p-6"} ${baseBorder}`}
+              className={`border-2 rounded-2xl flex flex-col gap-2 transition-colors p-4 ${baseBorder}`}
             >
               {/* legend 는 fieldset 의 첫 자식이어야 그룹 이름 노릇을 한다. div 로
                   감싸면 스크린리더가 "맵기는 어떻게 해드릴까요?" 를 잃고 선택지만
@@ -422,10 +418,10 @@ export function ContextScreen({
             1280x800 에서 60px 을 넘치게 만들었다(실측). 스크롤을 없애려고 장을
             나눈 것이므로 장당 한 줄로 합쳤다. 버튼 줄 위에 붙여 세로 여백도
             새로 만들지 않는다. */}
-        <div className={`flex flex-col gap-3 w-full ${tight ? "mt-2" : "mt-4"}`}>
+        <div className="flex flex-col gap-3 w-full mt-2">
           {pageQuestions.some((q) => unknowns.has(q.id)) && (
             <p role="status" className="font-bold opacity-90 break-keep leading-snug" style={{ fontSize: "calc(1rem * var(--font-scale))" }}>
-              모르겠다고 하신 것이 있습니다. 이대로 넘어가셔도 됩니다 — 마지막에 한 번 더 여쭙고, 직원을 부르실 수도 있습니다.
+              모르겠다고 답하신 것이 있습니다. 그대로 넘어가셔도 됩니다. 마지막에 한 번 더 여쭙고, 직원도 부르실 수 있습니다.
             </p>
           )}
         <div className="flex flex-col sm:flex-row gap-4 w-full">
@@ -468,7 +464,12 @@ export function ContextScreen({
               className="flex-1 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-4 transition-transform hover:scale-[1.02] active:scale-95 duration-200 motion-reduce:transition-none motion-reduce:transform-none disabled:opacity-50 disabled:hover:scale-100"
               style={{ minHeight: "calc(var(--tap-min) + 8px)", borderRadius: "var(--radius)", backgroundColor: primaryFill, color: "var(--color-bg)", fontSize: "calc(1.3rem * var(--font-scale))", fontWeight: "bold" }}
             >
-              다음 질문 →
+              {/* 다음이 마지막 장이면 그렇다고 미리 말한다. 이 버튼과 「추천 결과
+                  보기」는 같은 자리에 있어서, 같은 곳을 두 번 누르면 마지막 장이
+                  떴다가 그대로 넘어간다 — 닭강정집의 예산 칸과 병원의 보호자 동반이
+                  그렇게 지나쳐졌다(팀장 지시, 2026-08-16). 한 장 더 있다는 것을
+                  알고 누르면 눌린 다음 화면을 읽는다. */}
+              {pageIndex === pages.length - 2 ? "마지막 질문 →" : "다음 질문 →"}
             </button>
           )}
         </div>
@@ -481,10 +482,16 @@ export function ContextScreen({
 function offersUnknown(q: QuestionDef): boolean { return q.options.some((o) => o.value === "UNKNOWN"); }
 function asList(value: unknown): string[] { return Array.isArray(value) ? (value as string[]) : []; }
 function asNumberValue(value: unknown): number | string { return typeof value === "number" ? value : ""; }
-function initialTouched(answers: AnyAnswers): Set<string> {
+/**
+ * 여러 개 고르는 질문 중 사용자가 이미 손댄 것.
+ *
+ * 한 번 제출하고 돌아왔다면 **빈 배열도 손댄 것으로 본다.** 그때의 빈 배열은
+ * 시작값이 아니라 「없어요」라는 대답이기 때문이다(`answersSubmitted` 주석 참고).
+ */
+function initialTouched(answers: AnyAnswers, submitted: boolean): Set<string> {
   const touched = new Set<string>();
   for (const [key, value] of Object.entries(answers)) {
-    if (Array.isArray(value) && value.length > 0) touched.add(key);
+    if (Array.isArray(value) && (submitted || value.length > 0)) touched.add(key);
   }
   return touched;
 }
