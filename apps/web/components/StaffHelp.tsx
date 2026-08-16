@@ -154,7 +154,7 @@ export function StaffHelp({
             </p>
 
             {candidate && (
-              <div className={`font-bold border-y-2 py-4 text-center rounded-xl break-keep ${isHighContrast ? "border-white bg-transparent" : "border-black/10 bg-white/60"}`} style={{ fontSize: "calc(1.3rem * var(--font-scale))", color: isHighContrast ? "var(--color-accent)" : "var(--color-accent)" }}>
+              <div className={`font-bold border-y-2 py-4 text-center rounded-xl break-keep ${isHighContrast ? "border-white bg-transparent" : "border-black/10 bg-white/60"}`} style={{ fontSize: "calc(1.3rem * var(--font-scale))", color: "var(--color-accent)" }}>
                 보고 계신 {noun}: <span className="text-[1.1em]">{candidate.name}</span>
                 {/* Only the chicken shop prices anything; 0 means "no price", not free. */}
                 {candidate.priceKrw > 0 && ` · ${candidate.priceKrw.toLocaleString()}원`}

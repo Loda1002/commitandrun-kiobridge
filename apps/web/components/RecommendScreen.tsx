@@ -14,12 +14,14 @@ interface RecommendScreenProps {
   onBackToContext: () => void;
 }
 
-// [디자인] 환경별 점수 막대그래프 색상 (주황, 파랑, 초록). 600 계열이라
-// 흰 바탕에서 대비를 넘긴다. 고대비 모드에서는 --color-accent 를 쓴다.
+// [디자인] 환경별 점수 막대그래프 색상 (주황, 파랑, 초록). 시작 화면 카드의
+// 밝은 색과 색상은 같고 명도만 낮춘 값이라 흰 바탕에서 4.5:1 을 넘긴다.
+// 막대뿐 아니라 「NN점」 글자도 이 색을 쓰므로 밝은 쪽은 못 쓴다.
+// 고대비 모드에서는 --color-accent 를 쓴다.
 const PROGRESS_COLORS: Record<string, string> = {
-  "chicken-store": "#F98C42",
-  "hospital": "#51A3FA",
-  "public-office": "#A2E037",
+  "chicken-store": "#C35306",
+  "hospital": "#0773E7",
+  "public-office": "#5A8214",
 };
 
 export function RecommendScreen({ recView, environmentId, isHighContrast, onChoose, onBackToContext }: RecommendScreenProps) {
@@ -107,11 +109,18 @@ export function RecommendScreen({ recView, environmentId, isHighContrast, onChoo
       ) : (
         <div className={`p-8 text-center border-2 border-dashed rounded-2xl flex flex-col gap-3 ${isHighContrast ? "border-gray-400 bg-transparent text-[var(--color-fg)]" : "border-gray-400 bg-gray-50"}`}>
           <p className="font-bold" style={{ fontSize: "calc(1.2rem * var(--font-scale))" }}>조건에 맞는 {copy.noun}{subjectParticle(copy.noun)} 없습니다. 직원의 도움을 받아주세요.</p>
-          
-          {(recView.relaxationSuggestions || []).length > 0 && (
-            <div className="mt-2 flex flex-col gap-2">
-              {(recView.relaxationSuggestions || []).map((suggestion, idx) => (
-                <p key={idx} className="font-bold text-[var(--color-accent)]" style={{ fontSize: "calc(1.2rem * var(--font-scale))" }}>
+          {/* 조건을 얼마나 풀면 몇 개가 열리는지. 위 문장을 **대신하지 않는다** — 직원에게
+              가는 길은 언제나 남아 있어야 하고, 이 줄들은 그 옆에 붙는 제안이다.
+              문장은 엔진(relax.ts)이 쓴다. 숫자를 화면에서 다시 세면 6,000원에 5개라고
+              약속하고 4개를 내주게 된다.
+
+              색으로 구분하지 않는 이유: 강조색을 쓰면 이 상자 바탕에서 2.93:1 로
+              떨어진다(실측). 저시력 사용자가 주 사용자라 본문색을 그대로 쓰고, 구분은
+              구분선과 💡 가 한다 — 색을 못 보아도 읽히는 쪽이다. */}
+          {recView.relaxationSuggestions.length > 0 && (
+            <div className="mt-1 pt-3 border-t border-gray-400 flex flex-col gap-2">
+              {recView.relaxationSuggestions.map((suggestion, idx) => (
+                <p key={idx} className="font-bold" style={{ fontSize: "calc(1.2rem * var(--font-scale))" }}>
                   💡 {suggestion}
                 </p>
               ))}
