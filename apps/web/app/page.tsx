@@ -11,6 +11,7 @@ import {
   runPlan,
 } from "../lib/api";
 import { DEFAULT_ENVIRONMENT_ID } from "../lib/fixture";
+import { envColor } from "../lib/theme";
 import type {
   AnyAnswers,
   CandidateView,
@@ -36,26 +37,6 @@ import { ResultScreen } from "../components/ResultScreen";
 import { StaffHelp } from "../components/StaffHelp";
 
 const STEP_LABELS = ["상황 입력", "추천 결과", "최종 확인", "실행 결과"];
-
-/**
- * 환경별 강조색. 흰 바탕에서 4.5:1 을 넘긴다 (4.60 / 4.55 / 4.53, 실측).
- *
- * 시작 화면 카드가 쓰는 밝은 색(#F98C42 · #51A3FA)과 **색상은 같고 명도만 낮춘
- * 값**이다. 카드는 큰 면적이라 밝아도 되지만, 이 값은 **읽는 글자**에도 쓰인다 —
- * 진행 단계 칩의 흰 글씨와 추천 이유 상자의 제목이 그것이다. 밝은 쪽을 그대로
- * 쓰면 관공서가 흰 바탕에서 1.58:1 로 떨어져 글자가 사라진다(실측).
- * (관공서 카드는 2026-08-16 부터 이 진한 초록 #5A8214 을 그대로 쓴다.)
- *
- * ⚠️ 고대비 모드에서는 쓰지 않는다. 아래에서 이 값을 `--color-accent` 로 인라인
- * 선언하는데, 인라인 선언은 `globals.css` 의 `:root[data-contrast="high"]` 보다
- * 가까운 조상이라 노란색(#ffe600)을 덮어버린다. 실제로 덮여 있었다 — root 는
- * #ffe600 인데 버튼이 실제로 읽는 값은 #ea580c 였다.
- */
-const THEME_COLORS: Record<string, string> = {
-  "chicken-store": "#C35306",
-  hospital: "#0773E7",
-  "public-office": "#5A8214",
-};
 
 /**
  * 병원의 supportModes 배열에만 접근성 요청이 들어오므로 해당 필드만 엄격하게 검사합니다.
@@ -367,11 +348,18 @@ export default function Home() {
     />
   );
 
+  /**
+   * 강조색은 `lib/theme.ts` 의 환경색 하나를 그대로 쓴다. 시작 화면 카드와 같은
+   * 값이라 화면이 넘어가도 같은 주황·파랑이다(팀장 지시, 2026-08-16).
+   *
+   * ⚠️ 고대비 모드에서는 선언하지 않는다. 여기서 `--color-accent` 를 인라인으로
+   * 주면 `globals.css` 의 `:root[data-contrast="high"]` 보다 가까운 조상이라
+   * 노란색(#ffe600)을 덮어버린다. 실제로 덮여 있었다 — root 는 #ffe600 인데
+   * 버튼이 읽는 값은 #ea580c 였다.
+   */
   const accentStyle = isHighContrast
     ? undefined
-    : ({
-        "--color-accent": THEME_COLORS[environmentId] ?? THEME_COLORS["chicken-store"],
-      } as React.CSSProperties);
+    : ({ "--color-accent": envColor(environmentId) } as React.CSSProperties);
 
   return (
     <div

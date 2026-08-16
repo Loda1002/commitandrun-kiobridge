@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import type { EnvironmentId } from "@commitandrun/engine";
 import { ENVIRONMENTS } from "../lib/fixture";
+import { envColor } from "../lib/theme";
 
 interface StartScreenProps {
   onStart: (environmentId: EnvironmentId) => void;
@@ -11,9 +12,12 @@ interface StartScreenProps {
   onDeleteProfile: () => void;
 }
 
-// 스케치 형태에 맞춰 버튼 배경색(theme)과 흰색 SVG 아이콘 설정
-const ENV_CONFIG: Record<string, { icon: React.ReactNode; bgClass: string }> = {
-  "chicken-store": { 
+// 스케치 형태에 맞춘 흰색 SVG 아이콘.
+// 배경색은 여기에 두지 않는다 — `lib/theme.ts` 의 ENV_COLORS 하나만 쓴다.
+// 전에는 이 파일이 밝은 색(#F98C42 · #51A3FA)을, 다른 화면이 진한 색을 들고
+// 있어서 같은 가게가 화면마다 다른 주황으로 보였다(팀장 지시, 2026-08-16).
+const ENV_CONFIG: Record<string, { icon: React.ReactNode }> = {
+  "chicken-store": {
     icon: (
       <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7" />
@@ -22,10 +26,9 @@ const ENV_CONFIG: Record<string, { icon: React.ReactNode; bgClass: string }> = {
         <path d="M2 7h20" />
         <path d="M22 7v3a2 2 0 0 1-2 2v0a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 16 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 12 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 8 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 4 12v0a2 2 0 0 1-2-2V7" />
       </svg>
-    ), 
-    bgClass: "bg-[#F98C42]"
+    ),
   },
-  "hospital": { 
+  "hospital": {
     icon: (
       <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M12 6v4"/>
@@ -35,10 +38,9 @@ const ENV_CONFIG: Record<string, { icon: React.ReactNode; bgClass: string }> = {
         <path d="M20 22V10h-4"/>
         <path d="M2 22h20"/>
       </svg>
-    ), 
-    bgClass: "bg-[#51A3FA]"
+    ),
   },
-  "public-office": { 
+  "public-office": {
     icon: (
       <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <line x1="3" y1="22" x2="21" y2="22"/>
@@ -49,10 +51,6 @@ const ENV_CONFIG: Record<string, { icon: React.ReactNode; bgClass: string }> = {
         <polygon points="12 2 20 7 4 7"/>
       </svg>
     ),
-    // 관공서만 진한 초록이다. 밝은 연두(#A2E037)에서는 흰 글씨가 1.58:1 로 사실상
-    // 안 보였다(실측). 이 값은 화면 곳곳의 강조색(page.tsx THEME_COLORS)과 같은
-    // 색이라 톤도 맞는다.
-    bgClass: "bg-[#5A8214]"
   },
 };
 
@@ -75,9 +73,21 @@ export function StartScreen({ onStart, accessibilityBar, isHighContrast, onDelet
     <main className={`fixed inset-0 w-screen h-[100dvh] flex flex-col overflow-y-auto overflow-x-hidden pb-32 ${isHighContrast ? 'bg-black text-[var(--color-fg)]' : 'bg-[#EFEFEF] text-black'}`}>
 
       {/* 1. 상단 배너 */}
-      <header className={`w-full p-4 sm:px-8 relative flex flex-col xl:flex-row items-start xl:items-center justify-between gap-3 ${isHighContrast ? 'bg-black border-b-4 border-[var(--color-fg)]' : 'bg-white border-b-2 border-gray-300'}`}>
+      {/* ⚠️ 접근성 버튼 줄을 `absolute right-8` 로 띄우지 않는다. 흐름에서 빠지면
+          자리를 차지하지 않아, 큰 글씨 1.5배에서 버튼이 「어디에서 쓰실 건지」
+          문구 위로 348px 올라타 글자를 덮었다(1280px 실측). 지금은 보통의 flex
+          칸이고, 옆자리가 모자라면 `flex-wrap` 으로 아랫줄에 내려간다 —
+          겹치는 대신 배너가 한 줄 높아진다. */}
+      <header className={`w-full p-4 sm:px-8 relative flex flex-col xl:flex-row xl:flex-wrap items-start xl:items-center justify-between gap-3 ${isHighContrast ? 'bg-black border-b-4 border-[var(--color-fg)]' : 'bg-white border-b-2 border-gray-300'}`}>
 
-        <div className="text-left w-full flex-1 pl-2 sm:pl-4 flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-5">
+        {/* `items-baseline` 이 아니라 `items-center` 다(팀장 지시, 2026-08-16).
+            베이스라인에 맞추면 「안녕하세요!」(41.6px 한 줄)와 「어디에서…」
+            (18.4px 두 줄)의 **첫 줄 밑선**만 맞아, 두 줄짜리 문구가 통째로
+            아래로 처져 위아래가 어긋나 보인다. 가운데로 맞춘다.
+            `xl:basis-[30rem]` 은 아랫줄로 내려보내는 기준이다 — 인사말이 이만큼도
+            못 쓰게 되면 버튼 줄이 내려간다. `flex-1` 만 두면 기준 폭이 0 이라
+            영영 안 내려가고 인사말만 찌그러진다. */}
+        <div className="text-left w-full flex-1 xl:basis-[30rem] pl-2 sm:pl-4 flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-5">
           {/* 고대비 모드일 때는 선명한 글자색, 일반 모드일 때는 검정색 적용 */}
           <h1
             ref={headingRef}
@@ -101,8 +111,8 @@ export function StartScreen({ onStart, accessibilityBar, isHighContrast, onDelet
           </p>
         </div>
 
-        {/* 컨트롤 바 */}
-        <div className="xl:absolute xl:right-8 xl:top-1/2 xl:-translate-y-1/2">
+        {/* 컨트롤 바. `shrink-0` 이라 줄어들지 않고, 자리가 없으면 통째로 내려간다. */}
+        <div className="shrink-0">
           {accessibilityBar}
         </div>
       </header>
@@ -120,11 +130,13 @@ export function StartScreen({ onStart, accessibilityBar, isHighContrast, onDelet
               type="button"
               onClick={() => onStart(env.id)}
               /* 글자는 세 카드 모두 흰색으로 고정한다(팀장 지시, 2026-08-16).
-                 ⚠️ 대비는 카드마다 다르다 — 닭강정 2.37:1 · 병원 2.64:1 ·
-                 관공서 4.53:1 (실측). 앞의 둘은 WCAG AA 4.5:1 을 넘지 못한다.
-                 배경을 진한 색으로 내리면 셋 다 4.5:1 을 넘지만, 밝은 색을 쓰기로
-                 한 결정이라 그대로 둔다. 제출 README 의 대비 신고값도 이 숫자로
-                 적어 두었다 — 화면과 신고서가 어긋나지 않게 한다. */
+                 ⚠️ 대비는 카드마다 다르다 — 닭강정 3.26:1 · 병원 3.46:1 ·
+                 관공서 4.53:1. 앞의 둘은 WCAG AA 의 본문 기준 4.5:1 을 넘지
+                 못한다(카드 이름 41.6px·설명 19.2px 굵은 글씨는 큰 글씨 기준
+                 3:1 은 넘는다). 밝은 색(2.37 / 2.64:1)에서 중간색으로 올린
+                 결과이고, 더 올리려면 두 번째 화면 색까지 함께 진하게 내려야
+                 한다. 제출 README 의 대비 신고값도 이 숫자로 적어 두었다 —
+                 화면과 신고서가 어긋나지 않게 한다. */
               /* 크기를 한 단계 줄였다(팀장 지시, 2026-08-16). 다만 **작게 만들지는
                  않았다** — 이 카드는 저시력·손 떨림이 있는 분이 처음 누르는 곳이라
                  큰 표적이 그 자체로 기능이다. 아이콘 8.5→5rem, 이름 3.5→2.6rem,
@@ -134,8 +146,9 @@ export function StartScreen({ onStart, accessibilityBar, isHighContrast, onDelet
               className={`flex-1 w-full flex flex-col items-center justify-center rounded-[2.5rem] p-5 min-h-[12rem] transition-transform active:scale-95 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--color-fg)] focus-visible:ring-offset-4 ${
                 isHighContrast
                   ? 'border-4 border-[var(--color-fg)] bg-transparent text-[var(--color-fg)] hover:bg-[var(--color-fg)] hover:text-[var(--color-bg)]'
-                  : `${config.bgClass} text-white shadow-md hover:brightness-105`
+                  : 'text-white shadow-md hover:brightness-105'
               }`}
+              style={isHighContrast ? undefined : { backgroundColor: envColor(env.id) }}
             >
               <span aria-hidden="true" className="mb-4 stroke-[2.5]" style={{ fontSize: "calc(clamp(2.8rem, 6.5vw, 5rem) * var(--font-scale))" }}>
                 {config.icon}

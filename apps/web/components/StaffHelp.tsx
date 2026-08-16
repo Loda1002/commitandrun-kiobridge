@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import type { EnvironmentId } from "@commitandrun/engine";
 import { ENVIRONMENTS } from "../lib/fixture";
+import { envColor, envTint } from "../lib/theme";
 import type { AnyAnswers, CandidateView, QuestionDef } from "../lib/types";
 
 /**
@@ -239,9 +240,13 @@ export function StaffHelp({
                질문이 일곱이라 목록만으로 패널이 넘쳐, 정작 눌러야 하는 「직원
                부르기」가 스크롤 아래에 숨어 있었다(실측). 도움을 청하러 연 화면에서
                도움 버튼이 안 보이면 안 된다. */
+            /* 테두리·바탕도 지금 환경의 색이다. Tailwind 의 orange-500 을 그대로
+               두면 병원·관공서에서도 주황 패널이 뜨고, 닭강정집에서는 뒤에 깔린
+               화면과 다른 주황이 된다(팀장 지시, 2026-08-16). */
             className={`relative w-full max-w-2xl max-h-[90vh] overflow-hidden border-4 rounded-3xl flex flex-col shadow-2xl ${
-              isHighContrast ? "border-[var(--color-accent)] bg-black text-white" : "border-orange-500 bg-orange-50 text-gray-900"
+              isHighContrast ? "border-[var(--color-accent)] bg-black text-white" : "text-gray-900"
             }`}
+            style={isHighContrast ? undefined : { borderColor: envColor(environmentId), backgroundColor: envTint(environmentId) }}
           >
             <div className="overflow-y-auto p-6 md:p-8 flex flex-col gap-6">
             <h2 id="staff-help-title" ref={headingRef} tabIndex={-1} className="font-extrabold focus-visible:outline-none text-center break-keep" style={{ fontSize: "calc(1.8rem * var(--font-scale))" }}>

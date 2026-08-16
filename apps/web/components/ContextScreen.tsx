@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import type { EnvironmentId } from "@commitandrun/engine";
 import type { AnyAnswers, QuestionDef } from "../lib/types";
 import { findMissing, findUnknownRequired } from "../lib/api";
+import { envColor, envTint } from "../lib/theme";
 
 interface ContextScreenProps {
   questions: QuestionDef[];
@@ -18,11 +19,13 @@ interface ContextScreenProps {
   restoredSavedAt?: string | null;
 }
 
-const THEMES: Record<string, { border: string; selected: string }> = {
-  "chicken-store": { border: "border-orange-300", selected: "border-orange-500 bg-orange-50" },
-  "hospital": { border: "border-blue-300", selected: "border-blue-500 bg-blue-50" },
-  "public-office": { border: "border-emerald-300", selected: "border-emerald-500 bg-emerald-50" },
-};
+/**
+ * 질문 상자와 고른 선택지의 테두리는 `lib/theme.ts` 의 환경색 하나를 쓴다.
+ *
+ * 전에는 Tailwind 의 orange-300(#FFB86A) · blue-300 · emerald-300 이었다.
+ * 카드와 강조색을 한 색으로 합친 뒤에도 이 테두리만 밝은 채로 남아, 두 번째
+ * 화면에서 혼자 다른 색으로 보였다(팀장 지시, 2026-08-16).
+ */
 
 /**
  * 질문을 여러 장으로 나눈다 — 한 화면에 두 개씩.
@@ -63,7 +66,8 @@ export function ContextScreen({
   const [showErrors, setShowErrors] = useState(false);
   const [pageIndex, setPageIndex] = useState(0);
 
-  const theme = THEMES[environmentId] || THEMES["chicken-store"];
+  const themeColor = envColor(environmentId);
+  const themeTint = envTint(environmentId);
 
   const pages = useMemo(() => paginate(questions), [questions]);
   const pageQuestions = pages[pageIndex] ?? [];
@@ -250,14 +254,17 @@ export function ContextScreen({
           const errorMessage = missing[q.id];
           const isError = errorMessage !== undefined;
           
-          const baseBorder = isError 
-            ? (isHighContrast ? "border-red-400 bg-red-500/10" : "border-red-500 bg-red-50") 
-            : (isHighContrast ? "border-gray-600 bg-transparent" : theme.border);
+          const baseBorder = isError
+            ? (isHighContrast ? "border-red-400 bg-red-500/10" : "border-red-500 bg-red-50")
+            : (isHighContrast ? "border-gray-600 bg-transparent" : "");
+          // 환경색은 평상시에만 준다. 오류(빨강)와 고대비(회색)는 그 자체가
+          // 의미라서 환경색이 덮으면 안 된다.
+          const boxStyle = isError || isHighContrast ? undefined : { borderColor: themeColor };
 
           if (q.kind === "number") {
             const inputId = `question-${q.id}`;
             return (
-              <section key={q.id} className={`border-2 rounded-2xl p-5 md:p-6 flex flex-col gap-2 transition-colors ${baseBorder}`}>
+              <section key={q.id} style={boxStyle} className={`border-2 rounded-2xl p-5 md:p-6 flex flex-col gap-2 transition-colors ${baseBorder}`}>
                 <div className="flex justify-between items-center">
                   <label htmlFor={inputId} className="font-bold cursor-pointer" style={{ fontSize: "calc(1.3rem * var(--font-scale))" }}>
                     {q.label}
@@ -296,6 +303,7 @@ export function ContextScreen({
             <fieldset
               key={q.id}
               aria-describedby={isError ? `${q.id}-error` : undefined}
+              style={boxStyle}
               className={`border-2 rounded-2xl p-5 md:p-6 flex flex-col gap-2 transition-colors ${baseBorder}`}
             >
               {/* legend 는 fieldset 의 첫 자식이어야 그룹 이름 노릇을 한다. div 로
@@ -331,11 +339,15 @@ export function ContextScreen({
                 {options.map((opt, idx) => {
                   const inputId = `${q.id}-${opt.value}`;
                   const isChecked = isMulti ? (opt.value === "NONE" ? touched.has(q.id) && selected.length === 0 : selected.includes(opt.value)) : answers[q.id] === opt.value;
-                  const selectedClass = isHighContrast ? "border-[var(--color-accent)] bg-gray-800" : theme.selected;
+                  const selectedClass = isHighContrast ? "border-[var(--color-accent)] bg-gray-800" : "";
                   const unselectedClass = isHighContrast ? "border-gray-700 hover:border-gray-500 bg-transparent" : "border-gray-200 hover:border-gray-400 bg-transparent";
+                  // 고른 칸은 테두리가 환경색, 바탕이 그 색의 옅은 판이다.
+                  const selectedStyle = isChecked && !isHighContrast
+                    ? { borderColor: themeColor, backgroundColor: themeTint }
+                    : undefined;
 
                   return (
-                    <label key={opt.value} htmlFor={inputId} className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-colors ${isChecked ? selectedClass : unselectedClass}`} style={{ minHeight: "var(--tap-min)" }}>
+                    <label key={opt.value} htmlFor={inputId} className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-colors ${isChecked ? selectedClass : unselectedClass}`} style={{ minHeight: "var(--tap-min)", ...selectedStyle }}>
                       <input
                         ref={(el) => { if (idx === 0) inputRefs.current[q.id] = el; }}
                         id={inputId}

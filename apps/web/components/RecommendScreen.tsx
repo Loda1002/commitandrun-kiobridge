@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import type { EnvironmentId } from "@commitandrun/engine";
 import { environmentCopy } from "../lib/fixture";
+import { envColor, envTint } from "../lib/theme";
 import type { CandidateView, RecommendationView } from "../lib/types";
 import { subjectParticle } from "@commitandrun/engine/domain";
 
@@ -28,23 +29,18 @@ interface RecommendScreenProps {
   staffCalled?: boolean;
 }
 
-// [디자인] 환경별 강조색 (주황, 파랑, 초록). 시작 화면 카드의 밝은 색과 색상은
-// 같고 명도만 낮춘 값이라 흰 바탕에서 4.5:1 을 넘긴다.
+// [디자인] 환경별 강조색 (주황, 파랑, 초록)은 `lib/theme.ts` 하나에서 온다.
+// 여기에 같은 값을 다시 적어 두었다가 시작 화면과 다른 색으로 갈렸었다.
 // 2026-08-16 에 점수·막대를 주석 처리한 뒤로는 추천 카드 테두리와
 // 「💡 이렇게 골랐습니다」 상자의 제목·세로선이 이 값을 쓴다.
 // 고대비 모드에서는 --color-accent 를 쓴다.
-const PROGRESS_COLORS: Record<string, string> = {
-  "chicken-store": "#C35306",
-  "hospital": "#0773E7",
-  "public-office": "#5A8214",
-};
 
 export function RecommendScreen({ recView, environmentId, isHighContrast, onChoose, onBackToContext, unknownNotices = [], onCallStaff, staffCalled = false }: RecommendScreenProps) {
   const headingRef = useRef<HTMLHeadingElement>(null);
   useEffect(() => { headingRef.current?.focus(); }, []);
 
   const copy = environmentCopy(environmentId);
-  const barColor = isHighContrast ? "var(--color-accent)" : PROGRESS_COLORS[environmentId] || "var(--color-accent)";
+  const barColor = isHighContrast ? "var(--color-accent)" : envColor(environmentId);
 
   // [결함 방어] 세션 10/12 재확인 게이트 완벽 보존
   // 「모르겠어요」로 답한 필수 질문도 같은 문으로 들어온다. 엔진이 만든 되묻기와
@@ -62,8 +58,13 @@ export function RecommendScreen({ recView, environmentId, isHighContrast, onChoo
             저희가 짐작해서 정하면 원하지 않으신 쪽으로 진행됩니다. 직접 고르셔도 되고, 직원을 부르셔도 됩니다.
           </p>
         )}
+        {/* 되묻기 상자도 지금 환경의 색을 쓴다. Tailwind 의 orange-500
+            (#F97316)을 그대로 두면 병원·관공서에서도 주황 상자가 뜨고,
+            닭강정집에서는 한 화면에 주황이 둘이 된다.
+            ⚠️ 이 주석을 map 의 화살표 함수 반환 괄호 바로 다음 줄로 옮기지
+            말 것 — 그 자리에 JSX 주석이 오면 파싱이 깨진다. */}
         {recView.reconfirmRequests.map((request, idx) => (
-          <section key={idx} className={`border-4 rounded-2xl p-6 md:p-8 flex flex-col gap-4 ${isHighContrast ? "border-yellow-300 bg-transparent" : "border-orange-500 bg-orange-50 shadow-sm"}`}>
+          <section key={idx} className={`border-4 rounded-2xl p-6 md:p-8 flex flex-col gap-4 ${isHighContrast ? "border-yellow-300 bg-transparent" : "shadow-sm"}`} style={isHighContrast ? undefined : { borderColor: barColor, backgroundColor: envTint(environmentId) }}>
             <p className="font-extrabold" style={{ fontSize: "calc(1.5rem * var(--font-scale))" }}>{request.question}</p>
             <p className="opacity-90 font-medium" style={{ fontSize: "calc(1.1rem * var(--font-scale))" }}>{request.because}</p>
           </section>
