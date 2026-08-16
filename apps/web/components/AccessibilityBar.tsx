@@ -20,8 +20,9 @@ export function AccessibilityBar({
       {/* 큰 글씨 버튼: 시작 화면에서는 노란 배경/검정 글씨.
           ⚠️ 고대비 판정을 시작 화면 판정보다 **먼저** 본다. 순서를 뒤집으면 고대비를
           켠 채 시작 화면에 있을 때 이 분기가 이겨서 노란색이 그대로 남는다.
-          테두리를 두는 이유: 노랑(#FFE600)은 흰 머리띠 위에서 면 대비가 1.2:1 이라
-          버튼의 경계가 안 보인다. 글자 대비와 별개로 조작부 경계도 보여야 한다. */}
+          테두리는 팀장 지시로 뺐다(2026-08-16). 노랑(#FFE600)은 흰 머리띠 위에서
+          면 대비가 1.2:1 이라 경계가 흐려지므로, 대신 `shadow-md` 그림자가 경계를
+          맡는다. 글자 대비(검정 위 노랑, 15.9:1)는 테두리와 무관하게 그대로다. */}
       <button
         type="button"
         aria-label={`큰 글씨 (현재: ${fontScale}배)`}
@@ -30,7 +31,7 @@ export function AccessibilityBar({
           isHighContrast
             ? "bg-[var(--color-bg)] text-[var(--color-fg)] border-2 border-[var(--color-fg)]"
             : isStartScreen
-              ? "bg-[#FFE600] text-black border-4 border-black"
+              ? "bg-[#FFE600] text-black"
               : "bg-[var(--color-accent,#FFE600)] text-[var(--color-accent-fg,#000000)]"
         }`}
         style={{

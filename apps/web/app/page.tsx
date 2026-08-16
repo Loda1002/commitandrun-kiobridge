@@ -37,19 +37,18 @@ import { StaffHelp } from "../components/StaffHelp";
 const STEP_LABELS = ["상황 입력", "추천 결과", "최종 확인", "실행 결과"];
 
 /**
- * 환경별 강조색. 흰 바탕에서 4.5:1 을 넘긴다 (5.18 / 4.55 / 4.53, 실측).
+ * 환경별 강조색. 흰 바탕에서 4.5:1 을 넘긴다 (4.60 / 4.55 / 4.53, 실측).
  *
- * 시작 화면 카드가 쓰는 밝은 색(#F98C42 · #51A3FA · #A2E037)과 **색상은 같고
- * 명도만 낮춘 값**이다. 카드는 큰 면적이라 밝아도 되지만, 이 값은 포커스 링과
- * 점수 막대에 더해 **읽는 글자**에도 쓰인다 — 추천 카드의 「NN점」과 진행 단계
- * 칩의 흰 글씨가 그것이다. 밝은 쪽을 그대로 쓰면 관공서가 흰 바탕에서 1.58:1 로
- * 떨어져 숫자가 사라진다(실측).
+ * 시작 화면 카드가 쓰는 밝은 색(#F98C42 · #51A3FA)과 **색상은 같고 명도만 낮춘
+ * 값**이다. 카드는 큰 면적이라 밝아도 되지만, 이 값은 **읽는 글자**에도 쓰인다 —
+ * 진행 단계 칩의 흰 글씨와 추천 이유 상자의 제목이 그것이다. 밝은 쪽을 그대로
+ * 쓰면 관공서가 흰 바탕에서 1.58:1 로 떨어져 글자가 사라진다(실측).
+ * (관공서 카드는 2026-08-16 부터 이 진한 초록 #5A8214 을 그대로 쓴다.)
  *
  * ⚠️ 고대비 모드에서는 쓰지 않는다. 아래에서 이 값을 `--color-accent` 로 인라인
  * 선언하는데, 인라인 선언은 `globals.css` 의 `:root[data-contrast="high"]` 보다
  * 가까운 조상이라 노란색(#ffe600)을 덮어버린다. 실제로 덮여 있었다 — root 는
- * #ffe600 인데 버튼이 실제로 읽는 값은 #ea580c 였다. 고대비를 켜도 강조색만 평상시
- * 그대로였다는 뜻이고, 이 화면에서 강조색은 포커스 링과 점수 막대가 쓴다.
+ * #ffe600 인데 버튼이 실제로 읽는 값은 #ea580c 였다.
  */
 const THEME_COLORS: Record<string, string> = {
   "chicken-store": "#C35306",
@@ -341,7 +340,10 @@ export default function Home() {
 
   return (
     <div
-      className="min-h-screen flex flex-col p-4 sm:p-8 max-w-4xl mx-auto gap-8 w-full relative pb-24"
+      /* 위아래 여백을 32px 에서 20px 로 줄였다. 상황 입력이 한 화면에 들어가야
+         하는데(팀장 지시 2026-08-16) 1280x800 에서 30px 이 모자랐다. 좌우 여백은
+         그대로다. */
+      className="min-h-screen flex flex-col p-4 sm:px-8 sm:py-5 max-w-4xl mx-auto gap-6 w-full relative pb-24"
       style={accentStyle}
     >
       {statusMessage && (
@@ -435,9 +437,10 @@ export default function Home() {
           {currentStep === 3 && chosen && <ConfirmScreen candidate={chosen} selections={selections} environmentId={environmentId} isHighContrast={isHighContrast} onApprove={handleApprove} onBackToContext={handleBackToContext} />}
           {currentStep === 4 && runResult && <ResultScreen runResult={runResult} environmentId={environmentId} isHighContrast={isHighContrast} onReset={handleReset} onDeleteProfile={handleDeleteProfile} />}
 
-          <div className="mt-auto pt-6 border-t border-gray-300 w-full">
-            <StaffHelp questions={questions} answers={answers} answersSubmitted={recView !== null} candidate={chosen ?? recView?.recommended ?? null} environmentId={environmentId} isHighContrast={isHighContrast} />
-          </div>
+          {/* 감싸는 상자를 두지 않는다. 「직원 도움」 버튼은 `fixed` 로 떠 있어서
+              흐름에 자리를 차지하지 않는데, `mt-auto pt-6 border-t` 상자만 남아
+              모든 화면 아래에 빈 줄과 구분선을 57px 씩 그리고 있었다. */}
+          <StaffHelp questions={questions} answers={answers} answersSubmitted={recView !== null} candidate={chosen ?? recView?.recommended ?? null} environmentId={environmentId} isHighContrast={isHighContrast} />
         </>
       )}
     </div>

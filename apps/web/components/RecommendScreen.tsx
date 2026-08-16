@@ -14,9 +14,10 @@ interface RecommendScreenProps {
   onBackToContext: () => void;
 }
 
-// [디자인] 환경별 점수 막대그래프 색상 (주황, 파랑, 초록). 시작 화면 카드의
-// 밝은 색과 색상은 같고 명도만 낮춘 값이라 흰 바탕에서 4.5:1 을 넘긴다.
-// 막대뿐 아니라 「NN점」 글자도 이 색을 쓰므로 밝은 쪽은 못 쓴다.
+// [디자인] 환경별 강조색 (주황, 파랑, 초록). 시작 화면 카드의 밝은 색과 색상은
+// 같고 명도만 낮춘 값이라 흰 바탕에서 4.5:1 을 넘긴다.
+// 2026-08-16 에 점수·막대를 주석 처리한 뒤로는 추천 카드 테두리와
+// 「💡 이렇게 골랐습니다」 상자의 제목·세로선이 이 값을 쓴다.
 // 고대비 모드에서는 --color-accent 를 쓴다.
 const PROGRESS_COLORS: Record<string, string> = {
   "chicken-store": "#C35306",
@@ -57,17 +58,15 @@ export function RecommendScreen({ recView, environmentId, isHighContrast, onChoo
         맞춤형 추천 결과
       </h1>
 
-      {recView.requiresReconfirmation && (
-        <p className={`rounded-xl p-4 font-bold ${isHighContrast ? "border-2 border-yellow-300" : "bg-orange-50 border-2 border-orange-500"}`} style={{ fontSize: "calc(1.1rem * var(--font-scale))" }}>
-          ⚠️ 조건에 딱 맞는 {copy.noun}{subjectParticle(copy.noun)} 없어 확신이 높지 않습니다. 아래 내용을 한 번 더 확인해 주세요.
-        </p>
-      )}
-
       {recView.recommended ? (
         <section className={`border-2 rounded-2xl p-6 md:p-8 ${isHighContrast ? "" : "shadow-md"}`} style={{ borderColor: isHighContrast ? "var(--color-accent)" : barColor }}>
           <div className="flex justify-between items-end mb-6 border-b pb-4" style={{ borderColor: "var(--color-fg)" }}>
             <h2 className="font-extrabold" style={{ fontSize: "calc(1.8rem * var(--font-scale))" }}>{recView.recommended.name}</h2>
+            {/* [보류 2026-08-16] 「NN점」 숫자. 창업팀이 요청한 것은 「왜 추천됐는지」이고
+                점수는 요청한 적이 없어 뺐다. 지우지 않는 이유는 파이널데이(08.20)에
+                되살릴 수 있게 하기 위해서다 — 주석만 풀면 된다.
             <span className="font-extrabold" style={{ fontSize: "calc(1.8rem * var(--font-scale))", color: barColor }}>{Math.round(recView.recommended.total * 100)}점</span>
+            */}
           </div>
 
           {recView.recommended.blockedReason && (
@@ -75,6 +74,13 @@ export function RecommendScreen({ recView, environmentId, isHighContrast, onChoo
               ⚠️ {recView.recommended.blockedReason}
             </p>
           )}
+
+          {/* [보류 2026-08-16] 기준별 기여도 막대그래프 전체.
+              요구사항 정리서의 P0 어디에도 없고 창업팀 Q&A 에 「점수」「막대」라는
+              말이 한 번도 나오지 않는다. 「왜 추천됐는지」는 아래 이유 문장이 한다.
+              지우지 않는 이유는 파이널데이(08.20)에 되살릴 수 있게 하기 위해서다.
+              ⚠️ 되살릴 때: 안쪽의 `[디자인] motion-reduce 존중` 은 원래 JSX 주석이었다.
+              주석 안에 주석을 넣을 수 없어 평문으로 풀어 두었으니 다시 감쌀 것.
 
           <div className="flex flex-col gap-5 font-bold" style={{ fontSize: "calc(1.1rem * var(--font-scale))" }}>
             {recView.recommended.contributions.map((c, idx) => {
@@ -87,7 +93,7 @@ export function RecommendScreen({ recView, environmentId, isHighContrast, onChoo
                   <span className="w-32 sm:w-48 shrink-0 break-keep leading-snug">{c.label || "항목"}</span>
                   <div className="flex-1 flex items-center h-8">
                     <div className="h-full bg-gray-200 rounded-full overflow-hidden border border-gray-300" style={{ width: containerWidth }}>
-                      {/* [디자인] motion-reduce 존중 */}
+                      [디자인] motion-reduce 존중
                       <div className="h-full transition-all duration-700 ease-out motion-reduce:transition-none" style={{ width: fillWidth, backgroundColor: barColor }} />
                     </div>
                   </div>
@@ -96,12 +102,29 @@ export function RecommendScreen({ recView, environmentId, isHighContrast, onChoo
               );
             })}
           </div>
+          */}
 
+          {/* 「왜 이걸 골랐는지」를 담당하는 유일한 자리다. 막대를 뺀 뒤로는 더욱 그렇다.
+              강조색 제목과 왼쪽 굵은 세로선으로 이 상자를 눈에 띄게 한다(팀장 지시
+              2026-08-16). 이유 줄 사이에는 구분선을 둬서 문장이 몇 개인지 세어진다.
+              제목은 1.3rem 굵은 글씨(=20.8px)라 큰 글씨 기준이 적용돼 강조색으로도
+              3:1 을 넘긴다. 본문 문장은 강조색을 쓰지 않는다 — 회색 바탕에서
+              떨어진다. */}
           {recView.reasons && recView.reasons.length > 0 && (
-            <div className={`mt-8 p-5 rounded-xl ${isHighContrast ? "border border-gray-400" : "bg-gray-100"}`}>
-              <h3 className="font-bold mb-3" style={{ fontSize: "calc(1.3rem * var(--font-scale))" }}>💡 이렇게 골랐습니다</h3>
-              <ul className="flex flex-col gap-2 list-disc pl-5" style={{ fontSize: "calc(1.1rem * var(--font-scale))" }}>
-                {recView.reasons.map((reason, idx) => <li key={idx} className="opacity-90">{reason.text}</li>)}
+            <div
+              className={`mt-8 p-5 rounded-xl border-l-8 ${isHighContrast ? "border border-gray-400" : "bg-gray-100"}`}
+              style={{ borderLeftColor: isHighContrast ? "var(--color-accent)" : barColor }}
+            >
+              <h3 className="font-bold mb-3" style={{ fontSize: "calc(1.3rem * var(--font-scale))", color: isHighContrast ? "var(--color-accent)" : barColor }}>💡 이렇게 골랐습니다</h3>
+              <ul className="flex flex-col list-disc pl-5" style={{ fontSize: "calc(1.1rem * var(--font-scale))" }}>
+                {recView.reasons.map((reason, idx) => (
+                  <li
+                    key={idx}
+                    className={`opacity-90 py-2 border-b last:border-0 last:pb-0 ${isHighContrast ? "border-gray-600" : "border-gray-300"}`}
+                  >
+                    {reason.text}
+                  </li>
+                ))}
               </ul>
             </div>
           )}
@@ -138,10 +161,17 @@ export function RecommendScreen({ recView, environmentId, isHighContrast, onChoo
                 <div className="flex flex-col sm:flex-row sm:items-center gap-4 justify-between w-full">
                   <div className="flex flex-col gap-1">
                     <span className="font-bold" style={{ fontSize: "calc(1.3rem * var(--font-scale))" }}>{alt.name}</span>
-                    <span className="opacity-80 font-bold" style={{ fontSize: "calc(1.1rem * var(--font-scale))" }}>
-                      {/* [결함 방어] 가격은 있을 때만 표시 (0원은 공짜 오해 방지) */}
-                      {alt.priceKrw > 0 && `${alt.priceKrw.toLocaleString()}원 · `}{Math.round(alt.total * 100)}점
-                    </span>
+                    {/* [결함 방어] 가격은 있을 때만 표시 (0원은 공짜 오해 방지).
+                        점수를 뺀 뒤로는 줄 전체가 가격뿐이라, 가격이 없는 병원·관공서에서는
+                        빈 줄이 남지 않게 줄째로 그리지 않는다.
+                        [보류 2026-08-16] 「NN점」 은 추천 카드와 같은 이유로 뺐다. 되살릴 때는
+                        가격 뒤의 ` · ` 구분자와 이 조건부 렌더링도 함께 되돌릴 것 —
+                        원래는 `{alt.priceKrw > 0 && '…원 · '}{Math.round(alt.total * 100)}점` 이었다. */}
+                    {alt.priceKrw > 0 && (
+                      <span className="opacity-80 font-bold" style={{ fontSize: "calc(1.1rem * var(--font-scale))" }}>
+                        {alt.priceKrw.toLocaleString()}원
+                      </span>
+                    )}
                   </div>
                   {/* [결함 방어] 진행할 수 없는 경로에는 버튼을 내지 않는다. 직원 도움
                       경로는 일부러 안 걸러지므로 답변과 맞지 않아도 여기 올라온다 —

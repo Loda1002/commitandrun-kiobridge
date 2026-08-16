@@ -99,7 +99,11 @@ export function StaffHelp({
 
   return (
     <>
-      {/* 🚀 1. CSS로 부드럽게 둥둥 떠다니는 퀵메뉴 (JS 렉 완전 제거, 하단 여백/크기 대폭 확대) */}
+      {/* 1. 어느 화면에서나 오른쪽 아래 같은 자리에 떠 있는 버튼.
+          ⚠️ 튀는 애니메이션(`animate-bounce`)과 두 배 크기는 팀장 지시로 뺐다
+          (2026-08-16). 계속 움직이는 것은 저시력·인지 지원이 필요한 분에게
+          방해가 되고, 화면의 5분의 1을 덮고 있었다. 높이는 --tap-min + 8px 로
+          잡아 44px 기준은 그대로 넘긴다. */}
       {!isOpen && (
         <div className="fixed bottom-12 right-6 sm:right-8 md:right-12 z-40 w-max pointer-events-auto">
           <button
@@ -108,25 +112,18 @@ export function StaffHelp({
             onClick={() => setIsOpen(true)}
             aria-expanded={isOpen}
             aria-controls="staff-help-panel"
-            // 패딩을 p-6 에서 p-10 으로 늘려 내부 여백도 큼직하게 확보했습니다.
-            className="shadow-2xl focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2 transition-transform active:scale-95 flex flex-col items-center justify-center gap-4 p-6 animate-bounce motion-reduce:animate-none"
+            className="shadow-xl focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2 transition-transform active:scale-95 flex items-center justify-center px-6 py-3"
             style={{
-              // 수정 1: 버튼의 최소 너비/높이를 2배 이상으로 확 키웠습니다.
-              minWidth: "calc(var(--tap-min) * 2 + 60px)",
-              minHeight: "calc(var(--tap-min) * 2 + 35px)",
-              // 모서리가 예쁘게 둥글게 유지되도록 9999px로 설정했습니다.
+              minHeight: "calc(var(--tap-min) + 8px)",
               borderRadius: "9999px",
               backgroundColor: isHighContrast ? "var(--color-bg)" : "var(--color-fg)",
               color: isHighContrast ? "var(--color-fg)" : "var(--color-bg)",
               border: isHighContrast ? "4px solid var(--color-accent)" : "none",
-              animationDuration: "1s", 
             }}
           >
-            
-            <span 
-              className="font-extrabold text-center leading-tight mt-1" 
-              // 수정 2: 글씨 크기를 1.3rem 에서 2.6rem 으로 딱 2배 키웠습니다.
-              style={{ fontSize: "calc(2.6rem * var(--font-scale))" }}
+            <span
+              className="font-extrabold text-center leading-tight whitespace-nowrap"
+              style={{ fontSize: "calc(1.3rem * var(--font-scale))" }}
             >
               🙋 직원 도움
             </span>

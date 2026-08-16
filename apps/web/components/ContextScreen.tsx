@@ -24,6 +24,25 @@ const THEMES: Record<string, { border: string; selected: string }> = {
   "public-office": { border: "border-emerald-300", selected: "border-emerald-500 bg-emerald-50" },
 };
 
+/**
+ * 질문을 여러 장으로 나눈다 — 한 화면에 두 개씩.
+ *
+ * 스크롤을 없애는 것이 목적이다(팀장 지시 2026-08-16). 질문 7개를 한 화면에 세우면
+ * 1280x800 에서 세로로 두 배 넘게 넘쳐, 아래쪽 질문이 있는 줄도 모르고 지나가게
+ * 된다. 손 떨림이 있는 분에게 긴 스크롤은 그 자체가 장벽이다.
+ *
+ * 정확히 둘씩 끊는다. 닭강정집 7개는 2·2·2·1, 병원 5개는 2·2·1, 관공서 4개는 2·2.
+ * 마지막에 하나가 남으면 앞 장에 붙여 보았는데, 셋이 들어간 장이 1280x800 에서
+ * 81px 넘쳤다(실측). 팀장님 지시가 「예산 선택(공간이 되면)」이었으므로 안 되는
+ * 쪽을 택해 떼어 놓는다 — 스크롤을 없애는 것이 이 작업의 목적이다.
+ * 질문 수가 늘어도 이 함수만 보면 되고 화면 코드는 그대로다.
+ */
+function paginate(questions: QuestionDef[]): QuestionDef[][] {
+  const pages: QuestionDef[][] = [];
+  for (let i = 0; i < questions.length; i += 2) pages.push(questions.slice(i, i + 2));
+  return pages;
+}
+
 export function ContextScreen({
   questions,
   currentAnswers,
@@ -42,8 +61,13 @@ export function ContextScreen({
   const [answers, setAnswers] = useState<AnyAnswers>(currentAnswers);
   const [touched, setTouched] = useState<Set<string>>(() => initialTouched(currentAnswers));
   const [showErrors, setShowErrors] = useState(false);
+  const [pageIndex, setPageIndex] = useState(0);
 
   const theme = THEMES[environmentId] || THEMES["chicken-store"];
+
+  const pages = useMemo(() => paginate(questions), [questions]);
+  const pageQuestions = pages[pageIndex] ?? [];
+  const isLastPage = pageIndex >= pages.length - 1;
 
   /**
    * question id -> the engine's sentence, asked again on every change.
@@ -71,6 +95,19 @@ export function ContextScreen({
     setShowErrors(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // 환경이 바뀌어 질문 목록이 갈리면 첫 장부터 다시 시작한다.
+  useEffect(() => {
+    setPageIndex(0);
+    setShowErrors(false);
+  }, [questions]);
+
+  // 장을 넘길 때마다 제목으로 초점을 옮긴다. 화면이 통째로 바뀌었다는 것을
+  // 스크린리더가 읽어야 하고, 방금 누른 「다음」 버튼이 사라진 자리에 키보드 초점이
+  // 남아 있으면 안 된다.
+  useEffect(() => {
+    headingRef.current?.focus();
+  }, [pageIndex]);
 
   // 상태 유실을 방지하기 위해 onChange를 항상 최신 상태의 참조로 유지합니다.
   const onChangeRef = useRef(onChange);
@@ -108,18 +145,59 @@ export function ContextScreen({
     setAnswers((prev) => ({ ...prev, [id]: value.trim() === "" ? null : Number(value) }));
   };
 
+  /**
+   * 다음 장으로. 지금 장에 있는 질문만 검사한다 — 아직 보여 주지도 않은 뒷장
+   * 질문을 두고 「비어 있다」고 막으면, 사용자는 화면에 없는 것을 고치라는 말을
+   * 듣게 된다.
+   */
+  const goNext = () => {
+    const onThisPage = new Set(pageQuestions.map((q) => q.id));
+    const found = findMissing(answers, environmentId).filter((m) => onThisPage.has(m.id));
+
+    if (found.length > 0) {
+      setShowErrors(true);
+      inputRefs.current[found[0].id]?.focus();
+      return;
+    }
+
+    setShowErrors(false);
+    setPageIndex((i) => Math.min(i + 1, pages.length - 1));
+  };
+
+  const goPrev = () => {
+    setShowErrors(false);
+    setPageIndex((i) => Math.max(i - 1, 0));
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    // 숫자 칸에서 엔터를 치면 마지막 장이 아니어도 여기로 들어온다. 그때 제출까지
+    // 가 버리면 뒷장 질문을 건너뛴 채로 추천을 받는다.
+    if (!isLastPage) {
+      goNext();
+      return;
+    }
 
     // 필수 응답 검사. 어느 질문이 필수인지도, 답이 찼는지도 엔진이 정한다
     // — 화면이 직접 판정하면 화면과 제출본이 같은 답을 두고 다른 말을 하게 된다.
     // 무엇이 필수인지는 fixture 의 optionGroups[].required 가 정하므로, 환경이
     // 늘거나 fixture 가 바뀌어도 이 파일은 따라간다. (경위는 pm/22)
+    // 마지막 장에서는 **전체**를 다시 본다. 장마다 걸러 왔더라도, 뒷장에서 답을
+    // 바꾸면 앞장 답이 함께 풀리는 질문이 있기 때문이다(병원의 초진·예약·진료과).
     const found = findMissing(answers, environmentId);
 
     if (found.length > 0) {
       setShowErrors(true);
-      inputRefs.current[found[0].id]?.focus();
+      // 비어 있는 항목이 앞장에 있으면 그 장으로 되돌려 보낸다. 안 그러면 잠긴
+      // 이유가 화면에 없는 채로 버튼만 안 먹는다.
+      const target = pages.findIndex((page) => page.some((q) => q.id === found[0].id));
+      if (target >= 0 && target !== pageIndex) {
+        setPageIndex(target);
+        setTimeout(() => inputRefs.current[found[0].id]?.focus(), 0);
+      } else {
+        inputRefs.current[found[0].id]?.focus();
+      }
       return;
     }
 
@@ -135,20 +213,28 @@ export function ContextScreen({
   };
 
   return (
-    <main className="flex flex-col gap-8 w-full">
+    <main className="flex flex-col gap-5 w-full">
+      {/* 몇 장 중 몇 번째인지를 제목 안에 넣는다. 끝이 안 보이는 질문지는 그만두게
+          만든다. 장을 넘길 때마다 초점이 이 제목으로 오므로, 스크린리더는 새 장
+          번호를 제목과 함께 읽는다 — 따로 `aria-live` 를 둘 필요가 없다. */}
       <h1 ref={headingRef} tabIndex={-1} className="font-extrabold text-center focus-visible:outline-none" style={{ fontSize: "calc(2rem * var(--font-scale))" }}>
         {title}
+        {pages.length > 1 && (
+          <span className="font-bold opacity-80 ml-3 whitespace-nowrap" style={{ fontSize: "calc(1.2rem * var(--font-scale))" }}>
+            ({pages.length}장 중 {pageIndex + 1}장)
+          </span>
+        )}
       </h1>
 
       {isRestored && (
-        <div role="status" className={`border-2 rounded-2xl p-6 font-bold flex flex-col gap-2 ${isHighContrast ? "border-[var(--color-accent)]" : "border-blue-400 bg-blue-50 text-blue-900"}`} style={{ fontSize: "calc(1.1rem * var(--font-scale))" }}>
-          <p>지난번에 답하신 내용을 채워 두었습니다. 지금도 맞는지 확인해 주세요.</p>
-          {restoredSavedAt && <p className="opacity-70" style={{ fontSize: "calc(0.9rem * var(--font-scale))" }}>저장 일시: {restoredSavedAt}</p>}
+        <div role="status" className={`border-2 rounded-xl px-4 py-3 font-bold ${isHighContrast ? "border-[var(--color-accent)]" : "border-blue-400 bg-blue-50 text-blue-900"}`} style={{ fontSize: "calc(1.1rem * var(--font-scale))" }}>
+          지난번에 답하신 내용을 채워 두었습니다. 지금도 맞는지 확인해 주세요.
+          {restoredSavedAt && <span className="opacity-70 ml-2" style={{ fontSize: "calc(0.9rem * var(--font-scale))" }}>(저장: {restoredSavedAt.slice(0, 10)})</span>}
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="flex flex-col gap-8 w-full">
-        {questions.map((q) => {
+      <form onSubmit={handleSubmit} className="flex flex-col gap-5 w-full">
+        {pageQuestions.map((q) => {
           const errorMessage = missing[q.id];
           const isError = errorMessage !== undefined;
           
@@ -159,7 +245,7 @@ export function ContextScreen({
           if (q.kind === "number") {
             const inputId = `question-${q.id}`;
             return (
-              <section key={q.id} className={`border-2 rounded-2xl p-6 md:p-8 flex flex-col gap-4 transition-colors ${baseBorder}`}>
+              <section key={q.id} className={`border-2 rounded-2xl p-5 md:p-6 flex flex-col gap-2 transition-colors ${baseBorder}`}>
                 <div className="flex justify-between items-center">
                   <label htmlFor={inputId} className="font-bold cursor-pointer" style={{ fontSize: "calc(1.3rem * var(--font-scale))" }}>
                     {q.label}
@@ -198,7 +284,7 @@ export function ContextScreen({
             <fieldset
               key={q.id}
               aria-describedby={isError ? `${q.id}-error` : undefined}
-              className={`border-2 rounded-2xl p-6 md:p-8 flex flex-col gap-4 transition-colors ${baseBorder}`}
+              className={`border-2 rounded-2xl p-5 md:p-6 flex flex-col gap-2 transition-colors ${baseBorder}`}
             >
               {/* legend 는 fieldset 의 첫 자식이어야 그룹 이름 노릇을 한다. div 로
                   감싸면 스크린리더가 "맵기는 어떻게 해드릴까요?" 를 잃고 선택지만
@@ -217,8 +303,19 @@ export function ContextScreen({
                   드시면 안 되는 재료는 안전을 위해 매번 다시 여쭙니다.
                 </p>
               )}
-              {q.help && <p className="opacity-80 mb-2" style={{ fontSize: "calc(1rem * var(--font-scale))" }}>{q.help}</p>}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {q.help && <p className="opacity-80" style={{ fontSize: "calc(1rem * var(--font-scale))" }}>{q.help}</p>}
+              {/* 선택지가 많은 질문일수록 열을 늘려 줄 수를 줄인다. 알레르기 8칸을
+                  두 줄로 세우면 그것 하나로 375px 을 먹어 한 화면에 안 들어갔다.
+                  선택지가 서넛뿐인 질문은 글이 길어(「포장해서 가져갈게요」) 좁은
+                  칸에 넣으면 두 줄로 접히므로 열을 덜 늘린다. 좁은 화면에서는 어느
+                  경우든 한 줄에 하나씩이다 — 44px 터치 영역은 그대로다. */}
+              <div className={`grid gap-3 ${
+                options.length <= 3
+                  ? "grid-cols-1 sm:grid-cols-3"
+                  : options.length <= 6
+                    ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
+                    : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4"
+              }`}>
                 {options.map((opt, idx) => {
                   const inputId = `${q.id}-${opt.value}`;
                   const isChecked = isMulti ? (opt.value === "NONE" ? touched.has(q.id) && selected.length === 0 : selected.includes(opt.value)) : answers[q.id] === opt.value;
@@ -226,7 +323,7 @@ export function ContextScreen({
                   const unselectedClass = isHighContrast ? "border-gray-700 hover:border-gray-500 bg-transparent" : "border-gray-200 hover:border-gray-400 bg-transparent";
 
                   return (
-                    <label key={opt.value} htmlFor={inputId} className={`flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-colors ${isChecked ? selectedClass : unselectedClass}`} style={{ minHeight: "var(--tap-min)" }}>
+                    <label key={opt.value} htmlFor={inputId} className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-colors ${isChecked ? selectedClass : unselectedClass}`} style={{ minHeight: "var(--tap-min)" }}>
                       <input
                         ref={(el) => { if (idx === 0) inputRefs.current[q.id] = el; }}
                         id={inputId}
@@ -237,7 +334,7 @@ export function ContextScreen({
                         onChange={() => isMulti ? handleMultiChange(q, opt.value) : setValue(q.id, opt.value)}
                         className={`w-6 h-6 accent-[var(--color-accent)] focus-visible:ring-4 focus-visible:ring-[var(--color-accent)] focus-visible:outline-none ${isMulti ? "rounded" : ""}`}
                       />
-                      <span className="font-bold" style={{ fontSize: "calc(1.1rem * var(--font-scale))" }}>{opt.label}</span>
+                      <span className="font-bold break-keep" style={{ fontSize: "calc(1.1rem * var(--font-scale))" }}>{opt.label}</span>
                     </label>
                   );
                 })}
@@ -246,25 +343,53 @@ export function ContextScreen({
           );
         })}
 
+        {/* 왼쪽은 되돌아가는 길, 오른쪽은 나아가는 길. 자리를 장마다 바꾸지 않는다.
+            ⚠️ 진행 버튼의 잠김은 **지금 장에 보이는 질문**만 보고 정한다. 뒷장 질문
+            때문에 잠기면 화면에는 이유가 없는데 버튼만 안 먹는다. 전체 검사는
+            마지막 장의 제출에서 한다. */}
         <div className="flex flex-col sm:flex-row gap-4 w-full mt-4">
-          {onReset && (
+          {pageIndex === 0
+            ? onReset && (
+                <button
+                  type="button"
+                  onClick={onReset}
+                  className="flex-1 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-4 transition-transform hover:scale-[1.02] active:scale-95 duration-200 motion-reduce:transition-none motion-reduce:transform-none"
+                  style={{ minHeight: "calc(var(--tap-min) + 8px)", borderRadius: "var(--radius)", backgroundColor: "transparent", color: "var(--color-fg)", border: "2px solid var(--color-fg)", fontSize: "calc(1.3rem * var(--font-scale))", fontWeight: "bold" }}
+                >
+                  처음으로 가기
+                </button>
+              )
+            : (
+                <button
+                  type="button"
+                  onClick={goPrev}
+                  className="flex-1 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-4 transition-transform hover:scale-[1.02] active:scale-95 duration-200 motion-reduce:transition-none motion-reduce:transform-none"
+                  style={{ minHeight: "calc(var(--tap-min) + 8px)", borderRadius: "var(--radius)", backgroundColor: "transparent", color: "var(--color-fg)", border: "2px solid var(--color-fg)", fontSize: "calc(1.3rem * var(--font-scale))", fontWeight: "bold" }}
+                >
+                  ← 이전 질문
+                </button>
+              )}
+
+          {isLastPage ? (
+            <button
+              type="submit"
+              disabled={pageQuestions.some((q) => missing[q.id] !== undefined)}
+              className="flex-1 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-4 transition-transform hover:scale-[1.02] active:scale-95 duration-200 motion-reduce:transition-none motion-reduce:transform-none disabled:opacity-50 disabled:hover:scale-100"
+              style={{ minHeight: "calc(var(--tap-min) + 8px)", borderRadius: "var(--radius)", backgroundColor: "var(--color-fg)", color: "var(--color-bg)", fontSize: "calc(1.3rem * var(--font-scale))", fontWeight: "bold" }}
+            >
+              추천 결과 보기
+            </button>
+          ) : (
             <button
               type="button"
-              onClick={onReset}
-              className="flex-1 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-4 transition-transform hover:scale-[1.02] active:scale-95 duration-200 motion-reduce:transition-none motion-reduce:transform-none"
-              style={{ minHeight: "calc(var(--tap-min) + 8px)", borderRadius: "var(--radius)", backgroundColor: "transparent", color: "var(--color-fg)", border: "2px solid var(--color-fg)", fontSize: "calc(1.3rem * var(--font-scale))", fontWeight: "bold" }}
+              onClick={goNext}
+              disabled={pageQuestions.some((q) => missing[q.id] !== undefined)}
+              className="flex-1 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-4 transition-transform hover:scale-[1.02] active:scale-95 duration-200 motion-reduce:transition-none motion-reduce:transform-none disabled:opacity-50 disabled:hover:scale-100"
+              style={{ minHeight: "calc(var(--tap-min) + 8px)", borderRadius: "var(--radius)", backgroundColor: "var(--color-fg)", color: "var(--color-bg)", fontSize: "calc(1.3rem * var(--font-scale))", fontWeight: "bold" }}
             >
-              처음으로 가기
+              다음 질문 →
             </button>
           )}
-          <button
-            type="submit"
-            disabled={Object.keys(missing).length > 0}
-            className="flex-1 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-4 transition-transform hover:scale-[1.02] active:scale-95 duration-200 motion-reduce:transition-none motion-reduce:transform-none disabled:opacity-50 disabled:hover:scale-100"
-            style={{ minHeight: "calc(var(--tap-min) + 8px)", borderRadius: "var(--radius)", backgroundColor: "var(--color-fg)", color: "var(--color-bg)", fontSize: "calc(1.3rem * var(--font-scale))", fontWeight: "bold" }}
-          >
-            추천 결과 보기
-          </button>
         </div>
       </form>
     </main>

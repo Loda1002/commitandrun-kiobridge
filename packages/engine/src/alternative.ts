@@ -131,7 +131,12 @@ export function explainAlternative(result: EngineResult, candidateId: string): s
     // built while writing this, and matches no number any check prints.)
     // The bars really are identical and `tiebreak` separated them, so saying
     // anything about "why" would be inventing a reason the chart does not carry.
-    return "1등과 맞춘 조건이 같습니다. 막대만으로는 순위가 갈리지 않습니다.";
+    //
+    // 2026-08-16: 화면에서 막대그래프를 뺐으므로 문장에서도 「막대」를 뺀다. 뜻은
+    // 그대로다 — 맞춘 기준이 같아 점수로는 순위가 갈리지 않는다는 말이다. 화면에
+    // 없는 것을 가리키는 문장은 읽는 사람에게 없는 것을 찾게 만든다.
+    // 이 문자열은 제출 JSON 어디에도 들어가지 않는다(확인함). 정본 해시와 무관하다.
+    return "1등과 맞춘 조건이 같습니다. 맞춘 조건만으로는 순위가 갈리지 않습니다.";
   }
 
   if (worse.length === 0) {

@@ -68,8 +68,35 @@ body {
   transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
 }
 
-/* 
-  5. [접근성] 애니메이션 강제 정지 (작업 2-6)
+/*
+  5. [접근성] 포커스 표시 — 노란색 이중 링 (팀장 지시 2026-08-16)
+
+  키보드로 지금 어디에 있는지를 노란색으로 알립니다.
+
+  노랑(#ffe600) 하나만 쓰면 흰 바탕에서 1.07:1 이라 아예 보이지 않습니다. 그래서
+  노란 링 바깥에 검정 링을 한 겹 더 두릅니다 — 밝은 바탕에서는 바깥 검정이,
+  어두운 바탕과 컬러 카드 위에서는 안쪽 노랑이 경계를 만들어 어느 배경에서도
+  보입니다.
+
+  ⚠️ 각 컴포넌트에 붙어 있는 Tailwind 의 `focus-visible:ring-*` 유틸리티는
+  `@layer utilities` 안에 있고, 레이어에 속하지 않은 이 규칙이 그보다 뒤에
+  적용됩니다. 그래서 화면마다 달랐던 강조색 링을 이 한 곳이 덮습니다.
+  제목처럼 `tabindex="-1"` 로 초점만 받는 요소는 제외합니다 — 화면이 바뀔 때마다
+  제목 둘레에 링이 그려지면 안 됩니다.
+*/
+:root button:focus-visible,
+:root a:focus-visible,
+:root input:focus-visible,
+:root select:focus-visible,
+:root textarea:focus-visible,
+:root summary:focus-visible,
+:root [tabindex]:not([tabindex="-1"]):focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px #ffe600, 0 0 0 6px #1a1a1a;
+}
+
+/*
+  6. [접근성] 애니메이션 강제 정지 (작업 2-6)
   - OS 환경설정에서 '애니메이션 줄이기(prefers-reduced-motion)'를 켰을 때 
   어지럼증 유발을 막기 위해 모든 애니메이션, 트랜지션, 스크롤 효과를 차단합니다.
 */
