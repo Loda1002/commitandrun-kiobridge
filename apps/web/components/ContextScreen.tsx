@@ -34,15 +34,35 @@ interface ContextScreenProps {
  * 1280x800 에서 세로로 두 배 넘게 넘쳐, 아래쪽 질문이 있는 줄도 모르고 지나가게
  * 된다. 손 떨림이 있는 분에게 긴 스크롤은 그 자체가 장벽이다.
  *
- * 정확히 둘씩 끊는다. 닭강정집 7개는 2·2·2·1, 병원 5개는 2·2·1, 관공서 4개는 2·2.
- * 마지막에 하나가 남으면 앞 장에 붙여 보았는데, 셋이 들어간 장이 1280x800 에서
- * 81px 넘쳤다(실측). 팀장님 지시가 「예산 선택(공간이 되면)」이었으므로 안 되는
- * 쪽을 택해 떼어 놓는다 — 스크롤을 없애는 것이 이 작업의 목적이다.
- * 질문 수가 늘어도 이 함수만 보면 되고 화면 코드는 그대로다.
+ * 둘씩 끊되, **마지막에 혼자 남은 질문이 숫자 칸이면 앞 장에 붙인다.**
+ * 닭강정집 7개는 2·2·3(예산이 붙는다), 병원 5개는 2·2·1, 관공서 4개는 2·2 다.
+ *
+ * 왜 붙이는가. 혼자 남은 마지막 장은 사람이 보지 못하고 지나간다(팀장님이 실제로
+ * 그렇게 겪으셨다, 2026-08-16). 앞 장들이 두 문제씩이라 리듬이 생기는데 마지막
+ * 장만 한 문제라 화면이 휑하고, 「다음 질문 →」과 「추천 결과 보기」가 **같은
+ * 자리에** 있어서 같은 곳을 두 번 누르면 그 장이 떴다가 그대로 넘어간다.
+ *
+ * ⚠️ 왜 숫자 칸일 때만인가. 셋이 들어간 장은 1280x800 에서 넘친다 — 그래서
+ * 세션 31 이 떼어 놨던 것이고, 여백을 좁혀도(`tight`, 아래) 붙이는 질문이
+ * 무엇이냐에 따라 갈린다. 2026-08-16 실측:
+ *
+ *   닭강정 예산(숫자 한 칸)      붙이고 여백 좁힘 → 넘침 **0px**   ✅
+ *   병원 보호자 동반(선택지 그룹) 붙이고 여백 좁힘 → 넘침 **93px**  ❌
+ *
+ * 93px 이면 「추천 결과 보기」 버튼이 화면 아래로 내려간다. 도움을 받으러 온
+ * 화면에서 눌러야 할 버튼이 스크롤 밑에 숨는 것은 세션 31 이 직원 호출 버튼에서
+ * 이미 한 번 겪은 결함이다. 그래서 선택지 그룹은 붙이지 않는다.
+ * 숫자 칸은 선택지 격자가 없어 한 줄이라, 이 조건이 곧 「들어가는 모양」이다.
  */
 function paginate(questions: QuestionDef[]): QuestionDef[][] {
   const pages: QuestionDef[][] = [];
   for (let i = 0; i < questions.length; i += 2) pages.push(questions.slice(i, i + 2));
+
+  const last = pages[pages.length - 1];
+  if (pages.length > 1 && last && last.length === 1 && last[0].kind === "number") {
+    pages.pop();
+    pages[pages.length - 1] = [...pages[pages.length - 1], ...last];
+  }
   return pages;
 }
 
@@ -84,6 +104,18 @@ export function ContextScreen({
   const pages = useMemo(() => paginate(questions), [questions]);
   const pageQuestions = pages[pageIndex] ?? [];
   const isLastPage = pageIndex >= pages.length - 1;
+
+  /**
+   * 질문이 셋인 장에서만 여백을 좁힌다. 그냥 두면 1280x800 에서 85px 넘친다(실측).
+   *
+   * 좁히는 것은 **상자 사이와 상자 안쪽 여백뿐**이다 — 글자 크기, 선택지 칸의
+   * 44px 터치 영역, 선택지 사이 간격은 하나도 건드리지 않는다. 거기를 줄이면
+   * 손 떨림이 있는 분이 옆 칸을 누르게 되고, 그게 이 화면이 지키는 것이다.
+   *
+   * 아끼는 값: 상자 안쪽 24→16px 셋 = 48 · 상자 사이 20→12px 셋 = 24 ·
+   * 제목과 폼 사이 20→12 = 8 · 버튼 줄 위 16→8 = 8. 합해서 88px 이라 85px 을 넘긴다.
+   */
+  const tight = pageQuestions.length > 2;
 
   /**
    * question id -> the engine's sentence, asked again on every change.
@@ -241,7 +273,7 @@ export function ContextScreen({
   };
 
   return (
-    <main className="flex flex-col gap-5 w-full">
+    <main className={`flex flex-col w-full ${tight ? "gap-3" : "gap-5"}`}>
       {/* 몇 장 중 몇 번째인지를 제목 안에 넣는다. 끝이 안 보이는 질문지는 그만두게
           만든다. 장을 넘길 때마다 초점이 이 제목으로 오므로, 스크린리더는 새 장
           번호를 제목과 함께 읽는다 — 따로 `aria-live` 를 둘 필요가 없다. */}
@@ -261,7 +293,7 @@ export function ContextScreen({
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="flex flex-col gap-5 w-full">
+      <form onSubmit={handleSubmit} className={`flex flex-col w-full ${tight ? "gap-3" : "gap-5"}`}>
         {pageQuestions.map((q) => {
           const errorMessage = missing[q.id];
           const isError = errorMessage !== undefined;
@@ -276,7 +308,7 @@ export function ContextScreen({
           if (q.kind === "number") {
             const inputId = `question-${q.id}`;
             return (
-              <section key={q.id} style={boxStyle} className={`border-2 rounded-2xl p-5 md:p-6 flex flex-col gap-2 transition-colors ${baseBorder}`}>
+              <section key={q.id} style={boxStyle} className={`border-2 rounded-2xl flex flex-col gap-2 transition-colors ${tight ? "p-4" : "p-5 md:p-6"} ${baseBorder}`}>
                 <div className="flex justify-between items-center">
                   <label htmlFor={inputId} className="font-bold cursor-pointer" style={{ fontSize: "calc(1.3rem * var(--font-scale))" }}>
                     {q.label}
@@ -316,7 +348,7 @@ export function ContextScreen({
               key={q.id}
               aria-describedby={isError ? `${q.id}-error` : undefined}
               style={boxStyle}
-              className={`border-2 rounded-2xl p-5 md:p-6 flex flex-col gap-2 transition-colors ${baseBorder}`}
+              className={`border-2 rounded-2xl flex flex-col gap-2 transition-colors ${tight ? "p-4" : "p-5 md:p-6"} ${baseBorder}`}
             >
               {/* legend 는 fieldset 의 첫 자식이어야 그룹 이름 노릇을 한다. div 로
                   감싸면 스크린리더가 "맵기는 어떻게 해드릴까요?" 를 잃고 선택지만
@@ -390,7 +422,7 @@ export function ContextScreen({
             1280x800 에서 60px 을 넘치게 만들었다(실측). 스크롤을 없애려고 장을
             나눈 것이므로 장당 한 줄로 합쳤다. 버튼 줄 위에 붙여 세로 여백도
             새로 만들지 않는다. */}
-        <div className="flex flex-col gap-3 w-full mt-4">
+        <div className={`flex flex-col gap-3 w-full ${tight ? "mt-2" : "mt-4"}`}>
           {pageQuestions.some((q) => unknowns.has(q.id)) && (
             <p role="status" className="font-bold opacity-90 break-keep leading-snug" style={{ fontSize: "calc(1rem * var(--font-scale))" }}>
               모르겠다고 하신 것이 있습니다. 이대로 넘어가셔도 됩니다 — 마지막에 한 번 더 여쭙고, 직원을 부르실 수도 있습니다.

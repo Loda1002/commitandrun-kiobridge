@@ -127,6 +127,15 @@ export interface EnvironmentChoice {
   /** Heading on the approval screen. */
   confirmTitle: string;
   /**
+   * Heading on the result screen.
+   *
+   * The screen used to open with "실행 결과 및 안전 리포트", which is what the
+   * judges need to read, not the person standing at the kiosk. They need to know
+   * the thing they came to do is ready — and, right underneath, `boundaryNotice`
+   * tells them what was deliberately left undone.
+   */
+  doneTitle: string;
+  /**
    * What the run will and will not do, said on the approval screen.
    *
    * Every environment stops before something irreversible, and it is a
@@ -145,6 +154,7 @@ export const ENVIRONMENTS: EnvironmentChoice[] = [
     noun: "메뉴",
     description: "메뉴와 옵션을 골라 주문을 준비합니다. 결제는 하지 않습니다.",
     confirmTitle: "주문 최종 확인",
+    doneTitle: "주문 준비가 끝났습니다",
     boundaryNotice: "장바구니 담기까지만 진행되며, 결제는 하지 않습니다.",
   },
   {
@@ -153,6 +163,7 @@ export const ENVIRONMENTS: EnvironmentChoice[] = [
     noun: "접수 경로",
     description: "어디로 접수하실지 안내합니다. 증상을 묻거나 진료과를 판단하지 않습니다.",
     confirmTitle: "접수 내용 확인",
+    doneTitle: "접수 준비가 끝났습니다",
     boundaryNotice: "접수 내용 확인까지만 진행되며, 실제 접수는 직원이 진행합니다.",
   },
   {
@@ -161,6 +172,7 @@ export const ENVIRONMENTS: EnvironmentChoice[] = [
     noun: "민원 업무",
     description: "필요한 서류와 절차를 안내합니다. 자격이 되는지는 판단하지 않습니다.",
     confirmTitle: "신청 내용 확인",
+    doneTitle: "신청 준비가 끝났습니다",
     boundaryNotice: "신청 내용 확인까지만 진행되며, 신청·발급은 하지 않습니다.",
   },
 ];

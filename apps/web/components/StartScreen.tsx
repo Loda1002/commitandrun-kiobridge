@@ -80,14 +80,17 @@ export function StartScreen({ onStart, accessibilityBar, isHighContrast, onDelet
           겹치는 대신 배너가 한 줄 높아진다. */}
       <header className={`w-full p-4 sm:px-8 relative flex flex-col xl:flex-row xl:flex-wrap items-start xl:items-center justify-between gap-3 ${isHighContrast ? 'bg-black border-b-4 border-[var(--color-fg)]' : 'bg-white border-b-2 border-gray-300'}`}>
 
-        {/* `items-baseline` 이 아니라 `items-center` 다(팀장 지시, 2026-08-16).
-            베이스라인에 맞추면 「안녕하세요!」(41.6px 한 줄)와 「어디에서…」
-            (18.4px 두 줄)의 **첫 줄 밑선**만 맞아, 두 줄짜리 문구가 통째로
-            아래로 처져 위아래가 어긋나 보인다. 가운데로 맞춘다.
-            `xl:basis-[30rem]` 은 아랫줄로 내려보내는 기준이다 — 인사말이 이만큼도
-            못 쓰게 되면 버튼 줄이 내려간다. `flex-1` 만 두면 기준 폭이 0 이라
-            영영 안 내려가고 인사말만 찌그러진다. */}
-        <div className="text-left w-full flex-1 xl:basis-[30rem] pl-2 sm:pl-4 flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-5">
+        {/* 배너에는 서비스 이름만 남긴다(팀장 지시, 2026-08-16). 「안녕하세요!」와
+            「어디에서 쓰실 건지 골라 주세요 / 로그인은 필요하지 않습니다」는 뺐다.
+            누를 것이 카드 셋뿐인 화면에서 인사와 설명이 배너를 차지하고 있었다.
+            ⚠️ 화면에서 지운 안내는 `aria-label` 로 카드 묶음에 남겨 둔다(아래).
+            스크린리더로 오는 분은 제목 다음에 버튼 셋을 바로 만나므로, 무엇을
+            고르는 자리인지 들을 데가 없어진다.
+            `xl:basis-[16rem]` 은 접근성 버튼 줄을 아랫줄로 내려보내는 기준이다.
+            이름이 짧아져 30rem 을 잡아 둘 이유가 없어졌고, 좁혀 두면 큰 글씨
+            1.5배까지 버튼 줄이 같은 줄에 남는다. `flex-1` 만 두면 기준 폭이 0 이라
+            내려가지도 못하고 가로로 넘친다. */}
+        <div className="text-left w-full flex-1 xl:basis-[16rem] pl-2 sm:pl-4 flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-5">
           {/* 고대비 모드일 때는 선명한 글자색, 일반 모드일 때는 검정색 적용 */}
           <h1
             ref={headingRef}
@@ -95,20 +98,14 @@ export function StartScreen({ onStart, accessibilityBar, isHighContrast, onDelet
             className={`font-black focus-visible:outline-none whitespace-nowrap ${
               isHighContrast ? 'text-[var(--color-fg)]' : 'text-black'
             }`}
-            /* 4.6rem 에서 2.6rem 으로 내렸다(팀장 지시, 2026-08-16). 인사말이
-               1280x800 에서 배너 높이의 절반을 먹고 있었고, 정작 눌러야 하는
-               카드 셋이 그만큼 밀려 있었다. 인사는 장식이고 카드가 본문이다.
-               clamp 는 그대로 둔다 — 휴대폰 폭에서 `whitespace-nowrap` 과 만나면
+            /* 크기는 건드리지 않는다 — 1280px 에서 41.6 / 52 / 62.4px 이고,
+               이 숫자가 제출 신고서(participant-ux.json)에 그대로 적혀 있다.
+               clamp 도 그대로 둔다: 휴대폰 폭에서 `whitespace-nowrap` 과 만나면
                가로로 넘쳐 잘린다. */
             style={{ fontSize: "calc(clamp(1.8rem, 3.4vw, 2.6rem) * var(--font-scale))" }}
           >
-            안녕하세요!
+            KioBridge
           </h1>
-          <p className="opacity-85 font-bold" style={{ fontSize: "calc(1.15rem * var(--font-scale))" }}>
-            어디에서 쓰실 건지 골라 주세요.
-            <br />
-            로그인은 필요하지 않습니다.
-          </p>
         </div>
 
         {/* 컨트롤 바. `shrink-0` 이라 줄어들지 않고, 자리가 없으면 통째로 내려간다. */}
@@ -120,7 +117,7 @@ export function StartScreen({ onStart, accessibilityBar, isHighContrast, onDelet
       {/* 2. 메인 3등분 카드 영역.
           좁은 화면에서는 세로로 쌓는다 — 375px 폭에 셋을 나란히 두면 가로로 225px 이
           넘쳐서 세 번째 카드를 누를 수가 없었다(실측). */}
-      <section className="flex-1 w-full flex flex-col md:flex-row gap-4 p-4 sm:p-6 items-stretch">
+      <section aria-label="어디에서 쓰실 건지 골라 주세요. 로그인은 필요하지 않습니다." className="flex-1 w-full flex flex-col md:flex-row gap-4 p-4 sm:p-6 items-stretch">
         {ENVIRONMENTS.map((env) => {
           const config = ENV_CONFIG[env.id] || ENV_CONFIG["chicken-store"];
 

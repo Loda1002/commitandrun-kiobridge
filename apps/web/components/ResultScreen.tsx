@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import type { EnvironmentId } from "@commitandrun/engine";
 import { actionLabel, stateLabel, type RunView } from "../lib/types";
-import { ENVIRONMENTS, fixtureFor } from "../lib/fixture";
+import { ENVIRONMENTS, environmentCopy, fixtureFor } from "../lib/fixture";
 import evidence from "../public/simulation-evidence.json";
 
 type StepTarget = { kind: string; id: string; groupId?: string };
@@ -32,7 +32,8 @@ interface ResultScreenProps {
 
 export function ResultScreen({ runResult, environmentId, isHighContrast, onReset, onDeleteProfile }: ResultScreenProps) {
   const headingRef = useRef<HTMLHeadingElement>(null);
-  
+  const copy = environmentCopy(environmentId);
+
   useEffect(() => {
     headingRef.current?.focus();
   }, []);
@@ -57,15 +58,28 @@ export function ResultScreen({ runResult, environmentId, isHighContrast, onReset
 
   return (
     <main className="flex flex-col gap-8 w-full">
+      {/* 제목은 「실행 결과 및 안전 리포트」였다. 그것은 심사위원이 읽을 말이지
+          키오스크 앞에 선 사람이 읽을 말이 아니다(팀장 지시, 2026-08-16).
+          하러 온 일이 끝났다는 것을 먼저 말하고, 바로 아래에서 **무엇을 일부러
+          안 했는지**를 한 줄로 말한다. 뒤의 검사표와 증거는 그대로 남는다. */}
       <h1 ref={headingRef} tabIndex={-1} className="font-extrabold text-center focus-visible:outline-none" style={{ fontSize: "calc(2rem * var(--font-scale))" }}>
-        실행 결과 및 안전 리포트
+        {copy.doneTitle}
       </h1>
 
-      <section className={`border-2 rounded-2xl p-6 md:p-8 flex flex-col gap-4 ${isHighContrast ? "border-gray-400" : "border-gray-300 bg-white"}`}>
-        <h2 className="font-bold border-b pb-3" style={{ fontSize: "calc(1.4rem * var(--font-scale))" }}>
-          📋 실행 계획 ({runResult.plan.length}단계)
-        </h2>
-        <ol className="flex flex-col gap-3 font-bold" style={{ fontSize: "calc(1.1rem * var(--font-scale))" }}>
+      <p className="text-center font-bold break-keep leading-snug opacity-90" style={{ fontSize: "calc(1.2rem * var(--font-scale))" }}>
+        {copy.boundaryNotice}
+      </p>
+
+      {/* 10단계 실행 계획은 접어 둔다. 사람이 방금 화면에서 직접 고른 것을 기계
+          말투로 다시 늘어놓는 목록이라, 첫 화면에 있을 것이 아니다. 지우지는
+          않는다 — 「무엇을 시켰는지」를 감추지 않는 것이 이 서비스의 약속이고,
+          심사에서도 보는 자리다. */}
+      <details className={`border-2 rounded-2xl p-6 md:p-8 group ${isHighContrast ? "border-gray-400 bg-transparent" : "border-gray-300 bg-white"}`}>
+        <summary className="font-bold cursor-pointer list-none flex justify-between items-center gap-3 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--color-accent)] rounded-lg" style={{ fontSize: "calc(1.4rem * var(--font-scale))", minHeight: "var(--tap-min)" }}>
+          <span>📋 무엇을 시켰는지 보기 ({runResult.plan.length}단계)</span>
+          <span className="group-open:rotate-180 transition-transform">▼</span>
+        </summary>
+        <ol className="flex flex-col gap-3 font-bold mt-6 border-t pt-4" style={{ fontSize: "calc(1.1rem * var(--font-scale))", borderColor: "var(--color-fg)" }}>
           {runResult.plan.map((step, idx) => {
             const isLast = idx === runResult.plan.length - 1;
             return (
@@ -81,7 +95,7 @@ export function ResultScreen({ runResult, environmentId, isHighContrast, onReset
             );
           })}
         </ol>
-      </section>
+      </details>
 
       <section className={`border-4 rounded-2xl p-6 md:p-8 ${isHighContrast ? (runResult.validation.valid ? "border-green-400 bg-transparent" : "border-red-400 bg-transparent") : (runResult.validation.valid ? "border-green-600 bg-green-50 shadow-md" : "border-red-600 bg-red-50 shadow-md")}`}>
         <h2 className={`font-extrabold mb-2 ${isHighContrast ? (runResult.validation.valid ? "text-green-400" : "text-red-400") : (runResult.validation.valid ? "text-green-800" : "text-red-800")}`} style={{ fontSize: "calc(1.8rem * var(--font-scale))" }}>
