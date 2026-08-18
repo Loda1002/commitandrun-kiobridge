@@ -71,6 +71,31 @@ export function ResultScreen({ runResult, environmentId, isHighContrast, onReset
         {copy.boundaryNotice}
       </p>
 
+      {/* 이용을 끝내는 두 버튼은 **점선 위에** 둔다.
+
+          바로 아래 점선에 「여기까지가 이용하시는 데 필요한 내용입니다」라고 써 놓고,
+          정작 이용을 끝내는 버튼은 그 아래 심사용 블록 셋을 지나 1,214px 에 있었다
+          (2026-08-18 실측). 써 놓은 말과 배치가 반대였다. 올리면 그 문장이 사실이
+          된다 — 심사위원용 자료는 그대로 아래에 남으니 잃는 것이 없다.
+
+          「저장된 정보 지우기」도 같이 올린다. 내 정보를 지우는 것은 이용하러 오신
+          분이 하는 일이지 심사위원이 하는 일이 아니다. 혼자 점선 아래 남으면 같은
+          문장이 그 버튼에 대해 다시 거짓이 된다. */}
+      <div className="flex flex-col gap-2">
+        <button type="button" onClick={onReset} className="w-full focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-4 transition-transform hover:scale-[1.02] active:scale-95 duration-200 motion-reduce:transition-none motion-reduce:transform-none" style={{ minHeight: "calc(var(--tap-min) + 8px)", borderRadius: "var(--radius)", backgroundColor: "transparent", color: "var(--color-fg)", border: "2px solid var(--color-fg)", fontSize: "calc(1.2rem * var(--font-scale))", fontWeight: "bold" }}>
+          처음으로 돌아가기
+        </button>
+
+        <button 
+          type="button" 
+          onClick={onDeleteProfile} 
+          className="w-full underline font-medium hover:text-[var(--color-accent)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--color-accent)]" 
+          style={{ minHeight: "var(--tap-min)", fontSize: "calc(1.1rem * var(--font-scale))", padding: "0.5rem" }}
+        >
+          저장된 정보 지우기
+        </button>
+      </div>
+
       {/* 여기서 화면이 둘로 갈린다. 위는 하러 오신 일이 끝났다는 말이고, 아래는
           그 일을 저희가 어떻게 했는지 펼쳐 놓은 자리다 — 실행 계획·자체 안전
           검사·공식 시뮬레이터 증거 셋 다 심사와 검증을 위한 것이지, 키오스크 앞에
@@ -126,11 +151,31 @@ export function ResultScreen({ runResult, environmentId, isHighContrast, onReset
         </ol>
       </details>
 
-      <section className={`border-4 rounded-2xl p-6 md:p-8 ${isHighContrast ? (runResult.validation.valid ? "border-green-400 bg-transparent" : "border-red-400 bg-transparent") : (runResult.validation.valid ? "border-green-600 bg-green-50 shadow-md" : "border-red-600 bg-red-50 shadow-md")}`}>
-        <h2 className={`font-extrabold mb-2 ${isHighContrast ? (runResult.validation.valid ? "text-green-400" : "text-red-400") : (runResult.validation.valid ? "text-green-800" : "text-red-800")}`} style={{ fontSize: "calc(1.8rem * var(--font-scale))" }}>
-          {runResult.validation.valid ? "✅ 자체 안전 검사 결과" : "❌ 안전 검사 실패 (위험)"}
-        </h2>
-        <p className="opacity-80 mb-6 font-medium" style={{ fontSize: "calc(1rem * var(--font-scale))" }}>
+      {/* 이 블록도 접어 둔다. 점선 아래 심사·검증용 블록 셋 중 이것만 펼쳐져
+          있어서, 결과 화면 1,358px 중 449px 을 혼자 쓰고 있었다(2026-08-18 실측).
+          셋이 같은 모양으로 접히면 어디부터 보면 되는지가 한눈에 잡힌다.
+
+          ⚠️ **접되 결과는 접힌 채로 보이게 한다.** 제목 옆 PASS/FAIL 배지가 그
+          자리다. 심사위원이 열어 보지 않아도 통과 여부는 읽히고, 항목별로 보고
+          싶은 사람만 연다. 배지가 없으면 접는 순간 「검사했다」는 사실만 남고
+          「통과했다」가 사라진다.
+
+          ⚠️ **실패하면 펼친 채로 연다**(open={!valid}). 문제가 있다는 말을 접어
+          두는 것은 이 서비스가 하지 않기로 한 일이다. */}
+      <details
+        open={!runResult.validation.valid}
+        className={`border-4 rounded-2xl p-6 md:p-8 group ${isHighContrast ? (runResult.validation.valid ? "border-green-400 bg-transparent" : "border-red-400 bg-transparent") : (runResult.validation.valid ? "border-green-600 bg-green-50 shadow-md" : "border-red-600 bg-red-50 shadow-md")}`}
+      >
+        <summary className={`font-extrabold cursor-pointer list-none flex flex-wrap justify-between items-center gap-3 focus-visible:outline-none rounded-lg ${isHighContrast ? (runResult.validation.valid ? "text-green-400" : "text-red-400") : (runResult.validation.valid ? "text-green-800" : "text-red-800")}`} style={{ fontSize: "calc(1.4rem * var(--font-scale))", minHeight: "var(--tap-min)" }}>
+          <span>{runResult.validation.valid ? "✅ 자체 안전 검사 결과" : "❌ 안전 검사 실패 (위험)"}</span>
+          <span className="flex items-center gap-3">
+            <span className={`px-3 py-1 rounded-lg ${isHighContrast ? (runResult.validation.valid ? "bg-green-400 text-black" : "bg-red-400 text-black") : (runResult.validation.valid ? "bg-green-600 text-white" : "bg-red-600 text-white")}`} style={{ fontSize: "calc(1.1rem * var(--font-scale))" }}>
+              {runResult.validation.valid ? "이상 없음 (PASS)" : "문제 있음 (FAIL)"}
+            </span>
+            <span className="group-open:rotate-180 transition-transform">▼</span>
+          </span>
+        </summary>
+        <p className="opacity-80 mt-6 mb-6 font-medium" style={{ fontSize: "calc(1rem * var(--font-scale))" }}>
           방금 만든 순서를 저희 안전 규칙과 하나씩 맞춰 본 결과입니다. 공식 시뮬레이터 검사는 아래에 따로 있습니다.
         </p>
         <ul className="flex flex-col gap-6 font-bold" style={{ fontSize: "calc(1.2rem * var(--font-scale))" }}>
@@ -162,7 +207,7 @@ export function ResultScreen({ runResult, environmentId, isHighContrast, onReset
             </span>
           </li>
         </ul>
-      </section>
+      </details>
 
       <details className={`border-2 rounded-2xl p-6 md:p-8 group ${isHighContrast ? "border-gray-400 bg-transparent" : "border-gray-300 bg-gray-50"}`}>
         {/* `minHeight` 은 위의 「무엇을 시켰는지 보기」와 같은 이유로 명시한다.
@@ -179,10 +224,23 @@ export function ResultScreen({ runResult, environmentId, isHighContrast, onReset
           <p className="opacity-80 font-medium" style={{ fontSize: "calc(1rem * var(--font-scale))" }}>
             {EVIDENCE_DATE}에 <strong>{EVIDENCE_ENVIRONMENT_NAME}</strong> 제출본을 공식 시뮬레이터로
             돌려 본 기록입니다. 아래 값은 그때 나온 파일에서 그대로 읽어 옵니다.
-            <a href="/simulation-evidence.json" target="_blank" rel="noopener noreferrer" className={`ml-2 underline font-bold ${isHighContrast ? "text-yellow-300" : "text-blue-700"}`}>
-              [원본 JSON 파일 보기]
-            </a>
           </p>
+
+          {/* 문단 안에 낀 글자 링크였다. 세로 19px 이라 배포본 전체에서 **44px 터치
+              기준에 못 미치는 유일한 자리**였다(2026-08-18 실측). 덱 8쪽에 「모든
+              버튼 44px 이상」이라고 적어 둔 이상 여기 하나가 그 문장을 거짓으로
+              만든다. 문단에서 꺼내 테두리를 두른 44px 상자로 세운다.
+              「(새 창)」을 붙이는 이유는 새 탭에서 열리기 때문이다 — 화살표만
+              그려 두면 스크린리더가 읽어 주지 못한다. */}
+          <a
+            href="/simulation-evidence.json"
+            target="_blank"
+            rel="noopener noreferrer"
+            className={`self-start inline-flex items-center justify-center px-5 font-bold focus-visible:outline-none ${isHighContrast ? "text-yellow-300" : "text-blue-700"}`}
+            style={{ minHeight: "var(--tap-min)", borderRadius: "var(--radius)", border: "2px solid currentColor", fontSize: "calc(1rem * var(--font-scale))" }}
+          >
+            원본 JSON 파일 보기 (새 창)
+          </a>
 
           <ul className="flex flex-col gap-3 font-medium mt-2" style={{ fontSize: "calc(1.1rem * var(--font-scale))" }}>
             {EVIDENCE_ROWS.map(([key, value], idx) => (
@@ -197,19 +255,6 @@ export function ResultScreen({ runResult, environmentId, isHighContrast, onReset
           </ul>
         </div>
       </details>
-
-      <button type="button" onClick={onReset} className="w-full mt-4 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-4 transition-transform hover:scale-[1.02] active:scale-95 duration-200 motion-reduce:transition-none motion-reduce:transform-none" style={{ minHeight: "calc(var(--tap-min) + 8px)", borderRadius: "var(--radius)", backgroundColor: "transparent", color: "var(--color-fg)", border: "2px solid var(--color-fg)", fontSize: "calc(1.2rem * var(--font-scale))", fontWeight: "bold" }}>
-        처음으로 돌아가기
-      </button>
-
-      <button 
-        type="button" 
-        onClick={onDeleteProfile} 
-        className="w-full mt-2 underline font-medium hover:text-[var(--color-accent)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--color-accent)]" 
-        style={{ minHeight: "var(--tap-min)", fontSize: "calc(1.1rem * var(--font-scale))", padding: "0.5rem" }}
-      >
-        저장된 정보 지우기
-      </button>
     </main>
   );
 }
