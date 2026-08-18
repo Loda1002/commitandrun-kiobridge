@@ -53,3 +53,29 @@ export function envTint(environmentId: EnvironmentId | string): string {
   });
   return `#${mixed.join("")}`;
 }
+
+/**
+ * 옅은 회색 상자 위에 놓이는 **글자**용 진한 값. 지금은 추천 화면의
+ * 「💡 이렇게 골랐습니다」 제목 하나가 쓴다.
+ *
+ * 환경색을 그대로 글자에 쓰면 그 상자(#F3F4F6) 위에서 닭강정이 **2.96:1** 로
+ * 떨어진다 — 배포본 전체에서 대비 기준(큰 굵은 글씨 3:1)에 걸린 유일한
+ * 글자였다(2026-08-18 실측). 하필 「왜 이걸 골랐는지」를 여는 제목이다.
+ *
+ * ⚠️ `ENV_COLORS` 는 **건드리지 않는다.** 시작 화면 카드의 흰 글씨 대비
+ * 3.26 / 3.46 / 4.53 은 제출한 `participant-ux.json` 과 README 에 신고된 값이고
+ * 08-16 이후로 고칠 수 없다. 이 함수는 환경색에서 **파생한 글자 전용 색**이라
+ * 신고값과 어긋나지 않는다. 테두리·세로선은 그대로 환경색을 쓴다.
+ *
+ * 만드는 법은 환경색에 0.75 를 곱하는 것 하나다. 같은 색을 어둡게 한 것이라
+ * 화면이 다른 색으로 보이지 않는다. 회색 상자 위 대비는 4.86 / 5.14 / 6.36 이다.
+ */
+export function envHeadingColor(environmentId: EnvironmentId | string): string {
+  const hex = envColor(environmentId).slice(1);
+  const darker = [0, 2, 4].map((i) =>
+    Math.round(parseInt(hex.slice(i, i + 2), 16) * 0.75)
+      .toString(16)
+      .padStart(2, "0"),
+  );
+  return `#${darker.join("")}`;
+}
