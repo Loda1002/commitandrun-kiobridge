@@ -108,3 +108,56 @@ body {
     scroll-behavior: auto !important;
   }
 }
+
+/*
+  7. [접근성] 스크롤 막대를 눈에 보이게 (팀장 지시 2026-08-18)
+
+  브라우저 기본 스크롤 막대는 가늘고 흐려서 「아래에 더 있다」는 신호가 되지
+  못합니다. 진행 버튼을 화면 아래에 고정한 뒤로는 더 그렇습니다 — 화면이 꽉 차
+  보여서 내려갈 것이 남았다는 사실 자체가 안 보입니다.
+
+  주 사용자가 저시력·손 떨림이 있는 분이라 막대를 14px 로 굵히고 손잡이를 진하게
+  칠했습니다. 보이는 것과 **잡히는 것**이 둘 다 필요합니다.
+  고대비에서는 손잡이가 강조색(노랑)이라 검은 바탕에서 확실히 보입니다.
+*/
+:root {
+  --scroll-track: #e5e7eb;
+  --scroll-thumb: #6b7280;
+  --scroll-thumb-hover: #374151;
+}
+:root[data-contrast="high"] {
+  --scroll-track: #1a1a1a;
+  --scroll-thumb: var(--color-accent);
+  --scroll-thumb-hover: #ffffff;
+}
+
+/*
+  ⚠️ 표준 속성(scrollbar-width · scrollbar-color)을 그냥 쓰면 안 됩니다. 크롬은
+  둘 중 하나라도 지정돼 있으면 아래 ::-webkit-scrollbar 규칙을 **통째로 무시**하고
+  기본 막대로 돌아갑니다(2026-08-18 실측: 굵기 0px = 겹쳐 뜨는 막대).
+  그래서 표준 속성은 ::-webkit-scrollbar 를 모르는 브라우저(파이어폭스)에만 줍니다.
+*/
+@supports not selector(::-webkit-scrollbar) {
+  html {
+    scrollbar-width: auto;
+    scrollbar-color: var(--scroll-thumb) var(--scroll-track);
+  }
+}
+
+/* 크롬 · 엣지 · 사파리 */
+::-webkit-scrollbar {
+  width: 14px;
+  height: 14px;
+}
+::-webkit-scrollbar-track {
+  background: var(--scroll-track);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--scroll-thumb);
+  border-radius: 999px;
+  /* 테두리를 트랙 색으로 둘러 손잡이가 알약처럼 보이게 합니다. */
+  border: 3px solid var(--scroll-track);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scroll-thumb-hover);
+}

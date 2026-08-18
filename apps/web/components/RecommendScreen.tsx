@@ -6,6 +6,7 @@ import { environmentCopy } from "../lib/fixture";
 import { envColor, envHeadingColor, envTint } from "../lib/theme";
 import type { CandidateView, RecommendationView } from "../lib/types";
 import { subjectParticle } from "@commitandrun/engine/domain";
+import { StickyActions } from "./StickyActions";
 
 interface RecommendScreenProps {
   recView: RecommendationView;
@@ -91,7 +92,11 @@ export function RecommendScreen({ recView, environmentId, isHighContrast, onChoo
       {/* 「맞춤형 추천 결과」였다. 광고 문구처럼 읽혀서 뺐다(팀장 지시,
           2026-08-16) — 무엇을 골랐는지는 바로 아래 카드가 말하고, 왜 골랐는지는
           「이렇게 골랐습니다」가 말한다. 제목은 위의 진행 칩과 같은 말이면 된다. */}
-      <h1 ref={headingRef} tabIndex={-1} className="font-extrabold text-center focus-visible:outline-none" style={{ fontSize: "calc(2rem * var(--font-scale))" }}>
+      {/* `-mb-4` 는 바로 아래 추천 카드와의 간격을 32 → 16px 로 좁힌다. 제목과
+          그 제목이 가리키는 상자는 한 덩어리로 읽혀야 하는데, 바깥 `gap-8` 이
+          아래 카드들 사이 간격과 똑같이 벌려 놓아 제목이 혼자 떠 보였다
+          (팀장 지시, 2026-08-18). 카드끼리의 간격은 그대로 32px 이다. */}
+      <h1 ref={headingRef} tabIndex={-1} className="font-extrabold text-center focus-visible:outline-none -mb-4" style={{ fontSize: "calc(2rem * var(--font-scale))" }}>
         이렇게 하시면 어떨까요?
       </h1>
 
@@ -284,14 +289,19 @@ export function RecommendScreen({ recView, environmentId, isHighContrast, onChoo
         </ul>
       </section>
 
-      <div className="flex flex-col sm:flex-row gap-4 w-full mt-4">
+      {/* 이 화면이 가장 급했다. 1280x720 에서 전체 1,607px 인데 「선택하고 최종
+          확인하기」가 1,547px 에 있어서, 대안 목록과 뺀 목록을 다 지나 **맨 아래까지
+          내려야** 다음으로 갈 수 있었다(2026-08-18 실측). 심사위원이 가장 오래 보는
+          화면이고, 스크롤이 어려운 분에게는 그 자체가 벽이다.
+          자세한 것은 `StickyActions.tsx` 주석에 적어 두었다. */}
+      <StickyActions isHighContrast={isHighContrast}>
         <button type="button" onClick={onBackToContext} className="flex-1 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-4 transition-transform hover:scale-[1.02] active:scale-95 duration-200 motion-reduce:transition-none motion-reduce:transform-none" style={{ minHeight: "calc(var(--tap-min) + 8px)", borderRadius: "var(--radius)", backgroundColor: "transparent", color: "var(--color-fg)", border: "2px solid var(--color-fg)", fontSize: "calc(1.2rem * var(--font-scale))", fontWeight: "bold" }}>
           조건 다시 입력하기
         </button>
         <button type="button" onClick={() => recView.recommended && onChoose(recView.recommended)} disabled={!recView.recommended || recView.recommended.blockedReason !== null} className="flex-1 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-4 transition-transform hover:scale-[1.02] active:scale-95 duration-200 motion-reduce:transition-none motion-reduce:transform-none disabled:opacity-50 disabled:hover:scale-100" style={{ minHeight: "calc(var(--tap-min) + 8px)", borderRadius: "var(--radius)", backgroundColor: "var(--color-accent)", color: "var(--color-bg)", fontSize: "calc(1.3rem * var(--font-scale))", fontWeight: "bold" }}>
           선택하고 최종 확인하기
         </button>
-      </div>
+      </StickyActions>
     </main>
   );
 }
