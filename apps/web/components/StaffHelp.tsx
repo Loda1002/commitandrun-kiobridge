@@ -244,7 +244,15 @@ export function StaffHelp({
            **0px 간격으로 맞닿았다**(1280 실측: 둘 다 x=1056, 세로로 18px 겹침).
            손 떨림이 있는 분이 다음으로 가려다 직원을 부르게 되는 자리다.
            가장자리로 붙이면 32px 이 벌어진다. 버튼 자체 크기는 그대로다. */
-        <div className="fixed bottom-12 right-4 sm:right-6 md:right-4 z-40 w-max pointer-events-auto">
+        /* 아래 여백이 `bottom-12`(3rem) 고정이 아니라 변수인 이유. 최종 확인
+           화면은 승인 버튼 줄을 화면 아래에 고정해 두는데(`ConfirmScreen.tsx`),
+           3rem 이면 그 줄과 세로로 겹쳐 승인 버튼 오른쪽을 이 버튼이 덮는다.
+           그 화면에 있는 동안만 `--staff-bottom` 이 버튼 줄 위로 올려 주고,
+           나머지 화면에서는 값이 없어 기본 3rem 그대로다. */
+        <div
+          className="fixed right-4 sm:right-6 md:right-4 z-40 w-max pointer-events-auto"
+          style={{ bottom: "var(--staff-bottom, 3rem)" }}
+        >
           <button
             type="button"
             ref={triggerRef}

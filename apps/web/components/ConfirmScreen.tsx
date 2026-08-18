@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import type { EnvironmentId } from "@commitandrun/engine";
+import { subjectParticle } from "@commitandrun/engine/domain";
 import { environmentCopy, fixtureFor } from "../lib/fixture";
 import type { CandidateView, OptionSelection } from "../lib/types";
 
@@ -18,6 +19,38 @@ export function ConfirmScreen({ candidate, selections, environmentId, isHighCont
   // [접근성 2-1] h1 포커스 이동
   const headingRef = useRef<HTMLHeadingElement>(null);
   useEffect(() => { headingRef.current?.focus(); }, []);
+
+  /*
+   * 승인 버튼 줄을 화면 아래에 붙여 두기 위한 높이 측정.
+   *
+   * 왜 필요한가. 이 화면은 「달라지는 부분」 상자(120px)까지 뜨면 1280x720 에서
+   * 842px 이 되어 「이대로 진행할게요」가 화면 밖으로 나갔다. 최종 승인 버튼이
+   * 안 보이는 것은 어떤 설명보다 나쁘다. 픽셀 예산을 다시 맞추는 대신 버튼 줄을
+   * `sticky bottom-0` 으로 고정해 문제 자체를 없앤다 — 내용이 길어져도 승인은
+   * 항상 손 닿는 곳에 있다.
+   *
+   * 그런데 그 자리가 이미 차 있다. 직원 호출 버튼이 `bottom: 3rem` 에 떠 있어서
+   * (`StaffHelp.tsx`) 고정한 버튼 줄과 세로로 겹친다. 덱 8쪽에 「직원 호출은 항상
+   * 아래에」라고 적어 둔 이상 그 버튼을 가릴 수는 없으므로, 이 화면에 있는 동안만
+   * `--staff-bottom` 을 버튼 줄 위로 올려 둔다. 나가면 되돌린다.
+   *
+   * 높이를 상수로 적지 않고 재는 이유는 큰 글씨 3단계 때문이다. 배율을 올리면
+   * 버튼 줄이 같이 커져서, 고정값으로 잡아 두면 1.5배에서 다시 겹친다.
+   */
+  const actionsRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = actionsRef.current;
+    if (!el) return;
+    const root = document.documentElement;
+    const apply = () => root.style.setProperty("--staff-bottom", `${el.offsetHeight + 12}px`);
+    apply();
+    const observer = new ResizeObserver(apply);
+    observer.observe(el);
+    return () => {
+      observer.disconnect();
+      root.style.removeProperty("--staff-bottom");
+    };
+  }, []);
 
   const changed = selections.filter((s) => s.userAnswer !== null && s.userAnswer !== s.optionId);
   const copy = environmentCopy(environmentId);
@@ -127,7 +160,7 @@ export function ConfirmScreen({ candidate, selections, environmentId, isHighCont
             <ul className="flex flex-col gap-1 list-disc pl-5">
               {changed.map((selection) => (
                 <li key={selection.groupId}>
-                  {selection.label}: 「{selection.userAnswerLabel}」 대신 <strong>「{selection.optionLabel}」</strong>로 나갑니다. 이 {copy.noun}에는 「{selection.userAnswerLabel}」이 없습니다.
+                  {selection.label}: 「{selection.userAnswerLabel}」 대신 <strong>「{selection.optionLabel}」</strong>로 나갑니다. 이 {copy.noun}에는 「{selection.userAnswerLabel}」{subjectParticle(selection.userAnswerLabel ?? "")} 없습니다.
                 </li>
               ))}
             </ul>
@@ -140,7 +173,11 @@ export function ConfirmScreen({ candidate, selections, environmentId, isHighCont
         </div>
       </section>
 
-      <div className="flex flex-col sm:flex-row gap-4 w-full mt-2">
+      <div
+        ref={actionsRef}
+        className="flex flex-col sm:flex-row gap-4 w-full sticky bottom-0 z-30 pt-4 pb-3 border-t-2"
+        style={{ backgroundColor: "var(--color-bg)", borderColor: "var(--color-fg)" }}
+      >
         <button type="button" onClick={onBackToContext} className="flex-1 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-4 transition-transform hover:scale-[1.02] active:scale-95 duration-200 motion-reduce:transition-none motion-reduce:transform-none" style={{ minHeight: "calc(var(--tap-min) + 8px)", borderRadius: "var(--radius)", backgroundColor: "transparent", color: "var(--color-fg)", border: "2px solid var(--color-fg)", fontSize: "calc(1.2rem * var(--font-scale))", fontWeight: "bold" }}>
           다시 고를게요
         </button>
