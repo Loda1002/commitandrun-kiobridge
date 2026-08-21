@@ -125,10 +125,19 @@ body {
   --scroll-thumb: #6b7280;
   --scroll-thumb-hover: #374151;
 }
+/*
+  ⚠️ 고대비에서 손잡이 hover 는 **순백(#ffffff)이면 안 됩니다.** 제출 README 의
+  접근성 항목이 「고대비에서 순백으로 칠한 면 0px² — 채우는 곳은 노란색이고
+  마우스를 올려도 하얗게 채우지 않습니다」라고 신고돼 있는데, 여기가 #ffffff 라
+  마우스를 올리는 순간 그 문장이 거짓이 됐습니다(2026-08-20 확인).
+
+  그래서 hover 를 더 밝은 노랑으로 바꿉니다. 손잡이(#ffe600)보다 밝아서 hover
+  신호는 남고, 검은 트랙(#1a1a1a) 위에서 여전히 잘 보이며, 순백은 아닙니다.
+*/
 :root[data-contrast="high"] {
   --scroll-track: #1a1a1a;
   --scroll-thumb: var(--color-accent);
-  --scroll-thumb-hover: #ffffff;
+  --scroll-thumb-hover: #ffee66;
 }
 
 /*
