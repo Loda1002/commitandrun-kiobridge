@@ -104,9 +104,9 @@ hospital 7 · public-office 6).
 
 | | 담당 |
 | --- | --- |
-| @Loda1002 (팀장) | PM · 엔진 설계 · 프런트 통합 · BFF · 제출 패키징 · 배포 |
-| @lde451 | `packages/engine` — 필터·랭킹·설명·대안, 3도메인 어댑터, 시나리오 테스트 |
-| @NyoungF | 웹 앱 — 접근성, 안전 리포트, 시뮬레이션 재생 |
+| [@Loda1002](https://github.com/Loda1002) (팀장) | PM · 엔진 설계 · 프런트 통합 · BFF · 제출 패키징 · 배포 |
+| [@lde451](https://github.com/lde451) | `packages/engine` — 필터·랭킹·설명·대안, 3도메인 어댑터, 시나리오 테스트 |
+| [@NyoungF](https://github.com/NyoungF) | 웹 앱 — 접근성, 안전 리포트, 시뮬레이션 재생 |
 
 ---
 
