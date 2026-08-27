@@ -1,47 +1,24 @@
-# 커밋앤런 — KioBridge MVP
+# KioBridge — 배리어프리 키오스크 도우미
 
-2026 스타트업 영그라운드 MVP 개발 해커톤 (강동구 청년해냄센터 × blaybus) B트랙
-ITEM 01 **키오브릿지** — 기존 키오스크에 얹어 쓰는 배리어프리 보조 소프트웨어
+기존 키오스크를 **다시 만들지 않고**, 그 위에 얹어 쓰는 보조 서비스입니다.
+고령자·장애인이 키오스크 앞에서 겪는 정보 입력·탐색·이해·선택의 어려움을 줄입니다.
 
-| | |
-| --- | --- |
-| 팀 | 커밋앤런 (3인) |
-| 1차 산출물 마감 | **2026-08-16 (일)** — 이후 업로드 불가 |
-| 파이널데이 | 2026-08-20 (목), 둔촌1동 주민센터 대강당 |
+2026 스타트업 영그라운드 MVP 개발 해커톤 (강동구 청년해냄센터 × blaybus)
+B트랙 ITEM 01 「키오브릿지」 출품작 — 팀 **커밋앤런(COMMITANDRUN)**, 3인 11일.
 
----
-
-## 처음 온 사람이 읽는 순서
-
-1. [`pm/00_BRIEF.md`](pm/00_BRIEF.md) — 대회 구조, 배점, 범위 경계
-2. [`pm/01_SPEC.md`](pm/01_SPEC.md) — 3환경 계약·데이터·금지사항 **(가장 중요)**
-3. [`CLAUDE.md`](CLAUDE.md) — 절대 금지 항목과 작업 규칙
-4. [`pm/05_FRONTEND_BRIEF.md`](pm/05_FRONTEND_BRIEF.md) — 프런트 2인 작업지시서
-5. [`pm/02_PLAN.md`](pm/02_PLAN.md) — 일정·역할·아키텍처
-
-## 문서 구조 — 4층
-
-갱신 주기가 다른 정보를 층으로 나눠 관리한다. 위층이 아래층을 이긴다.
-
-| 층 | 파일 | 무엇 | 얼마나 자주 바뀌나 |
-| --- | --- | --- | --- |
-| 1 규칙 | `CLAUDE.md` | 금지사항·승인·작업규칙 | 거의 안 바뀜 |
-| 2 사실 | `pm/00_BRIEF` · `pm/01_SPEC` | 배점·계약·데이터 | 새 정보 오면 개정 |
-| 3 계획 | `pm/02_PLAN` · `pm/05_FRONTEND_BRIEF` | 언제 누가 무엇을 | 상황 따라 |
-| 4 상태 | `pm/03_QUESTIONS` · `04_BACKLOG` · `99_HANDOFF` | 지금 어디까지 | 계속 |
-
-왜 이렇게 나눴는지는 [`pm/06_GUIDELINE_REVIEW.md`](pm/06_GUIDELINE_REVIEW.md) 6절에 있다.
-그 문서는 전역 작업 지침을 이 프로젝트 성격과 대조해 무엇을 유지·보강·완화했는지 정리한 진단서다.
+**결과: 우수상.** 차별성 30/30 만점. 다른 팀이 사례 하나에 집중할 때
+엔진 하나로 **닭강정 가게 · 병원 접수 · 관공서 민원** 세 환경을 모두 처리했습니다.
 
 ---
 
-## 우리가 만드는 것
+## 어떻게 동작하나
 
-키오스크를 다시 만드는 것이 **아니다.** 키오스크 앞에서 겪는 정보 입력·탐색·이해·선택의
-어려움을 줄이는 **사용자 접점 서비스**를 만든다.
+사용자가 "포장이요, 매운맛으로, 견과류 알레르기 있어요" 라고 알려주면,
+메뉴를 골라 **추천하고 이유를 설명**합니다. 사용자가 승인하면
+**키오스크를 어떤 순서로 누를지 적은 계획서**를 만듭니다.
 
 ```
-사용자 정보 수집 (방식 자유)
+사용자 정보 수집
   → Canonical Profile + SessionContext 변환
   → 후보 필터링 (하드제약 위반은 제거)
   → 추천 + 이유 + 대안 + 제외 사유
@@ -50,97 +27,86 @@ ITEM 01 **키오브릿지** — 기존 키오스크에 얹어 쓰는 배리어�
   → KioBridge 공식 시뮬레이터에서 검증·재생 → Evidence
 ```
 
-모든 개발·시연·평가는 `SIMULATION_ONLY` / `DIGITAL_TWIN` 에서 이뤄진다.
-실제 키오스크·결제·병원 접수·민원 신청은 **하지 않는다.**
+계획서는 **좌표나 버튼 ID가 아니라 의미**로 적습니다.
+`(320, 480) 클릭` 이 아니라 `select_option: 매운맛` 입니다.
+화면이 바뀌어도 계획이 깨지지 않고, 사람이 읽고 검토할 수 있습니다.
 
----
+### 하지 않는 것
 
-## 현재 상태
+세 가지는 **설계상 하지 않습니다.** 못 하는 게 아니라 안 합니다.
 
-| 항목 | 상태 |
+| 환경 | 넘지 않는 선 |
 | --- | --- |
-| chicken-store 골든 시나리오 | ✅ SIMULATION PASS (10 actions) |
-| hospital 골든 시나리오 | ✅ SIMULATION PASS (7 actions) |
-| public-office 골든 시나리오 | ✅ SIMULATION PASS (6 actions) |
-| 웹 앱 | ⬜ 개발 예정 |
-| BFF API | ⬜ 개발 예정 |
-| 추천 엔진 패키지 | ⬜ 개발 예정 |
-| 배포 | ⬜ **최대 리스크** |
+| 공통 | **결제**. 장바구니 확인까지가 끝입니다 |
+| 병원 | 증상으로 진료과를 **추론하지 않습니다**. 접수 경로 안내까지입니다 |
+| 관공서 | 법적 자격·수급 여부를 **판단하지 않습니다**. 필요한 서류와 절차 안내까지입니다 |
 
-검증된 제출물 3종:
-`kit/workspace/COMMITANDRUN/output/`
+모든 실행은 `SIMULATION_ONLY` / `DIGITAL_TWIN` 에서만 일어납니다.
+실제 키오스크·결제·병원 접수·민원 신청은 하지 않습니다.
+
+### 로그인이 없습니다
+
+로그인을 이용 조건으로 두면 그 자체가 배리어입니다.
+개인정보를 받지 않아서 보호할 계정이 없고, 브라우저에 남는 것은
+글자 크기·고대비 설정뿐이며 화면에서 바로 지울 수 있습니다.
 
 ---
 
-## 로컬 실행
+## 구조
 
-**Node 22 필요.** `node -v` 가 `v22.` 로 시작해야 한다.
+| 폴더 | 무엇 |
+| --- | --- |
+| `packages/engine` | 추천 엔진. 필터·랭킹·설명·대안·안전 규칙. 순수 함수, 의존성 없음 |
+| `apps/web` | 사용자 화면 (Next.js). 엔진을 **브라우저에서 직접** 실행합니다 |
+| `apps/bff` | 시뮬레이션 API 중계 서버 (Fastify) |
+| `kit/workspace/COMMITANDRUN` | 공식 시뮬레이션 키트에 물리는 참가팀 어댑터와 제출본 |
 
-### 처음 받았을 때 — 키트 압축 해제부터
+`apps/web` 은 `@commitandrun/engine` 별칭으로 `packages/engine` 을 직접 참조합니다.
+두 폴더는 같은 상대 위치에 함께 있어야 빌드됩니다.
 
-**시뮬레이션 키트는 리포에 없다.** `.gitignore` 의 `kit/*` 로 제외되어 있고,
-클론하면 `kit/workspace/COMMITANDRUN/` 만 들어온다.
-**이 단계를 건너뛰고 `npm ci` 를 하면 `package.json` 이 없어서 실패한다.**
+---
 
-배포 ZIP은 리포에 들어 있으므로 각자 자기 컴퓨터에서 풀면 된다 (PowerShell):
+## 실행
 
-```powershell
-Expand-Archive -Path .\KioBridge_RC4\kiobridge-simulation-kit-v5.1.6-participant-RC4.zip -DestinationPath .\_kit_tmp -Force
-Copy-Item -Path .\_kit_tmp\kiobridge-simulation-kit-v5.1.6\* -Destination .\kit\ -Recurse -Force
-Remove-Item .\_kit_tmp -Recurse -Force
+**Node 22 필요.**
+
+### 웹 앱만 — 키트 없이 됩니다
+
+```bash
+cd apps/web
+npm ci
+npm run dev      # http://localhost:3000
 ```
 
-ZIP 안의 `workspace/` 에는 `.gitkeep` 과 `README.md` 뿐이라
-우리 `kit/workspace/COMMITANDRUN/` 을 덮어쓰지 않는다.
+세 환경의 데이터가 `apps/web/lib/fixtures/` 에 들어 있고 엔진이 브라우저에서
+돌기 때문에, 서버 없이 전 흐름을 볼 수 있습니다.
 
-확인: `kit/package.json` 과 `kit/workspace/COMMITANDRUN/src/participant.ts` 가 둘 다 있어야 한다.
+### 제출본 검증까지 — 키트가 필요합니다
 
-### 그다음
+`kit/workspace/COMMITANDRUN` 은 **KioBridge 시뮬레이션 키트** 위에서 돕니다.
+키트는 참가팀에게 배포된 자료라 이 리포에 포함하지 않았습니다.
+필요하시면 창업팀에 문의하십시오.
+
+키트를 `kit/` 에 풀고 나면:
 
 ```bash
 cd kit
-npm ci               # 235 packages, 약 10초
-npm run dev          # web :3000 · api :4000
+npm ci
+npm run participant:validate -- --team COMMITANDRUN --file ./workspace/COMMITANDRUN/output/participant-submission.json --execute
 ```
 
-제출물 검증:
-
-```bash
-npm run participant:validate -- --file ./workspace/COMMITANDRUN/output/participant-submission.json --execute
-```
-
-구현 진척 확인 (x/9):
-
-```bash
-npm run participant:progress -- --team COMMITANDRUN
-```
-
-> 5.1.4 에서 Windows 버그로 실패하던 `participant:doctor` 와 `participant:progress` 는
-> **v5.1.6 RC4 에서 고쳐졌다** (08-08 실측 — `doctor` 오탐 0건, 무결성 222개 PASS).
-> 근거는 [`pm/99_HANDOFF.md`](pm/99_HANDOFF.md) 6절.
+세 환경 모두 `SIMULATION PASS` 입니다 (chicken-store 10 actions ·
+hospital 7 · public-office 6).
 
 ---
 
-## 역할
+## 팀
 
 | | 담당 |
 | --- | --- |
-| 팀장 | BFF, simulation-api 연동, 제출 패키징, 배포 인프라 |
+| @Loda1002 (팀장) | PM · 엔진 설계 · 프런트 통합 · BFF · 제출 패키징 · 배포 |
 | @lde451 | `packages/engine` — 필터·랭킹·설명·대안, 3도메인 어댑터, 시나리오 테스트 |
-| @NyoungF | 웹 앱 전체 — 접근성, 안전 리포트, 시뮬레이션 재생, 발표자료 |
-
----
-
-## 브랜치
-
-```
-main          보호. 직접 커밋 금지
-feat/engine-* @lde451
-feat/web-*    @NyoungF
-feat/api-*    팀장
-```
-
-커밋 메시지: Conventional Commits (`feat:` `fix:` `docs:` `test:` `chore:`)
+| @NyoungF | 웹 앱 — 접근성, 안전 리포트, 시뮬레이션 재생 |
 
 ---
 
@@ -151,11 +117,9 @@ feat/api-*    팀장
 해커톤 신청 시 제출한 동의서에 따른 것입니다. 커밋앤런 세 명은 결과물 제작에
 기여한 것으로 인정되지만, 결과물에 대한 별도의 저작권이나 지분은 주장하지 않습니다.
 
-그래서 이 리포에는 **오픈소스 라이선스를 붙이지 않는다.** 라이선스는 저작권자가 주는
-이용허락인데, 우리는 저작권자가 아니라 줄 권리 자체가 없다. 같은 이유로 **공개 여부도
-우리가 정하는 것이 아니다** — 온라인 공개는 저작권에 속하는 행위라 창업팀 확인을 받고
-정한다.
+그래서 이 리포에는 **오픈소스 라이선스를 붙이지 않았습니다.** 라이선스는 저작권자가
+주는 이용허락인데, 우리는 저작권자가 아니라 줄 권리 자체가 없습니다.
+이 코드를 가져다 쓰시려면 창업팀에 문의하십시오.
 
-이 리포에 함께 들어 있는 KioBridge 시뮬레이션 키트·해커톤 브리핑·요구사항 문서·
-창업팀 Q&A 회신은 **참가팀 배포 자료**이며 우리 저작물이 아니다. 키트가 필요하면
-창업팀에서 직접 받아야 한다.
+KioBridge 시뮬레이션 키트, 해커톤 브리핑·요구사항 문서, 창업팀 Q&A 회신은
+**참가팀 배포 자료**라 이 리포에 포함하지 않았습니다.
